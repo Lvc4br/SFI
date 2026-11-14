@@ -52,10 +52,10 @@ async def list_transaction_page(
     transaction_type: str | None = Query(default=None, pattern="^(income|expense)$"),
     start_at: datetime | None = None,
     end_at: datetime | None = None,
-    min_amount: Decimal | None = Query(default=None, gt=0),
-    max_amount: Decimal | None = Query(default=None, gt=0),
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    min_amount: Decimal | None = Query(default=None, gt=0),  # noqa: B008
+    max_amount: Decimal | None = Query(default=None, gt=0),  # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ):
     if start_at is not None and (start_at.tzinfo is None or start_at.utcoffset() is None):
         raise HTTPException(status_code=422, detail="start_at precisa conter fuso horário.")

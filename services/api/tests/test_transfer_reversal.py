@@ -118,7 +118,10 @@ def test_transfer_reversal_compensates_both_accounts_atomically(client):
 def test_transfer_legs_and_reversal_legs_cannot_be_reversed_individually(client):
     registered = client.post(
         "/api/v1/auth/register",
-        json={"email": "transfer-no-single-reversal@example.com", "password": "senha-forte-teste-123"},
+        json={
+            "email": "transfer-no-single-reversal@example.com",
+            "password": "senha-forte-teste-123",
+        },
     )
     headers = {"Authorization": f"Bearer {registered.json()['access_token']}"}
     source = client.post(

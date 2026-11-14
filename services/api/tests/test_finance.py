@@ -390,14 +390,23 @@ def test_transfer_rejects_foreign_accounts_and_duplicate_keys(client):
         "description": "Teste",
         "idempotency_key": "transfer-owner-key-001",
     }
-    assert client.post("/api/v1/finance/transfers", headers=headers, json=payload).status_code == 404
+    foreign_transfer = client.post(
+        "/api/v1/finance/transfers", headers=headers, json=payload
+    )
+    assert foreign_transfer.status_code == 404
     own_destination = client.post(
         "/api/v1/finance/accounts", headers=headers,
         json={"name": "Destino", "account_type": "checking"},
     )
     payload["destination_account_id"] = own_destination.json()["id"]
-    assert client.post("/api/v1/finance/transfers", headers=headers, json=payload).status_code == 201
-    assert client.post("/api/v1/finance/transfers", headers=headers, json=payload).status_code == 409
+    first_transfer = client.post(
+        "/api/v1/finance/transfers", headers=headers, json=payload
+    )
+    assert first_transfer.status_code == 201
+    duplicate_transfer = client.post(
+        "/api/v1/finance/transfers", headers=headers, json=payload
+    )
+    assert duplicate_transfer.status_code == 409
 
 
 def test_transaction_reversal_is_compensating_and_cannot_be_repeated(client):

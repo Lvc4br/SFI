@@ -42,7 +42,7 @@ def test_complete_web_financial_journey() -> None:
             assert not unnamed_controls, unnamed_controls
 
             page.get_by_role("button", name="Configurações").click()
-            expect(page.get_by_text("Conta criada")).to_be_visible()
+            expect(page.locator(".security-event-list").get_by_text("Conta criada")).to_be_visible()
             page.get_by_label("Fuso horário IANA").fill("America/Sao_Paulo")
             page.get_by_role("button", name="Salvar fuso horário").click()
             expect(

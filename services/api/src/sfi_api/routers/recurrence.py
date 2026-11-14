@@ -137,6 +137,15 @@ async def create_recurrence(
                 detail="O tipo da categoria não corresponde ao tipo da recorrência.",
             )
 
+    existing = await session.scalar(
+        select(Recurrence).where(
+            Recurrence.user_id == user.id,
+            Recurrence.idempotency_key == payload.idempotency_key,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="Esta chave de idempotência já foi utilizada.")
+
     recurrence = Recurrence(
         user_id=user.id,
         account_id=account.id,
@@ -145,6 +154,7 @@ async def create_recurrence(
         amount=payload.amount,
         currency=account.currency,
         description=payload.description,
+        idempotency_key=payload.idempotency_key,
         frequency=payload.frequency,
         interval_count=payload.interval_count,
         start_date=payload.start_date,

@@ -49,14 +49,14 @@ async def create_account(
 
 @router.get("/accounts", response_model=list[AccountResponse])
 async def list_accounts(
+    include_archived: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[AccountResponse]:
-    result = await session.scalars(
-        select(Account)
-        .where(Account.user_id == user.id, Account.archived_at.is_(None))
-        .order_by(Account.created_at.desc())
-    )
+    query = select(Account).where(Account.user_id == user.id)
+    if not include_archived:
+        query = query.where(Account.archived_at.is_(None))
+    result = await session.scalars(query.order_by(Account.created_at.desc()))
     return [AccountResponse.model_validate(item) for item in result.all()]
 
 
@@ -226,10 +226,13 @@ async def create_category(
 @router.get("/categories", response_model=list[CategoryResponse])
 async def list_categories(
     category_type: str | None = Query(default=None, pattern="^(income|expense)$"),
+    include_archived: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[CategoryResponse]:
-    query = select(Category).where(Category.user_id == user.id, Category.archived_at.is_(None))
+    query = select(Category).where(Category.user_id == user.id)
+    if not include_archived:
+        query = query.where(Category.archived_at.is_(None))
     if category_type:
         query = query.where(Category.category_type == category_type)
     result = await session.scalars(query.order_by(Category.name.asc()))

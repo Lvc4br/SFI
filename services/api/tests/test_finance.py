@@ -461,3 +461,34 @@ def test_reversal_rejects_transactions_owned_by_another_user(client):
         params={"idempotency_key": "reversal-foreign-attempt"},
     )
     assert response.status_code == 404
+
+
+def test_compensating_transaction_cannot_be_reversed_again(client):
+    token = register(client, "double-reversal@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    )
+    original = client.post(
+        "/api/v1/finance/transactions", headers=headers,
+        json={
+            "account_id": account.json()["id"],
+            "transaction_type": "expense",
+            "amount": "15.00",
+            "description": "Despesa original",
+            "idempotency_key": "double-reverse-original-001",
+        },
+    )
+    reversal = client.post(
+        f"/api/v1/finance/transactions/{original.json()['id']}/reverse",
+        headers=headers,
+        params={"idempotency_key": "double-reverse-first-001"},
+    )
+    reversal_id = reversal.json()["reversal_transaction"]["id"]
+    second_reversal = client.post(
+        f"/api/v1/finance/transactions/{reversal_id}/reverse",
+        headers=headers,
+        params={"idempotency_key": "double-reverse-second-001"},
+    )
+    assert second_reversal.status_code == 422

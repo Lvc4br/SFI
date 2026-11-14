@@ -26,7 +26,6 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_accounts_user_id_users", ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("id", "user_id", name="uq_accounts_id_user"),
-        sa.CheckConstraint("opening_balance >= 0", name="ck_accounts_opening_balance_nonnegative"),
     )
     op.create_index("ix_accounts_user_created", "accounts", ["user_id", "created_at"])
 

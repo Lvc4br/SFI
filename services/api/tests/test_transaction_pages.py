@@ -158,3 +158,49 @@ def test_transaction_page_handles_large_dataset_without_duplicates_or_gaps(clien
 
     assert len(collected) == 65
     assert len(set(collected)) == 65
+
+
+def test_calendar_date_filters_use_the_users_timezone(client):
+    headers = _register(client, "date-filter-timezone@example.com")
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    ).json()
+    created = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "transaction_type": "expense",
+            "amount": "5.00",
+            "description": "Instante próximo à meia-noite",
+            "occurred_at": "2026-11-01T02:00:00+00:00",
+            "idempotency_key": "date-filter-timezone-0001",
+        },
+    )
+    assert created.status_code == 201
+
+    local_october = client.get(
+        "/api/v1/finance/transactions/page?start_date=2026-10-31&end_date=2026-10-31",
+        headers=headers,
+    )
+    local_november = client.get(
+        "/api/v1/finance/transactions/page?start_date=2026-11-01&end_date=2026-11-01",
+        headers=headers,
+    )
+    assert local_october.json()["total"] == 1
+    assert local_november.json()["total"] == 0
+
+    token = headers["Authorization"].removeprefix("Bearer ")
+    changed = client.patch(
+        "/api/v1/auth/me/timezone",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"timezone": "UTC"},
+    )
+    assert changed.status_code == 200
+    utc_november = client.get(
+        "/api/v1/finance/transactions/page?start_date=2026-11-01&end_date=2026-11-01",
+        headers=headers,
+    )
+    assert utc_november.json()["total"] == 1

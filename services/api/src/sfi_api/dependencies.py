@@ -48,7 +48,7 @@ async def get_current_user(
         )
 
     user = await session.get(User, user_id)
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or payload["ver"] != user.token_version:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuário inválido ou inativo.",

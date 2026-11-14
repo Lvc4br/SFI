@@ -193,3 +193,89 @@ def test_logout_does_not_revoke_another_users_refresh_family(client):
     assert second_refresh.status_code == 200
 
 
+
+
+def test_change_password_invalidates_all_access_and_refresh_tokens(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "change-password@example.com", "password": "senha-original-123"},
+    ).json()
+    second_session = client.post(
+        "/api/v1/auth/login",
+        json={"email": "change-password@example.com", "password": "senha-original-123"},
+    ).json()
+
+    changed = client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {registered['access_token']}"},
+        json={
+            "current_password": "senha-original-123",
+            "new_password": "senha-nova-e-segura-456",
+        },
+    )
+    assert changed.status_code == 204
+
+    for token in (registered["access_token"], second_session["access_token"]):
+        assert client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        ).status_code == 401
+
+    for token in (registered["refresh_token"], second_session["refresh_token"]):
+        assert client.post("/api/v1/auth/refresh", json={"refresh_token": token}).status_code == 401
+
+    assert client.post(
+        "/api/v1/auth/login",
+        json={"email": "change-password@example.com", "password": "senha-original-123"},
+    ).status_code == 401
+    assert client.post(
+        "/api/v1/auth/login",
+        json={"email": "change-password@example.com", "password": "senha-nova-e-segura-456"},
+    ).status_code == 200
+
+
+def test_change_password_rejects_wrong_current_password(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "wrong-current@example.com", "password": "senha-original-123"},
+    ).json()
+    response = client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {registered['access_token']}"},
+        json={
+            "current_password": "senha-incorreta",
+            "new_password": "senha-nova-e-segura-456",
+        },
+    )
+    assert response.status_code == 401
+
+
+def test_logout_all_revokes_every_session_for_the_user(client):
+    first = client.post(
+        "/api/v1/auth/register",
+        json={"email": "logout-all@example.com", "password": "senha-original-123"},
+    ).json()
+    second = client.post(
+        "/api/v1/auth/login",
+        json={"email": "logout-all@example.com", "password": "senha-original-123"},
+    ).json()
+
+    response = client.post(
+        "/api/v1/auth/logout-all",
+        headers={"Authorization": f"Bearer {first['access_token']}"},
+    )
+    assert response.status_code == 204
+
+    for token in (first["access_token"], second["access_token"]):
+        assert client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        ).status_code == 401
+
+    for token in (first["refresh_token"], second["refresh_token"]):
+        assert client.post("/api/v1/auth/refresh", json={"refresh_token": token}).status_code == 401
+
+    assert client.post(
+        "/api/v1/auth/login",
+        json={"email": "logout-all@example.com", "password": "senha-original-123"},
+    ).status_code == 200

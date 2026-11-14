@@ -16,6 +16,7 @@ from sfi_api.models.refresh_token import RefreshToken
 from sfi_api.models.revoked_access_token import RevokedAccessToken
 from sfi_api.models.user import User
 from sfi_api.schemas.auth import (
+    ChangePasswordRequest,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
@@ -52,7 +53,7 @@ async def _token_response(
     session: AsyncSession,
     family_id: uuid.UUID | None = None,
 ) -> TokenResponse:
-    access_token, expires_in = create_access_token(str(user.id))
+    access_token, expires_in = create_access_token(str(user.id), user.token_version)
     refresh_token = _new_refresh_token()
     session.add(
         RefreshToken(
@@ -164,7 +165,7 @@ async def refresh(
             expires_at=_refresh_expiration(),
         )
     )
-    access_token, expires_in = create_access_token(str(user.id))
+    access_token, expires_in = create_access_token(str(user.id), user.token_version)
     await session.commit()
     return TokenResponse(
         access_token=access_token,
@@ -228,3 +229,51 @@ async def logout(
             status_code=status.HTTP_409_CONFLICT,
             detail="Este token já foi revogado.",
         ) from None
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    payload: ChangePasswordRequest,
+    user: User = Depends(get_current_user),  # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> None:
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Senha atual incorreta.",
+        )
+    if verify_password(payload.new_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A nova senha deve ser diferente da senha atual.",
+        )
+
+    now = datetime.now(UTC)
+    user.password_hash = hash_password(payload.new_password)
+    user.token_version += 1
+    await session.execute(
+        update(RefreshToken)
+        .where(
+            RefreshToken.user_id == user.id,
+            RefreshToken.revoked_at.is_(None),
+        )
+        .values(revoked_at=now)
+    )
+    await session.commit()
+
+
+@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
+async def logout_all(
+    user: User = Depends(get_current_user),  # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> None:
+    user.token_version += 1
+    await session.execute(
+        update(RefreshToken)
+        .where(
+            RefreshToken.user_id == user.id,
+            RefreshToken.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(UTC))
+    )
+    await session.commit()

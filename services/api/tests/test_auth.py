@@ -321,6 +321,31 @@ def test_web_refresh_cookie_is_httponly_and_refresh_requires_csrf(client):
     assert client.get("/api/v1/auth/me", headers=access_headers).status_code == 401
 
 
+def test_security_event_history_is_user_scoped_and_minimized(client):
+    first = client.post(
+        "/api/v1/auth/register",
+        json={"email": "audit-first@example.com", "password": "uma-senha-forte-123"},
+    ).json()
+    failed = client.post(
+        "/api/v1/auth/login",
+        json={"email": "audit-first@example.com", "password": "senha-incorreta"},
+    )
+    assert failed.status_code == 401
+
+    second = client.post(
+        "/api/v1/auth/register",
+        json={"email": "audit-second@example.com", "password": "uma-senha-forte-123"},
+    ).json()
+    events = client.get(
+        "/api/v1/auth/security-events",
+        headers={"Authorization": f"Bearer {second['access_token']}"},
+    )
+    assert events.status_code == 200
+    assert events.json()
+    assert all(event["event_type"] == "account_registered" for event in events.json())
+    assert all(set(event) == {"id", "event_type", "created_at"} for event in events.json())
+
+
 def test_web_logout_requires_csrf_header(client):
     registered = client.post(
         "/api/v1/auth/register",

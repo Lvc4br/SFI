@@ -95,3 +95,30 @@ class Transaction(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class Budget(Base):
+    __tablename__ = "budgets"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["category_id", "user_id"],
+            ["categories.id", "categories.user_id"],
+            name="fk_budgets_category_owner",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("user_id", "category_id", "period", "currency", name="uq_budgets_user_category_period_currency"),
+        CheckConstraint("limit_amount > 0", name="ck_budgets_limit_positive"),
+        Index("ix_budgets_user_period", "user_id", "period"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    category_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    period: Mapped[str] = mapped_column(String(7), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="BRL", nullable=False)
+    limit_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

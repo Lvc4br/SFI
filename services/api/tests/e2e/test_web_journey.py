@@ -29,6 +29,15 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_role("heading", name="Visão geral")).to_be_visible()
             expect(page.get_by_text(email)).to_be_visible()
 
+            page.get_by_role("button", name="Configurações").click()
+            page.get_by_label("Fuso horário IANA").fill("America/Sao_Paulo")
+            page.get_by_role("button", name="Salvar fuso horário").click()
+            expect(
+                page.get_by_text(
+                    "Fuso horário atualizado. Os períodos financeiros serão calculados nesse fuso."
+                )
+            ).to_be_visible()
+
             page.get_by_role("button", name="Contas e categorias").click()
             account_form = page.locator("form").filter(
                 has=page.get_by_placeholder("Ex.: Conta principal")

@@ -56,3 +56,8 @@ button,input,select{font-family:inherit}
 .app-shell[data-theme="dark"] .money-input-wrap input::placeholder{color:#718078}
 @media(max-width:760px){.theme-toggle{padding:0 9px}.theme-toggle-label{display:none}.page-header h1{font-size:24px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+
+/* Prevent a light flash before React hydrates the saved theme */
+html[data-theme="dark"],html[data-theme="dark"] body{background:#101a14;color:#edf4ee;color-scheme:dark}
+html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:#17251e;color-scheme:light}

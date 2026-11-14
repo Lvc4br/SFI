@@ -1,4 +1,4 @@
-.\scripts\backup-integrity.ps1
+. .\scripts\backup-integrity.ps1
 $ErrorActionPreference = "Stop"
 
 $testRoot = Join-Path $env:TEMP ("sfi-backup-integrity-" + [guid]::NewGuid().ToString("N"))

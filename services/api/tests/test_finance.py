@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -78,7 +78,7 @@ def test_account_category_and_transaction_flow(client):
             "transaction_type": "expense",
             "amount": "125.90",
             "description": "Conta de energia",
-            "occurred_at": datetime.now(timezone.utc).isoformat(),
+            "occurred_at": datetime.now(UTC).isoformat(),
             "idempotency_key": "finance-test-key-0001",
         },
     )
@@ -135,8 +135,10 @@ def test_transactions_reject_duplicate_idempotency_key(client):
         "description": "Pagamento",
         "idempotency_key": "same-key-finance-0001",
     }
-    assert client.post("/api/v1/finance/transactions", headers=headers, json=payload).status_code == 201
-    assert client.post("/api/v1/finance/transactions", headers=headers, json=payload).status_code == 409
+    first = client.post("/api/v1/finance/transactions", headers=headers, json=payload)
+    second = client.post("/api/v1/finance/transactions", headers=headers, json=payload)
+    assert first.status_code == 201
+    assert second.status_code == 409
 
 
 def test_transactions_are_append_only(client):

@@ -165,7 +165,7 @@ async def refresh(
             expires_at=_refresh_expiration(),
         )
     )
-    access_token, expires_in = create_access_token(str(user.id))
+    access_token, expires_in = create_access_token(str(user.id), user.token_version)
     await session.commit()
     return TokenResponse(
         access_token=access_token,

@@ -565,3 +565,94 @@ def test_reversed_expense_is_removed_from_budget_and_category_spending(client):
     )
     assert summary.status_code == 200
     assert summary.json()["spending_by_category"] == []
+
+
+def test_accounts_and_categories_can_be_renamed_and_archived_without_deleting_history(client):
+    token = register(client, "archive-finance@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta original", "account_type": "checking"},
+    ).json()
+    category = client.post(
+        "/api/v1/finance/categories",
+        headers=headers,
+        json={"name": "Categoria original", "category_type": "expense"},
+    ).json()
+
+    renamed_account = client.patch(
+        f"/api/v1/finance/accounts/{account['id']}",
+        headers=headers,
+        json={"name": "Conta renomeada"},
+    )
+    assert renamed_account.status_code == 200
+    assert renamed_account.json()["name"] == "Conta renomeada"
+
+    renamed_category = client.patch(
+        f"/api/v1/finance/categories/{category['id']}",
+        headers=headers,
+        json={"name": "Categoria renomeada"},
+    )
+    assert renamed_category.status_code == 200
+    assert renamed_category.json()["name"] == "Categoria renomeada"
+
+    archived_category = client.post(
+        f"/api/v1/finance/categories/{category['id']}/archive",
+        headers=headers,
+    )
+    assert archived_category.status_code == 200
+    assert archived_category.json()["archived_at"] is not None
+    assert client.get("/api/v1/finance/categories", headers=headers).json() == []
+
+    archived_category_transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "category_id": category["id"],
+            "transaction_type": "expense",
+            "amount": "1.00",
+            "description": "Categoria arquivada",
+            "idempotency_key": "archived-category-key-01",
+        },
+    )
+    assert archived_category_transaction.status_code == 404
+
+    archived_account = client.post(
+        f"/api/v1/finance/accounts/{account['id']}/archive",
+        headers=headers,
+    )
+    assert archived_account.status_code == 200
+    assert archived_account.json()["archived_at"] is not None
+    assert client.get("/api/v1/finance/accounts", headers=headers).json() == []
+
+    archived_account_transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "transaction_type": "income",
+            "amount": "1.00",
+            "description": "Conta arquivada",
+            "idempotency_key": "archived-account-key-001",
+        },
+    )
+    assert archived_account_transaction.status_code == 404
+
+
+def test_account_with_nonzero_balance_cannot_be_archived(client):
+    token = register(client, "archive-nonzero@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta com saldo", "account_type": "checking", "opening_balance": "10.00"},
+    ).json()
+
+    archived = client.post(
+        f"/api/v1/finance/accounts/{account['id']}/archive",
+        headers=headers,
+    )
+    assert archived.status_code == 409
+    assert "Zere o saldo" in archived.json()["detail"]

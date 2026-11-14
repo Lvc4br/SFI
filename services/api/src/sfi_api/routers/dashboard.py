@@ -32,7 +32,7 @@ async def _account_balance(
     income = func.coalesce(
         func.sum(
             case(
-                (Transaction.transaction_type == "income", Transaction.amount),
+                ((Transaction.transaction_type == "income") & Transaction.transfer_id.is_(None) & Transaction.transfer_reversal_id.is_(None), Transaction.amount),
                 else_=Decimal("0.00"),
             )
         ),
@@ -41,7 +41,7 @@ async def _account_balance(
     expenses = func.coalesce(
         func.sum(
             case(
-                (Transaction.transaction_type == "expense", Transaction.amount),
+                ((Transaction.transaction_type == "expense") & Transaction.transfer_id.is_(None) & Transaction.transfer_reversal_id.is_(None), Transaction.amount),
                 else_=Decimal("0.00"),
             )
         ),
@@ -129,8 +129,6 @@ async def get_finance_summary(
             Transaction.user_id == user.id,
             Transaction.occurred_at >= start,
             Transaction.occurred_at < end,
-            Transaction.transfer_id.is_(None),
-            Transaction.transfer_reversal_id.is_(None),
         )
         .group_by(Transaction.currency)
         .order_by(Transaction.currency)

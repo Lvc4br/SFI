@@ -93,6 +93,7 @@ sfi/
 - [Fase 2.4 — histórico de transferências](docs/PHASE_2_4_TRANSFER_HISTORY.md)
 - [Fase 2.5 — recorrências e projeção de fluxo de caixa](docs/PHASE_2_5_RECURRENCES_FORECAST.md)
 - [Fase 2.6 — estorno pareado de transferências](docs/PHASE_2_6_PAIRED_TRANSFER_REVERSALS.md)
+- [Fase 2.7 — filtros do histórico de movimentações](docs/PHASE_2_7_TRANSACTION_FILTERS.md)
 
 ## Como começar
 
@@ -107,4 +108,4 @@ Pré-requisitos previstos: Git, Python 3.12 ou versão validada, Node.js LTS, pn
 
 ## Status
 
-**Fase 2 — núcleo financeiro em evolução.** A fundação Web/API, autenticação, contas, categorias, movimentações, saldos, resumo financeiro, orçamentos mensais, transferências, histórico paginado, estornos individuais auditáveis, estornos pareados de transferências, recorrências e projeções de fluxo de caixa foram integrados após CI aprovado (Ruff, pytest e build Web). Permanecem pendentes, entre outros, conciliação, importação de extratos, regras completas de cartão, dashboard visual, implantação no Neon e clientes Desktop/Mobile. As migrations ainda não foram aplicadas ao banco Neon. O produto ainda não está pronto para produção.
+**Fase 2 — núcleo financeiro em evolução.** A fundação Web/API, autenticação, contas, categorias, movimentações, saldos, resumo financeiro, orçamentos mensais, transferências, histórico paginado, estornos individuais auditáveis, estornos pareados de transferências, recorrências, projeções de fluxo de caixa e filtros avançados no histórico de movimentações foram integrados após CI aprovado (Ruff, pytest e build Web). Permanecem pendentes, entre outros, conciliação, importação de extratos, regras completas de cartão, dashboard visual, implantação no Neon e clientes Desktop/Mobile. As migrations ainda não foram aplicadas ao banco Neon. O produto ainda não está pronto para produção.

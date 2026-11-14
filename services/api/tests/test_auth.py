@@ -27,9 +27,8 @@ def client(tmp_path, monkeypatch):
             yield session
 
     app.dependency_overrides[get_session] = override_session
-    test_settings = lambda: Settings(
-        jwt_secret_key="test-only-secret-key-with-at-least-32-bytes"
-    )
+    def test_settings() -> Settings:
+        return Settings(jwt_secret_key="test-only-secret-key-with-at-least-32-bytes")
     monkeypatch.setattr("sfi_api.security.get_settings", test_settings)
 
     with TestClient(app) as test_client:

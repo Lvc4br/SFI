@@ -392,9 +392,6 @@ def test_security_event_history_records_authentication_activity(client):
         json={"email": "security-events@example.com", "password": "uma-senha-forte-123"},
     )
     assert registered.status_code == 201
-    token = registered.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
     failed = client.post(
         "/api/v1/auth/login",
         json={"email": "security-events@example.com", "password": "senha-errada"},

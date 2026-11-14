@@ -1,1 +1,13 @@
-{"name":"sfi","private":true,"version":"0.1.0","packageManager":"pnpm@10.20.0","scripts":{"dev:web":"pnpm --filter @sfi/web dev","build:web":"pnpm --filter @sfi/web build"}}
+{
+  "name": "sfi",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.20.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @sfi/web dev",
+    "build:web": "pnpm --filter @sfi/web build",
+    "dev": "pnpm dev:web",
+    "build": "pnpm build:web",
+    "typecheck": "pnpm --filter @sfi/web typecheck"
+  }
+}

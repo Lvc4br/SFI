@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
-from sfi_api.models.finance import Account, Budget, Category, Transaction
+from sfi_api.models.finance import Account, Budget, Category, Transaction, Transfer
 from sfi_api.models.user import User
 from sfi_api.schemas.finance import (
     AccountCreate,
@@ -19,6 +19,9 @@ from sfi_api.schemas.finance import (
     CategoryResponse,
     TransactionCreate,
     TransactionResponse,
+    TransferCreate,
+    TransferResponse,
+    TransactionReversalResponse,
 )
 
 router = APIRouter(prefix="/finance", tags=["finance"])
@@ -260,3 +263,159 @@ async def list_budgets(
         await _budget_response(session, user.id, budget, category)
         for budget, category in result.all()
     ]
+
+
+@router.post("/transfers", response_model=TransferResponse, status_code=status.HTTP_201_CREATED)
+async def create_transfer(
+    payload: TransferCreate,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> TransferResponse:
+    existing = await session.scalar(
+        select(Transfer).where(
+            Transfer.user_id == user.id,
+            Transfer.idempotency_key == payload.idempotency_key,
+        )
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Esta chave de idempotência já foi utilizada.",
+        )
+
+    if payload.source_account_id == payload.destination_account_id:
+        raise HTTPException(status_code=422, detail="As contas de origem e destino devem ser diferentes.")
+
+    accounts = await session.scalars(
+        select(Account).where(
+            Account.user_id == user.id,
+            Account.id.in_([payload.source_account_id, payload.destination_account_id]),
+        )
+    )
+    account_map = {account.id: account for account in accounts.all()}
+    source = account_map.get(payload.source_account_id)
+    destination = account_map.get(payload.destination_account_id)
+    if source is None or destination is None:
+        raise HTTPException(status_code=404, detail="Conta de origem ou destino não encontrada.")
+    if source.currency != destination.currency:
+        raise HTTPException(status_code=422, detail="Transferências entre moedas diferentes não são permitidas.")
+    if source.account_type == "credit" or destination.account_type == "credit":
+        raise HTTPException(
+            status_code=422,
+            detail="Transferências envolvendo cartão de crédito ainda não são suportadas.",
+        )
+
+    transfer = Transfer(
+        user_id=user.id,
+        source_account_id=source.id,
+        destination_account_id=destination.id,
+        amount=payload.amount,
+        currency=source.currency,
+        description=payload.description.strip(),
+        idempotency_key=payload.idempotency_key,
+        occurred_at=payload.occurred_at,
+    )
+    session.add(transfer)
+    await session.flush()
+    session.add_all([
+        Transaction(
+            user_id=user.id,
+            account_id=source.id,
+            category_id=None,
+            transfer_id=transfer.id,
+            transaction_type="expense",
+            amount=payload.amount,
+            currency=source.currency,
+            description=f"Transferência enviada: {payload.description.strip()}",
+            idempotency_key=f"transfer:{transfer.id}:out",
+            occurred_at=payload.occurred_at,
+        ),
+        Transaction(
+            user_id=user.id,
+            account_id=destination.id,
+            category_id=None,
+            transfer_id=transfer.id,
+            transaction_type="income",
+            amount=payload.amount,
+            currency=destination.currency,
+            description=f"Transferência recebida: {payload.description.strip()}",
+            idempotency_key=f"transfer:{transfer.id}:in",
+            occurred_at=payload.occurred_at,
+        ),
+    ])
+    try:
+        await session.commit()
+        await session.refresh(transfer)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Conflito ao registrar transferência; confira a chave de idempotência.",
+        ) from None
+    return TransferResponse.model_validate(transfer)
+
+
+@router.post(
+    "/transactions/{transaction_id}/reverse",
+    response_model=TransactionReversalResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def reverse_transaction(
+    transaction_id: uuid.UUID,
+    idempotency_key: str = Query(min_length=16, max_length=100),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> TransactionReversalResponse:
+    original = await session.scalar(
+        select(Transaction).where(
+            Transaction.id == transaction_id,
+            Transaction.user_id == user.id,
+        )
+    )
+    if original is None:
+        raise HTTPException(status_code=404, detail="Movimentação não encontrada.")
+    if original.transfer_id is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="Movimentações de transferência devem ser estornadas pelo fluxo de transferência.",
+        )
+    existing = await session.scalar(
+        select(Transaction).where(
+            Transaction.user_id == user.id,
+            Transaction.reversal_of_transaction_id == original.id,
+        )
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="Esta movimentação já foi estornada.")
+    duplicate_key = await session.scalar(
+        select(Transaction).where(
+            Transaction.user_id == user.id,
+            Transaction.idempotency_key == idempotency_key,
+        )
+    )
+    if duplicate_key:
+        raise HTTPException(status_code=409, detail="Esta chave de idempotência já foi utilizada.")
+
+    reversal = Transaction(
+        user_id=user.id,
+        account_id=original.account_id,
+        category_id=None,
+        transaction_type="expense" if original.transaction_type == "income" else "income",
+        amount=original.amount,
+        currency=original.currency,
+        description=f"Estorno da movimentação {original.id}",
+        idempotency_key=idempotency_key,
+        occurred_at=datetime.now(UTC),
+        reversal_of_transaction_id=original.id,
+    )
+    session.add(reversal)
+    try:
+        await session.commit()
+        await session.refresh(reversal)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="A movimentação já foi estornada.") from None
+    return TransactionReversalResponse(
+        original_transaction_id=original.id,
+        reversal_transaction=TransactionResponse.model_validate(reversal),
+    )

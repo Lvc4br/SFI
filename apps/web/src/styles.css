@@ -83,3 +83,20 @@ html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:
 .app-shell[data-theme="dark"] .transaction-date-filter input{background:#111c15;color:var(--ink);border-color:#3a4b40}
 @media(max-width:1050px){.transaction-tools{grid-template-columns:repeat(3,minmax(0,1fr))}.transaction-tools>input{grid-column:span 3}}
 @media(max-width:600px){.transaction-tools{grid-template-columns:1fr 1fr}.transaction-tools>input{grid-column:span 2}.transaction-tools .button{grid-column:span 2;width:100%}.pagination-controls{justify-content:space-between;gap:8px}.pagination-controls .button{padding:9px 12px}}
+
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.category-chip {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.category-chip .button,
+.account-actions .button {
+  min-height: 2.25rem;
+  font-size: 0.8rem;
+}

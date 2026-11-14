@@ -504,3 +504,64 @@ def test_compensating_transaction_cannot_be_reversed_again(client):
         params={"idempotency_key": "double-reverse-second-001"},
     )
     assert second_reversal.status_code == 422
+
+
+def test_reversed_expense_is_removed_from_budget_and_category_spending(client):
+    token = register(client, "budget-reversal@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    ).json()
+    category = client.post(
+        "/api/v1/finance/categories",
+        headers=headers,
+        json={"name": "Mercado", "category_type": "expense"},
+    ).json()
+    transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "category_id": category["id"],
+            "transaction_type": "expense",
+            "amount": "125.50",
+            "description": "Compra estornada",
+            "occurred_at": "2026-11-10T12:00:00+00:00",
+            "idempotency_key": "budget-reversal-expense-01",
+        },
+    )
+    assert transaction.status_code == 201
+    budget = client.post(
+        "/api/v1/finance/budgets",
+        headers=headers,
+        json={
+            "category_id": category["id"],
+            "period": "2026-11",
+            "limit_amount": "200.00",
+        },
+    )
+    assert budget.status_code == 201
+    assert budget.json()["spent_amount"] == "125.50"
+
+    reversal = client.post(
+        f"/api/v1/finance/transactions/{transaction.json()['id']}/reverse",
+        headers=headers,
+        params={"idempotency_key": "budget-reversal-key-0001"},
+    )
+    assert reversal.status_code == 201
+
+    updated_budget = client.get(
+        "/api/v1/finance/budgets?period=2026-11", headers=headers
+    )
+    assert updated_budget.status_code == 200
+    assert updated_budget.json()[0]["spent_amount"] == "0.00"
+    assert updated_budget.json()[0]["remaining_amount"] == "200.00"
+
+    summary = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-30",
+        headers=headers,
+    )
+    assert summary.status_code == 200
+    assert summary.json()["spending_by_category"] == []

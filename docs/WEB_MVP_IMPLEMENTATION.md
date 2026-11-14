@@ -37,6 +37,22 @@ A aplicação `apps/web` deixou de ser apenas uma tela de apresentação e passo
 | Orçamentos | `GET/POST /api/v1/finance/budgets` |
 | Dashboard | `GET /api/v1/finance/summary` |
 
+## Validação unificada local
+
+Na raiz do repositório, com a API virtualenv em `services/api/.venv` e as dependências Web instaladas, execute:
+
+```powershell
+.\scripts\validate.ps1
+```
+
+Se precisar instalar as dependências Web a partir do lockfile antes de validar:
+
+```powershell
+.\scripts\validate.ps1 -InstallDependencies
+```
+
+O script executa, em sequência, Ruff, todos os testes da API (SQLite isolado), TypeScript e build Web. Ele não inicia servidores, não executa migrations e não conecta nem modifica o Neon. Essa validação automatizada é a barreira local única; o roteiro manual/E2E ainda precisa ser executado antes de considerar a release candidata validada.
+
 ## Configuração local
 
 1. Na raiz do repositório, execute `pnpm install`.

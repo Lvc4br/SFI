@@ -9,6 +9,7 @@ from sfi_api.routers.auth import router as auth_router
 from sfi_api.routers.dashboard import router as dashboard_router
 from sfi_api.routers.finance import router as finance_router
 from sfi_api.routers.transfer_history import router as transfer_history_router
+from sfi_api.routers.recurrence import router as recurrence_router
 
 settings = get_settings()
 
@@ -42,6 +43,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(finance_router, prefix=settings.api_prefix)
 app.include_router(transfer_history_router, prefix=settings.api_prefix)
+app.include_router(recurrence_router, prefix=settings.api_prefix)
 app.include_router(dashboard_router, prefix=settings.api_prefix)
 
 

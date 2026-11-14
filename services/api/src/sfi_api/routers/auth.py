@@ -1,9 +1,10 @@
 import hashlib
+import hmac
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -48,10 +49,60 @@ def _refresh_expiration() -> datetime:
     return datetime.now(UTC) + timedelta(days=get_settings().refresh_token_days)
 
 
+def _is_web_client(request: Request) -> bool:
+    return request.headers.get("x-sfi-client") == "web"
+
+
+def _cookie_options() -> dict:
+    settings = get_settings()
+    return {
+        "secure": settings.refresh_cookie_secure or settings.environment.lower() == "production",
+        "samesite": settings.refresh_cookie_samesite,
+        "domain": settings.refresh_cookie_domain,
+        "path": f"{settings.api_prefix}/auth",
+    }
+
+
+def _set_auth_cookies(response: Response, refresh_token: str) -> None:
+    settings = get_settings()
+    options = _cookie_options()
+    response.set_cookie(
+        key=settings.refresh_cookie_name,
+        value=refresh_token,
+        httponly=True,
+        max_age=settings.refresh_token_days * 24 * 60 * 60,
+        **options,
+    )
+    response.set_cookie(
+        key=settings.csrf_cookie_name,
+        value=secrets.token_urlsafe(32),
+        httponly=False,
+        max_age=settings.refresh_token_days * 24 * 60 * 60,
+        **options,
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    settings = get_settings()
+    options = _cookie_options()
+    response.delete_cookie(key=settings.refresh_cookie_name, **options)
+    response.delete_cookie(key=settings.csrf_cookie_name, **options)
+
+
+def _require_csrf(request: Request) -> None:
+    settings = get_settings()
+    cookie_token = request.cookies.get(settings.csrf_cookie_name, "")
+    header_token = request.headers.get("x-csrf-token", "")
+    if not cookie_token or not header_token or not hmac.compare_digest(cookie_token, header_token):
+        raise HTTPException(status_code=403, detail="Validação CSRF ausente ou inválida.")
+
+
 async def _token_response(
     user: User,
     session: AsyncSession,
     family_id: uuid.UUID | None = None,
+    response: Response | None = None,
+    include_refresh_token: bool = True,
 ) -> TokenResponse:
     access_token, expires_in = create_access_token(str(user.id), user.token_version)
     refresh_token = _new_refresh_token()
@@ -64,9 +115,11 @@ async def _token_response(
         )
     )
     await session.commit()
+    if response is not None:
+        _set_auth_cookies(response, refresh_token)
     return TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token,
+        refresh_token=refresh_token if include_refresh_token else None,
         expires_in=expires_in,
         user=UserResponse.model_validate(user),
     )
@@ -75,6 +128,8 @@ async def _token_response(
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     payload: RegisterRequest,
+    request: Request,
+    response: Response,
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> TokenResponse:
     if not jwt_is_configured():
@@ -91,12 +146,20 @@ async def register(
             status_code=status.HTTP_409_CONFLICT,
             detail="Já existe uma conta com este e-mail.",
         ) from None
-    return await _token_response(user, session)
+    web_client = _is_web_client(request)
+    return await _token_response(
+        user,
+        session,
+        response=response if web_client else None,
+        include_refresh_token=not web_client,
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
     payload: LoginRequest,
+    request: Request,
+    response: Response,
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> TokenResponse:
     if not jwt_is_configured():
@@ -112,15 +175,32 @@ async def login(
         )
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta desativada.")
-    return await _token_response(user, session)
+    web_client = _is_web_client(request)
+    return await _token_response(
+        user,
+        session,
+        response=response if web_client else None,
+        include_refresh_token=not web_client,
+    )
 
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(
-    payload: RefreshRequest,
+    payload: RefreshRequest | None = None,
+    request: Request = None,  # type: ignore[assignment]
+    response: Response = None,  # type: ignore[assignment]
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> TokenResponse:
-    token_hash = _hash_refresh_token(payload.refresh_token)
+    settings = get_settings()
+    body_token = payload.refresh_token if payload is not None else None
+    cookie_token = request.cookies.get(settings.refresh_cookie_name) if request else None
+    from_cookie = body_token is None
+    refresh_token = body_token or cookie_token
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token inválido ou expirado.")
+    if from_cookie:
+        _require_csrf(request)
+    token_hash = _hash_refresh_token(refresh_token)
     result = await session.execute(
         select(RefreshToken)
         .where(RefreshToken.token_hash == token_hash)
@@ -167,9 +247,12 @@ async def refresh(
     )
     access_token, expires_in = create_access_token(str(user.id), user.token_version)
     await session.commit()
+    web_client = from_cookie or _is_web_client(request)
+    if web_client and response is not None:
+        _set_auth_cookies(response, replacement)
     return TokenResponse(
         access_token=access_token,
-        refresh_token=replacement,
+        refresh_token=None if web_client else replacement,
         expires_in=expires_in,
         user=UserResponse.model_validate(user),
     )
@@ -183,6 +266,8 @@ async def me(user: User = Depends(get_current_user)) -> UserResponse:  # noqa: B
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
     payload: LogoutRequest | None = None,
+    request: Request = None,  # type: ignore[assignment]
+    response: Response = None,  # type: ignore[assignment]
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
@@ -202,10 +287,17 @@ async def logout(
     )
     session.add(revoked_token)
 
-    if payload is not None and payload.refresh_token is not None:
+    body_refresh_token = payload.refresh_token if payload is not None else None
+    cookie_refresh_token = request.cookies.get(get_settings().refresh_cookie_name) if request else None
+    from_cookie = body_refresh_token is None and cookie_refresh_token is not None
+    refresh_token = body_refresh_token or cookie_refresh_token
+    if from_cookie:
+        _require_csrf(request)
+
+    if refresh_token is not None:
         refresh_result = await session.execute(
             select(RefreshToken).where(
-                RefreshToken.token_hash == _hash_refresh_token(payload.refresh_token),
+                RefreshToken.token_hash == _hash_refresh_token(refresh_token),
                 RefreshToken.user_id == user.id,
             ).with_for_update()
         )
@@ -229,11 +321,15 @@ async def logout(
             status_code=status.HTTP_409_CONFLICT,
             detail="Este token já foi revogado.",
         ) from None
+    if response is not None and (from_cookie or (request and _is_web_client(request))):
+        _clear_auth_cookies(response)
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
 async def change_password(
     payload: ChangePasswordRequest,
+    request: Request,
+    response: Response,
     user: User = Depends(get_current_user),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> None:
@@ -260,10 +356,14 @@ async def change_password(
         .values(revoked_at=now)
     )
     await session.commit()
+    if _is_web_client(request):
+        _clear_auth_cookies(response)
 
 
 @router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
 async def logout_all(
+    request: Request,
+    response: Response,
     user: User = Depends(get_current_user),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> None:
@@ -277,3 +377,5 @@ async def logout_all(
         .values(revoked_at=datetime.now(UTC))
     )
     await session.commit()
+    if _is_web_client(request):
+        _clear_auth_cookies(response)

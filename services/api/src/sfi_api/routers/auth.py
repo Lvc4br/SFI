@@ -193,11 +193,11 @@ async def logout(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    payload = decode_access_token(credentials.credentials)
+    access_payload = decode_access_token(credentials.credentials)
     revoked_token = RevokedAccessToken(
         user_id=user.id,
-        jti=payload["jti"],
-        expires_at=datetime.fromtimestamp(payload["exp"], UTC),
+        jti=access_payload["jti"],
+        expires_at=datetime.fromtimestamp(access_payload["exp"], UTC),
     )
     session.add(revoked_token)
 

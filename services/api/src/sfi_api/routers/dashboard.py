@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -92,11 +92,13 @@ async def get_account_balance(
 
 @router.get("/summary", response_model=FinanceSummaryResponse)
 async def get_finance_summary(
-    start_date: date = Query(default_factory=lambda: date.today().replace(day=1)),
-    end_date: date = Query(default_factory=date.today),
+    start_date: date | None = None,
+    end_date: date | None = None,
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> FinanceSummaryResponse:
+    end_date = end_date or date.today()
+    start_date = start_date or end_date.replace(day=1)
     if end_date < start_date:
         raise HTTPException(status_code=422, detail="A data final não pode ser anterior à inicial.")
     if (end_date - start_date).days > 366:

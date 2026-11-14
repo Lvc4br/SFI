@@ -117,3 +117,27 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Testes API para paginação, filtros, ordenação, validação de intervalo e isolamento por usuário.
 
 **Limite importante:** a paginação usa offset/limit; inserções concorrentes durante uma exportação longa podem deslocar registros entre páginas. Evoluir para cursor/snapshot antes de prometer exportação transacionalmente consistente. A busca textual filtra a página visível, mas a exportação reaplica o mesmo termo ao conjunto completo recuperado.
+
+
+## Atualização — hardening do núcleo financeiro (branch `feature/financial-core-security-hardening`)
+
+- [x] Corrigir o realizado de orçamento para excluir a despesa original quando existe estorno compensatório vinculado.
+- [x] Corrigir despesas por categoria no dashboard para não continuar exibindo como consumo uma despesa já estornada.
+- [x] Expor ação de estorno de movimentação simples na tabela do histórico Web, com confirmação explícita e feedback após sucesso.
+- [x] Ampliar teste de domínio para verificar orçamento zerado e categoria sem consumo após estorno.
+- [x] Ampliar teste de paginação para percorrer 65 registros em três páginas sem lacunas ou duplicidades.
+- [x] Ampliar jornada Playwright para realizar estorno pela interface.
+- [ ] Implementar edição e arquivamento de contas/categorias com migração reversível e preservação de referências históricas.
+- [ ] Adicionar cobertura E2E para paginação multi-página, filtros de datas e CSV com mais de 25 registros.
+- [ ] Definir timezone IANA por usuário e converter limites de datas locais em UTC no backend.
+- [ ] Executar auditoria de acessibilidade automatizada e manual (teclado, foco, labels, contraste e leitor de tela).
+- [ ] Migrar refresh token Web para cookie HttpOnly/Secure/SameSite com proteção CSRF; manter estratégia compatível com clientes não-Web.
+- [ ] Implementar rate limiting compartilhado entre instâncias para autenticação e recuperação de senha.
+- [ ] Implementar verificação de e-mail e recuperação de senha com tokens de uso único, hashes persistidos e provedor de e-mail configurado.
+- [ ] Implementar MFA TOTP com códigos de recuperação, rotação e auditoria.
+- [ ] Aplicar CSP e demais security headers na camada que efetivamente serve a Web; validar política em produção/staging.
+- [ ] Criar trilha de auditoria para eventos de segurança e painel/alertas operacionais.
+- [ ] Automatizar backup, retenção, restauração em ambiente isolado e evidência periódica de restore.
+- [ ] Completar testes de abuso, concorrência, sessão, CSRF, rate limit, isolamento e recuperação de desastre.
+
+**Nota de segurança:** esta branch ainda não é um release seguro para produção. Verificação de e-mail, recuperação, MFA e rate limiting distribuído dependem de contratos, armazenamento, configuração operacional e testes próprios; não devem ser marcados como concluídos apenas por documentação ou por um limitador em memória de processo.

@@ -87,3 +87,27 @@ def test_registration_requires_strong_password(client):
         json={"email": "new@example.com", "password": "short"},
     )
     assert response.status_code == 422
+
+
+def test_logout_revokes_only_the_current_access_token(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "logout@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    original_token = registered.json()["access_token"]
+    original_headers = {"Authorization": f"Bearer {original_token}"}
+
+    assert client.get("/api/v1/auth/me", headers=original_headers).status_code == 200
+
+    logged_out = client.post("/api/v1/auth/logout", headers=original_headers)
+    assert logged_out.status_code == 204
+    assert client.get("/api/v1/auth/me", headers=original_headers).status_code == 401
+
+    new_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "logout@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert new_login.status_code == 200
+    new_headers = {"Authorization": f"Bearer {new_login.json()['access_token']}"}
+    assert client.get("/api/v1/auth/me", headers=new_headers).status_code == 200

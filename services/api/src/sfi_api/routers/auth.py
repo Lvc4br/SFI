@@ -1,10 +1,14 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
+from sfi_api.models.revoked_access_token import RevokedAccessToken
 from sfi_api.models.user import User
 from sfi_api.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 from sfi_api.security import (
@@ -12,9 +16,11 @@ from sfi_api.security import (
     hash_password,
     jwt_is_configured,
     verify_password,
+    decode_access_token,
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+_bearer = HTTPBearer(auto_error=False)
 
 
 def _token_response(user: User) -> TokenResponse:
@@ -72,3 +78,34 @@ async def login(
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(get_current_user)) -> UserResponse:  # noqa: B008
     return UserResponse.model_validate(user)
+
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),  # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> None:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Autenticação necessária.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    payload = decode_access_token(credentials.credentials)
+    revoked_token = RevokedAccessToken(
+        user_id=user.id,
+        jti=payload["jti"],
+        expires_at=datetime.fromtimestamp(payload["exp"], UTC),
+    )
+    session.add(revoked_token)
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este token já foi revogado.",
+        ) from None

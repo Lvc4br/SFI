@@ -13,10 +13,10 @@ from sfi_api.models.user import User
 from sfi_api.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 from sfi_api.security import (
     create_access_token,
+    decode_access_token,
     hash_password,
     jwt_is_configured,
     verify_password,
-    decode_access_token,
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])

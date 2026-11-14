@@ -3,7 +3,7 @@ const ACCESS_KEY = "sfi.access";
 const REFRESH_KEY = "sfi.refresh";
 
 export type User = { id: string; email: string; is_active: boolean; created_at: string };
-export type Session = { access_token: string; refresh_token: string; expires_in: number; user: User };
+export type Session = { access_token: string; refresh_token: string | null; expires_in: number; user: User };
 export type Account = { id: string; name: string; account_type: "checking" | "savings" | "cash" | "credit"; currency: string; opening_balance: string; archived_at: string | null; created_at: string };
 export type Category = { id: string; name: string; category_type: "income" | "expense"; archived_at: string | null; created_at: string };
 export type TransactionPage = { items: Transaction[]; total: number; limit: number; offset: number; has_more: boolean };
@@ -12,37 +12,44 @@ export type Budget = { id: string; category_id: string; category_name: string; p
 export type Summary = { start_date: string; end_date: string; totals_by_currency: { currency: string; income_total: string; expense_total: string; net_flow: string }[]; account_balances: { account_id: string; name: string; account_type: string; currency: string; opening_balance: string; income_total: string; expense_total: string; balance: string; balance_kind: "available_balance" | "credit_used" }[]; spending_by_category: { category_id: string; category_name: string; currency: string; amount: string }[] };
 
 function readToken(key: string) { return sessionStorage.getItem(key); }
+function readCookie(name: string) {
+  const entry = document.cookie.split("; ").find(value => value.startsWith(name + "="));
+  return entry ? decodeURIComponent(entry.slice(name.length + 1)) : null;
+}
 function saveSession(session: Session) {
   sessionStorage.setItem(ACCESS_KEY, session.access_token);
-  sessionStorage.setItem(REFRESH_KEY, session.refresh_token);
+  if (session.refresh_token) sessionStorage.setItem(REFRESH_KEY, session.refresh_token);
+  else sessionStorage.removeItem(REFRESH_KEY);
 }
 export function clearSession() {
   sessionStorage.removeItem(ACCESS_KEY);
   sessionStorage.removeItem(REFRESH_KEY);
 }
-export function hasSession() { return Boolean(readToken(ACCESS_KEY) && readToken(REFRESH_KEY)); }
+export function hasSession() { return Boolean(readToken(ACCESS_KEY)); }
 
 async function request<T>(path: string, options: RequestInit = {}, authenticated = true, retry = true): Promise<T> {
   const headers = new Headers(options.headers);
+  headers.set("X-SFI-Client", "web");
+  if (path === "/api/v1/auth/refresh" || path === "/api/v1/auth/logout") {
+    const csrfToken = readCookie("sfi_csrf");
+    if (csrfToken) headers.set("X-CSRF-Token", csrfToken);
+  }
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const token = authenticated ? readToken(ACCESS_KEY) : null;
   if (token) headers.set("Authorization", `Bearer ${token}`);
   let response: Response;
   try {
-    response = await fetch(API_URL + path, { ...options, headers });
+    response = await fetch(API_URL + path, { ...options, headers, credentials: "include" });
   } catch {
     throw new Error("Não foi possível conectar à API. Verifique se o backend está em execução.");
   }
   if (response.status === 401 && authenticated && retry) {
-    const refreshToken = readToken(REFRESH_KEY);
-    if (refreshToken) {
-      try {
-        const renewed = await request<Session>("/api/v1/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: refreshToken }) }, false, false);
-        saveSession(renewed);
-        return request<T>(path, options, true, false);
-      } catch {
-        clearSession();
-      }
+    try {
+      const renewed = await request<Session>("/api/v1/auth/refresh", { method: "POST" }, false, false);
+      saveSession(renewed);
+      return request<T>(path, options, true, false);
+    } catch {
+      clearSession();
     }
   }
   if (!response.ok) {
@@ -69,8 +76,7 @@ export const api = {
   },
   me: () => request<User>("/api/v1/auth/me"),
   logout: async () => {
-    const refresh_token = readToken(REFRESH_KEY);
-    try { await request<void>("/api/v1/auth/logout", { method: "POST", body: JSON.stringify({ refresh_token }) }); }
+    try { await request<void>("/api/v1/auth/logout", { method: "POST" }); }
     finally { clearSession(); }
   },
   accounts: () => request<Account[]>("/api/v1/finance/accounts"),

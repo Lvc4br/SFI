@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
 from sfi_api.models.finance import Account, Budget, Category, Transaction, Transfer
+from sfi_api.models.transfer_reversal import TransferReversal
 from sfi_api.models.user import User
 from sfi_api.schemas.finance import (
     AccountCreate,
@@ -24,6 +25,7 @@ from sfi_api.schemas.finance import (
     TransferCreate,
     TransferResponse,
 )
+from sfi_api.schemas.transfer_reversal import TransferReversalResponse
 
 router = APIRouter(prefix="/finance", tags=["finance"])
 
@@ -363,6 +365,130 @@ async def create_transfer(
 
 
 @router.post(
+    "/transfers/{transfer_id}/reverse",
+    response_model=TransferReversalResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def reverse_transfer(
+    transfer_id: uuid.UUID,
+    idempotency_key: str = Query(min_length=16, max_length=100),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> TransferReversalResponse:
+    transfer = await session.scalar(
+        select(Transfer).where(Transfer.id == transfer_id, Transfer.user_id == user.id)
+    )
+    if transfer is None:
+        raise HTTPException(status_code=404, detail="Transferência não encontrada.")
+
+    existing_reversal = await session.scalar(
+        select(TransferReversal).where(
+            TransferReversal.user_id == user.id,
+            TransferReversal.transfer_id == transfer.id,
+        )
+    )
+    if existing_reversal is not None:
+        raise HTTPException(status_code=409, detail="Esta transferência já foi estornada.")
+
+    duplicate_key = await session.scalar(
+        select(TransferReversal).where(
+            TransferReversal.user_id == user.id,
+            TransferReversal.idempotency_key == idempotency_key,
+        )
+    )
+    if duplicate_key is not None:
+        raise HTTPException(status_code=409, detail="Esta chave de idempotência já foi utilizada.")
+
+    original_entries = await session.scalars(
+        select(Transaction).where(
+            Transaction.user_id == user.id,
+            Transaction.transfer_id == transfer.id,
+        )
+    )
+    entries = original_entries.all()
+    source_entry = next(
+        (item for item in entries if item.account_id == transfer.source_account_id),
+        None,
+    )
+    destination_entry = next(
+        (item for item in entries if item.account_id == transfer.destination_account_id),
+        None,
+    )
+    if (
+        len(entries) != 2
+        or source_entry is None
+        or destination_entry is None
+        or source_entry.transaction_type != "expense"
+        or destination_entry.transaction_type != "income"
+        or source_entry.amount != transfer.amount
+        or destination_entry.amount != transfer.amount
+        or source_entry.currency != transfer.currency
+        or destination_entry.currency != transfer.currency
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="O histórico da transferência está inconsistente; estorno não realizado.",
+        )
+
+    occurred_at = datetime.now(UTC)
+    reversal = TransferReversal(
+        user_id=user.id,
+        transfer_id=transfer.id,
+        idempotency_key=idempotency_key,
+        occurred_at=occurred_at,
+    )
+    session.add(reversal)
+    await session.flush()
+
+    source_compensation = Transaction(
+        user_id=user.id,
+        account_id=transfer.source_account_id,
+        category_id=None,
+        transfer_reversal_id=reversal.id,
+        transaction_type="income",
+        amount=transfer.amount,
+        currency=transfer.currency,
+        description=f"Estorno de transferência recebida: {transfer.description}",
+        idempotency_key=f"transfer-reversal:{reversal.id}:source",
+        occurred_at=occurred_at,
+    )
+    destination_compensation = Transaction(
+        user_id=user.id,
+        account_id=transfer.destination_account_id,
+        category_id=None,
+        transfer_reversal_id=reversal.id,
+        transaction_type="expense",
+        amount=transfer.amount,
+        currency=transfer.currency,
+        description=f"Estorno de transferência enviada: {transfer.description}",
+        idempotency_key=f"transfer-reversal:{reversal.id}:destination",
+        occurred_at=occurred_at,
+    )
+    session.add_all([source_compensation, destination_compensation])
+    try:
+        await session.commit()
+        await session.refresh(reversal)
+        await session.refresh(source_compensation)
+        await session.refresh(destination_compensation)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="A transferência já foi estornada ou houve conflito de idempotência.",
+        ) from None
+
+    return TransferReversalResponse(
+        transfer_id=transfer.id,
+        reversal_id=reversal.id,
+        occurred_at=reversal.occurred_at,
+        reversal_transactions=[
+            TransactionResponse.model_validate(source_compensation),
+            TransactionResponse.model_validate(destination_compensation),
+        ],
+    )
+
+
+@router.post(
     "/transactions/{transaction_id}/reverse",
     response_model=TransactionReversalResponse,
     status_code=status.HTTP_201_CREATED,
@@ -386,7 +512,7 @@ async def reverse_transaction(
             status_code=422,
             detail="Um estorno não pode ser estornado novamente.",
         )
-    if original.transfer_id is not None:
+    if original.transfer_id is not None or original.transfer_reversal_id is not None:
         raise HTTPException(
             status_code=422,
             detail=(

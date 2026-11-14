@@ -5,10 +5,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sfi_api.config import get_settings
 from sfi_api.database import get_session
 from sfi_api.models.user import User
-from sfi_api.security import decode_access_token
+from sfi_api.security import decode_access_token, jwt_is_configured
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -23,7 +22,7 @@ async def get_current_user(
             detail="Autenticação necessária.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not get_settings().jwt_secret_key:
+    if not jwt_is_configured():
         raise HTTPException(status_code=503, detail="Autenticação não configurada.")
 
     try:

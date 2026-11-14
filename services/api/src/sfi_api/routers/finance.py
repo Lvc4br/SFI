@@ -374,6 +374,11 @@ async def reverse_transaction(
     )
     if original is None:
         raise HTTPException(status_code=404, detail="Movimentação não encontrada.")
+    if original.reversal_of_transaction_id is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="Um estorno não pode ser estornado novamente.",
+        )
     if original.transfer_id is not None:
         raise HTTPException(
             status_code=422,

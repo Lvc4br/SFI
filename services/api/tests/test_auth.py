@@ -322,10 +322,10 @@ def test_web_refresh_cookie_is_httponly_and_refresh_requires_csrf(client):
 
 
 def test_security_event_history_is_user_scoped_and_minimized(client):
-    first = client.post(
+    client.post(
         "/api/v1/auth/register",
         json={"email": "audit-first@example.com", "password": "uma-senha-forte-123"},
-    ).json()
+    )
     failed = client.post(
         "/api/v1/auth/login",
         json={"email": "audit-first@example.com", "password": "senha-incorreta"},

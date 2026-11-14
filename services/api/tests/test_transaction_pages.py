@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -135,7 +135,7 @@ def test_transaction_page_handles_large_dataset_without_duplicates_or_gaps(clien
                 "transaction_type": "expense",
                 "amount": "1.00",
                 "description": f"Movimentação volume {index:03d}",
-                "occurred_at": datetime(2026, 11, 1, 12, 0, index, tzinfo=UTC).isoformat(),
+                "occurred_at": (datetime(2026, 11, 1, 12, 0, 0, tzinfo=UTC) + timedelta(seconds=index)).isoformat(),
                 "idempotency_key": f"page-volume-key-{index:04d}",
             },
         )

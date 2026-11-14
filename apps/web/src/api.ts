@@ -2,7 +2,7 @@ const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replac
 const ACCESS_KEY = "sfi.access";
 const REFRESH_KEY = "sfi.refresh";
 
-export type User = { id: string; email: string; is_active: boolean; created_at: string };
+export type User = { id: string; email: string; is_active: boolean; timezone: string; created_at: string };
 export type Session = { access_token: string; refresh_token: string | null; expires_in: number; user: User };
 export type Account = { id: string; name: string; account_type: "checking" | "savings" | "cash" | "credit"; currency: string; opening_balance: string; archived_at: string | null; created_at: string };
 export type Category = { id: string; name: string; category_type: "income" | "expense"; archived_at: string | null; created_at: string };
@@ -67,7 +67,8 @@ async function request<T>(path: string, options: RequestInit = {}, authenticated
 
 export const api = {
   register: async (email: string, password: string) => {
-    const session = await request<Session>("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ email, password }) }, false);
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
+    const session = await request<Session>("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ email, password, timezone }) }, false);
     saveSession(session); return session;
   },
   login: async (email: string, password: string) => {
@@ -75,6 +76,8 @@ export const api = {
     saveSession(session); return session;
   },
   me: () => request<User>("/api/v1/auth/me"),
+  updateTimezone: (timezone: string) =>
+    request<User>("/api/v1/auth/me/timezone", { method: "PATCH", body: JSON.stringify({ timezone }) }),
   logout: async () => {
     try { await request<void>("/api/v1/auth/logout", { method: "POST" }); }
     finally { clearSession(); }

@@ -13,8 +13,8 @@ _bearer = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-    session: AsyncSession = Depends(get_session),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),  # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> User:
     if credentials is None:
         raise HTTPException(

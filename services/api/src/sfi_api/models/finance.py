@@ -24,6 +24,7 @@ class Account(Base):
     __table_args__ = (
         UniqueConstraint("id", "user_id", name="uq_accounts_id_user"),
         Index("ix_accounts_user_created", "user_id", "created_at"),
+        Index("ix_accounts_user_archived", "user_id", "archived_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -48,6 +49,7 @@ class Category(Base):
         UniqueConstraint("id", "user_id", name="uq_categories_id_user"),
         UniqueConstraint("user_id", "name", "category_type", name="uq_categories_user_name_type"),
         Index("ix_categories_user", "user_id"),
+        Index("ix_categories_user_archived", "user_id", "archived_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

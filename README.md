@@ -85,6 +85,9 @@ sfi/
 - [Estratégia de testes](planning/TEST_STRATEGY.md)
 - [Implantação e operação](planning/DEPLOYMENT_OPERATIONS.md)
 - [Decisões arquiteturais](planning/ADRs.md)
+- [Fase 2.0 — núcleo financeiro](docs/PHASE_2_FINANCIAL_CORE.md)
+- [Fase 2.1 — saldos e resumo](docs/PHASE_2_1_BALANCES_SUMMARY.md)
+- [Fase 2.2 — orçamentos mensais](docs/PHASE_2_2_MONTHLY_BUDGETS.md)
 
 ## Como começar
 
@@ -99,4 +102,4 @@ Pré-requisitos previstos: Git, Python 3.12 ou versão validada, Node.js LTS, pn
 
 ## Status
 
-**Fase 2 — núcleo financeiro em evolução.** A fundação Web/API, autenticação, contas, categorias, movimentações, saldos calculados e resumo financeiro por período foram integrados após validação automatizada. O produto ainda não está pronto para produção; orçamentos, transferências, estornos, conciliação, dashboard visual e implantação no Neon permanecem pendentes.
+**Fase 2 — núcleo financeiro em evolução.** A fundação Web/API, autenticação, contas, categorias, movimentações, saldos calculados, resumo financeiro por período e orçamentos mensais por categoria foram integrados após validação automatizada. Transferências, estornos auditáveis, conciliação, dashboard visual e implantação no Neon permanecem pendentes. O produto ainda não está pronto para produção.

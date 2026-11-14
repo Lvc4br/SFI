@@ -1,6 +1,6 @@
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
-import uuid
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator

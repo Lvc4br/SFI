@@ -166,8 +166,8 @@ def test_complete_web_financial_journey() -> None:
             ).to_be_visible()
 
             page.get_by_role("button", name="Movimentações").click()
-            expect(page.get_by_text("Conta E2E renomeada").first).to_be_visible()
-            expect(page.get_by_text("Categoria E2E").first).to_be_visible()
+            expect(page.get_by_role("cell", name="Conta E2E renomeada").first).to_be_visible()
+            expect(page.get_by_role("cell", name="Categoria E2E").first).to_be_visible()
             with page.expect_download() as download_info:
                 page.get_by_role("button", name="Exportar CSV completo").click()
             download = download_info.value

@@ -9,7 +9,7 @@ Requisitos priorizados, jornadas, protótipos, provas de conceito Neon/Tauri/Exp
 Monorepo, padrões, CI, ambientes, autenticação, FastAPI, Neon, migrações, design system, logs, auditoria e OpenAPI. **Saída:** usuário autenticado, dados isolados e build funcionando.
 
 ## Fase 2 — Núcleo financeiro
-Contas, categorias, receitas/despesas, transferências, orçamento, fluxo de caixa, dashboard e importação CSV. **Progresso:** autenticação, contas, categorias, movimentações, saldos, resumo, orçamentos mensais, transferências, histórico, estornos individuais e pareados, recorrências e previsão de fluxo de caixa já integrados com CI aprovado. **Pendências:** conciliação, filtros avançados, cartões/faturas, importação de extratos e dashboard visual. **Saída:** testes de domínio e integração aprovados e saldos reconciliáveis.
+Contas, categorias, receitas/despesas, transferências, orçamento, fluxo de caixa, dashboard e importação CSV. **Progresso:** autenticação, contas, categorias, movimentações, saldos, resumo, orçamentos mensais, transferências, histórico, estornos individuais e pareados, recorrências e previsão de fluxo de caixa já integrados com CI aprovado. **Pendências:** conciliação, cartões/faturas, importação de extratos e dashboard visual. **Saída:** testes de domínio e integração aprovados e saldos reconciliáveis.
 
 ## Fase 3 — Educação e calculadoras
 Cursos, aulas, glossário, progresso, motor financeiro, calculadoras e avaliações. **Saída:** fórmulas validadas e conteúdo revisado.

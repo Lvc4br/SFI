@@ -162,6 +162,7 @@ class TransferCreate(BaseModel):
 
 
 class TransferResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     source_account_id: uuid.UUID
     destination_account_id: uuid.UUID

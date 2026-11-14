@@ -99,4 +99,4 @@ Pré-requisitos previstos: Git, Python 3.12 ou versão validada, Node.js LTS, pn
 
 ## Status
 
-**Planejamento v2.0.** Este repositório começa com documentação executiva e arquitetural. As provas de conceito da Fase 0 precedem a implementação. Consulte o roadmap para a sequência de entregas.
+**Fase 1 — fundação inicial em andamento.** A estrutura Web/API e o primeiro ciclo de autenticação/migrações estão sendo implementados em entregas revisáveis. A aplicação ainda não está pronta para produção; consulte o roadmap e os documentos de cada fase.

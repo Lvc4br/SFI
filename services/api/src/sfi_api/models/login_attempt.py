@@ -11,6 +11,7 @@ class LoginAttempt(Base):
     __tablename__ = "login_attempts"
     __table_args__ = (
         Index("ix_login_attempts_locked_until", "locked_until"),
+        Index("ix_login_attempts_updated_at", "updated_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

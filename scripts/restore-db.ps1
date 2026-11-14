@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "backup-integrity.ps1")
 
 if (-not $env:SFI_RESTORE_DATABASE_URL) {
     throw "Defina SFI_RESTORE_DATABASE_URL apontando para uma branch Neon isolada."
@@ -15,12 +16,18 @@ if ($env:SFI_RESTORE_TARGET_ISOLATED -ne "YES") {
 if (-not $env:SFI_BACKUP_AGE_IDENTITY) {
     throw "Defina SFI_BACKUP_AGE_IDENTITY com o caminho da identidade privada age."
 }
-if (-not (Test-Path -LiteralPath $BackupFile)) {
+if (-not (Test-Path -LiteralPath $BackupFile -PathType Leaf)) {
     throw "Arquivo de backup não encontrado."
 }
 
 $null = Get-Command pg_restore -ErrorAction Stop
 $null = Get-Command age -ErrorAction Stop
+
+# Integridade é verificada antes de pedir confirmação e, principalmente, antes de executar age/pg_restore.
+$checksumPath = "$BackupFile.sha256"
+$verifiedHash = Assert-SfiBackupChecksum -BackupPath $BackupFile -ChecksumPath $checksumPath
+Write-Host "Checksum SHA-256 verificado: $verifiedHash"
+
 $confirmation = Read-Host "Confirme digitando RESTAURAR EM BRANCH ISOLADA"
 if ($confirmation -cne "RESTAURAR EM BRANCH ISOLADA") {
     throw "Restauração cancelada."
@@ -31,6 +38,9 @@ try {
     & age --decrypt --identity $env:SFI_BACKUP_AGE_IDENTITY --output $tempDump $BackupFile
     if ($LASTEXITCODE -ne 0) {
         throw "Não foi possível descriptografar o backup."
+    }
+    if (-not (Test-Path -LiteralPath $tempDump -PathType Leaf) -or (Get-Item -LiteralPath $tempDump).Length -le 0) {
+        throw "O backup descriptografado está vazio ou não foi criado."
     }
 
     # O destino é fornecido por variável de ambiente e nunca impresso.

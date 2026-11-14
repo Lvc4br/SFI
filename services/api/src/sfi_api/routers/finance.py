@@ -7,6 +7,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
+from zoneinfo import ZoneInfo
 
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
@@ -367,11 +368,18 @@ async def list_transactions(
 
 
 async def _budget_response(
-    session: AsyncSession, user_id, budget: Budget, category: Category
+    session: AsyncSession,
+    user_id,
+    budget: Budget,
+    category: Category,
+    timezone_name: str,
 ) -> BudgetResponse:
     year, month = (int(part) for part in budget.period.split("-"))
-    start = datetime(year, month, 1, tzinfo=UTC)
-    end = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=UTC)
+    timezone = ZoneInfo(timezone_name)
+    start = datetime(year, month, 1, tzinfo=timezone).astimezone(UTC)
+    end = datetime(
+        year + (month == 12), month % 12 + 1, 1, tzinfo=timezone
+    ).astimezone(UTC)
     reversal = aliased(Transaction)
     has_reversal = (
         select(reversal.id)
@@ -448,7 +456,7 @@ async def create_budget(
             status_code=status.HTTP_409_CONFLICT,
             detail="Já existe um orçamento para esta categoria neste mês.",
         ) from None
-    return await _budget_response(session, user.id, budget, category)
+    return await _budget_response(session, user.id, budget, category, user.timezone)
 
 
 @router.get("/budgets", response_model=list[BudgetResponse])
@@ -464,7 +472,7 @@ async def list_budgets(
         .order_by(Category.name.asc())
     )
     return [
-        await _budget_response(session, user.id, budget, category)
+        await _budget_response(session, user.id, budget, category, user.timezone)
         for budget, category in result.all()
     ]
 

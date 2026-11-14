@@ -9,8 +9,8 @@ from sfi_api.routers.auth import router as auth_router
 from sfi_api.routers.dashboard import router as dashboard_router
 from sfi_api.routers.finance import router as finance_router
 from sfi_api.routers.recurrence import router as recurrence_router
-from sfi_api.routers.transfer_history import router as transfer_history_router
 from sfi_api.routers.transaction_pages import router as transaction_pages_router
+from sfi_api.routers.transfer_history import router as transfer_history_router
 
 settings = get_settings()
 

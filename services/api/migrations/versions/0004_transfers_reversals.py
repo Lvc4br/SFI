@@ -25,10 +25,19 @@ def upgrade() -> None:
         sa.Column("description", sa.String(length=160), nullable=False),
         sa.Column("idempotency_key", sa.String(length=100), nullable=False),
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True),
+            server_default=sa.func.now(), nullable=False,
+        ),
         sa.CheckConstraint("amount > 0", name="ck_transfers_amount_positive"),
-        sa.CheckConstraint("source_account_id <> destination_account_id", name="ck_transfers_distinct_accounts"),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_transfers_user_id_users", ondelete="RESTRICT"),
+        sa.CheckConstraint(
+            "source_account_id <> destination_account_id",
+            name="ck_transfers_distinct_accounts",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"], ["users.id"],
+            name="fk_transfers_user_id_users", ondelete="RESTRICT",
+        ),
         sa.ForeignKeyConstraint(
             ["source_account_id", "user_id"], ["accounts.id", "accounts.user_id"],
             name="fk_transfers_source_account_owner", ondelete="RESTRICT",
@@ -42,10 +51,19 @@ def upgrade() -> None:
         sa.UniqueConstraint("user_id", "idempotency_key", name="uq_transfers_user_idempotency"),
     )
     op.create_index("ix_transfers_user_date", "transfers", ["user_id", "occurred_at"])
-    op.add_column("transactions", sa.Column("transfer_id", postgresql.UUID(as_uuid=True), nullable=True))
-    op.add_column("transactions", sa.Column("reversal_of_transaction_id", postgresql.UUID(as_uuid=True), nullable=True))
+    op.add_column(
+        "transactions", sa.Column("transfer_id", postgresql.UUID(as_uuid=True), nullable=True)
+    )
+    op.add_column(
+        "transactions",
+        sa.Column("reversal_of_transaction_id", postgresql.UUID(as_uuid=True), nullable=True),
+    )
     op.create_unique_constraint("uq_transactions_id_user", "transactions", ["id", "user_id"])
-    op.create_unique_constraint("uq_transactions_one_reversal", "transactions", ["user_id", "reversal_of_transaction_id"])
+    op.create_unique_constraint(
+        "uq_transactions_one_reversal",
+        "transactions",
+        ["user_id", "reversal_of_transaction_id"],
+    )
     op.create_foreign_key(
         "fk_transactions_transfer_owner", "transactions", "transfers",
         ["transfer_id", "user_id"], ["id", "user_id"], ondelete="RESTRICT",

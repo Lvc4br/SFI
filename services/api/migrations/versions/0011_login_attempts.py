@@ -35,8 +35,15 @@ def upgrade() -> None:
         ["locked_until"],
         unique=False,
     )
+    op.create_index(
+        "ix_login_attempts_updated_at",
+        "login_attempts",
+        ["updated_at"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:
+    op.drop_index("ix_login_attempts_updated_at", table_name="login_attempts")
     op.drop_index("ix_login_attempts_locked_until", table_name="login_attempts")
     op.drop_table("login_attempts")

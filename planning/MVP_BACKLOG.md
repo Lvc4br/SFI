@@ -127,12 +127,12 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Ampliar teste de domínio para verificar orçamento zerado e categoria sem consumo após estorno.
 - [x] Ampliar teste de paginação para percorrer 65 registros em três páginas sem lacunas ou duplicidades.
 - [x] Ampliar jornada Playwright para realizar estorno pela interface.
-- [ ] Implementar edição e arquivamento de contas/categorias com migração reversível e preservação de referências históricas.
-- [ ] Adicionar cobertura E2E para paginação multi-página, filtros de datas e CSV com mais de 25 registros.
-- [ ] Definir timezone IANA por usuário e converter limites de datas locais em UTC no backend.
+- [x] Implementar edição e arquivamento lógico de contas/categorias com migration reversível, bloqueio de saldo/recorrência e preservação dos rótulos históricos.
+- [x] Adicionar cobertura E2E para paginação multi-página, filtros de datas e CSV com mais de 25 registros (CI desta última alteração pendente).
+- [x] Definir timezone IANA por usuário, com configuração no Web e conversão de limites de dashboard, orçamento e filtros de calendário para UTC.
 - [ ] Executar auditoria de acessibilidade automatizada e manual (teclado, foco, labels, contraste e leitor de tela).
-- [ ] Migrar refresh token Web para cookie HttpOnly/Secure/SameSite com proteção CSRF; manter estratégia compatível com clientes não-Web.
-- [ ] Implementar rate limiting compartilhado entre instâncias para autenticação e recuperação de senha.
+- [x] Migrar refresh token Web para cookie HttpOnly/Secure/SameSite com proteção CSRF; manter estratégia compatível com clientes não-Web.
+- [x] Implementar rate limiting de login persistido no banco e compartilhado entre instâncias; recuperação de senha ainda depende do fluxo de e-mail.
 - [ ] Implementar verificação de e-mail e recuperação de senha com tokens de uso único, hashes persistidos e provedor de e-mail configurado.
 - [ ] Implementar MFA TOTP com códigos de recuperação, rotação e auditoria.
 - [ ] Aplicar CSP e demais security headers na camada que efetivamente serve a Web; validar política em produção/staging.
@@ -140,4 +140,4 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [ ] Automatizar backup, retenção, restauração em ambiente isolado e evidência periódica de restore.
 - [ ] Completar testes de abuso, concorrência, sessão, CSRF, rate limit, isolamento e recuperação de desastre.
 
-**Nota de segurança:** esta branch ainda não é um release seguro para produção. Verificação de e-mail, recuperação, MFA e rate limiting distribuído dependem de contratos, armazenamento, configuração operacional e testes próprios; não devem ser marcados como concluídos apenas por documentação ou por um limitador em memória de processo.
+**Nota de segurança:** esta branch ainda não é um release seguro para produção. O rate limit de login usa estado no banco compartilhado, mas não substitui proteção de borda/WAF nem testes de concorrência e limpeza de registros. Verificação de e-mail, recuperação de senha e MFA ainda dependem de provedor de e-mail, armazenamento de segredos, telas e testes próprios.

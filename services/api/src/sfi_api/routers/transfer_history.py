@@ -1,4 +1,6 @@
 import uuid
+from datetime import datetime
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
@@ -19,11 +21,11 @@ class TransferHistoryItem(BaseModel):
     id: uuid.UUID
     source_account_id: uuid.UUID
     destination_account_id: uuid.UUID
-    amount: str
+    amount: Decimal
     currency: str
     description: str
-    occurred_at: object
-    created_at: object
+    occurred_at: datetime
+    created_at: datetime
 
 
 @router.get("/transfers", response_model=list[TransferHistoryItem])

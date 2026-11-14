@@ -1,0 +1,19 @@
+{
+  "name": "sfi",
+  "display_name": "Sistema Financeiro Inteligente",
+  "version": "2.0.0-plan",
+  "status": "planning",
+  "platforms": ["web", "desktop", "mobile"],
+  "modules": 19,
+  "stack": {
+    "backend": "Python + FastAPI",
+    "database": "Neon PostgreSQL",
+    "web": "React + TypeScript",
+    "desktop": "Tauri + React",
+    "mobile": "React Native + Expo",
+    "styling": "Tailwind CSS + CSS",
+    "local_storage": ["IndexedDB", "platform-native persistent storage"]
+  },
+  "docker_required": false,
+  "central_sqlite_required": false
+}

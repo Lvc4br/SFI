@@ -66,3 +66,14 @@ O controle usa estado compartilhado no banco, portanto funciona entre múltiplas
 - Não são armazenados tokens, senhas ou IP em claro. O IP remoto é persistido como hash SHA-256; User-Agent é limitado a 256 caracteres.
 - A tabela possui índices por usuário/data e tipo/data.
 - Política de retenção, exportação e alertas centralizados ainda precisam ser definidos antes do beta. Hash de IP continua sendo dado pseudonimizado e deve receber retenção limitada.
+
+
+### Datas e fuso horário
+- O usuário possui timezone IANA validado por ZoneInfo, com default America/Sao_Paulo e opção de alteração na interface.
+- Instantes são persistidos em UTC; limites de dia/mês do dashboard, orçamento e filtros de calendário são convertidos do fuso do usuário para UTC.
+- A distribuição tzdata é incluída para suportar Windows e imagens mínimas sem banco IANA nativo.
+- Testes cobrem movimentações próximas à meia-noite e a alteração de fuso de America/Sao_Paulo para UTC.
+
+### Retenção de tentativas de login
+- Registros de rate limit sem atualização há mais de 30 dias são removidos durante novas tentativas de login.
+- A retenção de eventos de segurança ainda precisa de decisão explícita; não apagar auditoria sem política aprovada.

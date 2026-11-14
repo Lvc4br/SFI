@@ -321,6 +321,28 @@ def test_web_refresh_cookie_is_httponly_and_refresh_requires_csrf(client):
     assert client.get("/api/v1/auth/me", headers=access_headers).status_code == 401
 
 
+def test_web_logout_requires_csrf_header(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        headers={"X-SFI-Client": "web"},
+        json={"email": "web-logout-csrf@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    access_token = registered.json()["access_token"]
+    response = client.post(
+        "/api/v1/auth/logout",
+        headers={
+            "X-SFI-Client": "web",
+            "Authorization": f"Bearer {access_token}",
+        },
+    )
+    assert response.status_code == 403
+    assert client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    ).status_code == 200
+
+
 def test_login_rate_limit_blocks_repeated_invalid_passwords(client):
     client.post(
         "/api/v1/auth/register",

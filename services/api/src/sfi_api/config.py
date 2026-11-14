@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:5173"
     database_url: str | None = None
+    jwt_secret_key: str | None = None
+    jwt_algorithm: str = "HS256"
+    access_token_minutes: int = 20
 
     model_config = SettingsConfigDict(
         env_prefix="SFI_",

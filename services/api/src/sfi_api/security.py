@@ -11,12 +11,9 @@ _issuer = "sfi-api"
 _audience = "sfi-clients"
 
 
-def hash_password(password: str) -> str:
-    return _password_hash.hash(password)
-
-
-def verify_password(password: str, password_hash: str) -> bool:
-    return _password_hash.verify(password, password_hash)
+def jwt_is_configured() -> bool:
+    secret = get_settings().jwt_secret_key
+    return bool(secret and len(secret.encode("utf-8")) >= 32)
 
 
 def _jwt_secret() -> str:
@@ -24,6 +21,14 @@ def _jwt_secret() -> str:
     if not secret or len(secret.encode("utf-8")) < 32:
         raise RuntimeError("SFI_JWT_SECRET_KEY deve ter pelo menos 32 bytes.")
     return secret
+
+
+def hash_password(password: str) -> str:
+    return _password_hash.hash(password)
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    return _password_hash.verify(password, password_hash)
 
 
 def create_access_token(subject: str) -> tuple[str, int]:

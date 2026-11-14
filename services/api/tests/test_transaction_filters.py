@@ -76,10 +76,24 @@ def test_transaction_filters_combine_and_keep_user_scope(client):
 
     payloads = [
         (account_a.json()["id"], food.json()["id"], "expense", "80.00", base_time),
-        (account_a.json()["id"], food.json()["id"], "expense", "120.00", base_time + timedelta(days=1)),
-        (account_b.json()["id"], transport.json()["id"], "expense", "35.00", base_time + timedelta(days=2)),
+        (
+            account_a.json()["id"],
+            food.json()["id"],
+            "expense",
+            "120.00",
+            base_time + timedelta(days=1),
+        ),
+        (
+            account_b.json()["id"],
+            transport.json()["id"],
+            "expense",
+            "35.00",
+            base_time + timedelta(days=2),
+        ),
     ]
-    for index, (account_id, category_id, transaction_type, amount, occurred_at) in enumerate(payloads):
+    for index, (account_id, category_id, transaction_type, amount, occurred_at) in enumerate(
+        payloads
+    ):
         response = client.post(
             "/api/v1/finance/transactions",
             headers=headers,

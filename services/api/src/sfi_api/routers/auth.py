@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import secrets
+from math import ceil
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sfi_api.config import get_settings
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
+from sfi_api.models.login_attempt import LoginAttempt
 from sfi_api.models.refresh_token import RefreshToken
 from sfi_api.models.revoked_access_token import RevokedAccessToken
 from sfi_api.models.user import User
@@ -43,6 +45,15 @@ def _hash_refresh_token(token: str) -> str:
 
 def _new_refresh_token() -> str:
     return secrets.token_urlsafe(48)
+
+
+def _login_attempt_key(email: str, client_host: str) -> str:
+    material = f"{email.strip().lower()}|{client_host}".encode("utf-8")
+    return hashlib.sha256(material).hexdigest()
+
+
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 def _refresh_expiration() -> datetime:
@@ -165,9 +176,54 @@ async def login(
     if not jwt_is_configured():
         raise HTTPException(status_code=503, detail="Autenticação não configurada.")
 
+    now = datetime.now(UTC)
+    client_host = request.client.host if request.client is not None else "unknown"
+    attempt_key = _login_attempt_key(payload.email, client_host)
+    attempt = await session.scalar(
+        select(LoginAttempt)
+        .where(LoginAttempt.key_hash == attempt_key)
+        .with_for_update()
+    )
+    if attempt is not None:
+        locked_until = (
+            _as_utc(attempt.locked_until) if attempt.locked_until is not None else None
+        )
+        if locked_until is not None and locked_until > now:
+            retry_after = max(1, ceil((locked_until - now).total_seconds()))
+            raise HTTPException(
+                status_code=429,
+                detail="Muitas tentativas. Aguarde antes de tentar novamente.",
+                headers={"Retry-After": str(retry_after)},
+            )
+        window_started = _as_utc(attempt.window_started_at)
+        if now - window_started >= timedelta(minutes=15) or locked_until is not None:
+            attempt.failed_attempts = 0
+            attempt.window_started_at = now
+            attempt.locked_until = None
+
     result = await session.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()
-    if user is None or not verify_password(payload.password, user.password_hash):
+    password_valid = user is not None and verify_password(
+        payload.password, user.password_hash
+    )
+    if not password_valid:
+        if attempt is None:
+            attempt = LoginAttempt(
+                key_hash=attempt_key,
+                failed_attempts=0,
+                window_started_at=now,
+            )
+            session.add(attempt)
+        attempt.failed_attempts += 1
+        if attempt.failed_attempts >= 5:
+            attempt.locked_until = now + timedelta(minutes=15)
+            await session.commit()
+            raise HTTPException(
+                status_code=429,
+                detail="Muitas tentativas. Aguarde antes de tentar novamente.",
+                headers={"Retry-After": "900"},
+            )
+        await session.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="E-mail ou senha incorretos.",
@@ -175,6 +231,8 @@ async def login(
         )
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta desativada.")
+    if attempt is not None:
+        await session.delete(attempt)
     web_client = _is_web_client(request)
     return await _token_response(
         user,

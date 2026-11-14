@@ -29,7 +29,7 @@ def _token_response(user: User) -> TokenResponse:
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     payload: RegisterRequest,
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008  # noqa: B008
 ) -> TokenResponse:
     if not jwt_is_configured():
         raise HTTPException(status_code=503, detail="Autenticação não configurada.")
@@ -51,7 +51,7 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     payload: LoginRequest,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> TokenResponse:
     if not jwt_is_configured():
         raise HTTPException(status_code=503, detail="Autenticação não configurada.")

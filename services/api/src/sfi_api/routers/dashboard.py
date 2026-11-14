@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, func, select
@@ -21,9 +22,14 @@ from sfi_api.schemas.finance import (
 router = APIRouter(prefix="/finance", tags=["finance"])
 
 
-def _period_bounds(start_date: date, end_date: date) -> tuple[datetime, datetime]:
-    start = datetime.combine(start_date, time.min, tzinfo=UTC)
-    end = datetime.combine(end_date + timedelta(days=1), time.min, tzinfo=UTC)
+def _period_bounds(
+    start_date: date, end_date: date, timezone_name: str
+) -> tuple[datetime, datetime]:
+    timezone = ZoneInfo(timezone_name)
+    start = datetime.combine(start_date, time.min, tzinfo=timezone).astimezone(UTC)
+    end = datetime.combine(
+        end_date + timedelta(days=1), time.min, tzinfo=timezone
+    ).astimezone(UTC)
     return start, end
 
 
@@ -98,14 +104,15 @@ async def get_finance_summary(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> FinanceSummaryResponse:
-    end_date = end_date or date.today()
+    local_today = datetime.now(ZoneInfo(user.timezone)).date()
+    end_date = end_date or local_today
     start_date = start_date or end_date.replace(day=1)
     if end_date < start_date:
         raise HTTPException(status_code=422, detail="A data final não pode ser anterior à inicial.")
     if (end_date - start_date).days > 366:
         raise HTTPException(status_code=422, detail="O período máximo permitido é de 367 dias.")
 
-    start, end = _period_bounds(start_date, end_date)
+    start, end = _period_bounds(start_date, end_date, user.timezone)
     income = func.coalesce(
         func.sum(
             case(

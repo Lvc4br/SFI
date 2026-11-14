@@ -70,6 +70,20 @@ sfi/
 └── .github/workflows/
 ```
 
+## Banco de dados Neon — primeiro setup
+
+1. Entre em `services/api` e copie `.env.example` para `.env`.
+2. Preencha `SFI_DATABASE_URL` com a connection string PostgreSQL do Neon.
+3. Instale as dependências da API e ative o ambiente virtual.
+4. No PowerShell, execute:
+
+```powershell
+cd services/api
+.\scripts\init-db.ps1
+```
+
+O script confirma o host de destino e pede que você digite `APLICAR`; depois executa as migrations Alembic pendentes para criar/atualizar as tabelas. Ele não imprime a senha, não apaga tabelas existentes e pode ser executado novamente. Não coloque a URL no frontend nem no Git. Consulte [o guia da API](services/api/README.md) para os detalhes.
+
 ## Documentação
 
 - [Especificação do produto](docs/PRODUCT_SPEC.md)
@@ -88,24 +102,12 @@ sfi/
 - [Fase 2.0 — núcleo financeiro](docs/PHASE_2_FINANCIAL_CORE.md)
 - [Fase 2.1 — saldos e resumo](docs/PHASE_2_1_BALANCES_SUMMARY.md)
 - [Fase 2.2 — orçamentos mensais](docs/PHASE_2_2_MONTHLY_BUDGETS.md)
-
 - [Fase 2.3 — transferências e estornos auditáveis](docs/PHASE_2_3_TRANSFERS_REVERSALS.md)
 - [Fase 2.4 — histórico de transferências](docs/PHASE_2_4_TRANSFER_HISTORY.md)
 - [Fase 2.5 — recorrências e projeção de fluxo de caixa](docs/PHASE_2_5_RECURRENCES_FORECAST.md)
 - [Fase 2.6 — estorno pareado de transferências](docs/PHASE_2_6_PAIRED_TRANSFER_REVERSALS.md)
 - [Fase 2.7 — filtros do histórico de movimentações](docs/PHASE_2_7_TRANSACTION_FILTERS.md)
 
-## Como começar
-
-Pré-requisitos previstos: Git, Python 3.12 ou versão validada, Node.js LTS, pnpm recomendado e conta Neon. Os comandos de execução serão fixados quando os projetos-base e versões forem criados.
-
-1. Clone o repositório.
-2. Configure as variáveis de ambiente a partir dos exemplos.
-3. Configure a conexão Neon exclusivamente no backend.
-4. Instale dependências e aplique migrações.
-5. Inicie API e Web.
-6. Execute testes antes de habilitar integrações externas.
-
 ## Status
 
-**Fase 2 — núcleo financeiro em evolução.** A fundação Web/API, autenticação, contas, categorias, movimentações, saldos, resumo financeiro, orçamentos mensais, transferências, histórico paginado, estornos individuais auditáveis, estornos pareados de transferências, recorrências, projeções de fluxo de caixa e filtros avançados no histórico de movimentações foram integrados após CI aprovado (Ruff, pytest e build Web). Permanecem pendentes, entre outros, conciliação, importação de extratos, regras completas de cartão, dashboard visual, implantação no Neon e clientes Desktop/Mobile. As migrations ainda não foram aplicadas ao banco Neon. O produto ainda não está pronto para produção.
+**Fase 2 — núcleo financeiro em evolução.** A fundação Web/API, autenticação com rotação e revogação de sessões, contas, categorias, movimentações, saldos, resumo financeiro, orçamentos mensais, transferências, histórico paginado, estornos auditáveis, recorrências, projeções de fluxo de caixa e filtros avançados no histórico foram integrados após CI aprovado. As migrations ainda não foram aplicadas ao banco Neon. Permanecem pendentes, entre outros, conciliação, importação de extratos, regras completas de cartão, dashboard visual e clientes Desktop/Mobile. O produto ainda não está pronto para produção.

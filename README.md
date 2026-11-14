@@ -99,4 +99,4 @@ Pré-requisitos previstos: Git, Python 3.12 ou versão validada, Node.js LTS, pn
 
 ## Status
 
-**Fase 2 — núcleo financeiro inicial em implementação.** A fundação Web/API e a autenticação inicial já foram integradas. Contas, categorias e movimentações estão em uma entrega revisável; o produto ainda não está pronto para produção. Consulte o roadmap e os documentos de cada fase.
+**Fase 2 — núcleo financeiro inicial integrado.** A fundação Web/API, autenticação, contas, categorias e movimentações foram integradas após validação automatizada. O produto ainda não está pronto para produção; saldos consolidados, orçamentos, transferências, estornos e implantação no Neon permanecem pendentes.

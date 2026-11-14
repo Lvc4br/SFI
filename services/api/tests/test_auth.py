@@ -279,3 +279,43 @@ def test_logout_all_revokes_every_session_for_the_user(client):
         "/api/v1/auth/login",
         json={"email": "logout-all@example.com", "password": "senha-original-123"},
     ).status_code == 200
+
+
+def test_web_refresh_cookie_is_httponly_and_refresh_requires_csrf(client):
+    headers = {"X-SFI-Client": "web"}
+    registered = client.post(
+        "/api/v1/auth/register",
+        headers=headers,
+        json={"email": "web-cookie@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    assert registered.json()["refresh_token"] is None
+    set_cookies = registered.headers.get_list("set-cookie")
+    assert any("sfi_refresh=" in value and "httponly" in value.lower() for value in set_cookies)
+    assert any("sfi_csrf=" in value and "httponly" not in value.lower() for value in set_cookies)
+
+    original_refresh = client.cookies.get("sfi_refresh")
+    csrf_token = client.cookies.get("sfi_csrf")
+    assert original_refresh
+    assert csrf_token
+
+    missing_csrf = client.post("/api/v1/auth/refresh", headers=headers)
+    assert missing_csrf.status_code == 403
+
+    rotated = client.post(
+        "/api/v1/auth/refresh",
+        headers={**headers, "X-CSRF-Token": csrf_token},
+    )
+    assert rotated.status_code == 200
+    assert rotated.json()["refresh_token"] is None
+    assert client.cookies.get("sfi_refresh") != original_refresh
+
+    current_csrf = client.cookies.get("sfi_csrf")
+    access_headers = {
+        **headers,
+        "Authorization": f"Bearer {rotated.json()['access_token']}",
+        "X-CSRF-Token": current_csrf,
+    }
+    logged_out = client.post("/api/v1/auth/logout", headers=access_headers)
+    assert logged_out.status_code == 204
+    assert client.get("/api/v1/auth/me", headers=access_headers).status_code == 401

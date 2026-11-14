@@ -59,6 +59,7 @@ Antes de exposição pública, avaliar migração para refresh token em cookie `
 - O contrato de movimentação ainda não expõe metadados suficientes para apresentar com segurança a ação de estorno e o estado "já estornada" na lista. A ação de estorno fica pendente até ampliar e testar o contrato.
 - Transferências são apresentadas como entradas/saídas por conta no histórico, com rótulo de transferência interna. O dashboard não as contabiliza como receita/despesa.
 - A interface de orçamento cria limites em BRL nesta primeira versão.
+- O cálculo de orçamento ainda não aplica compensação de estornos de despesas à categoria original; a regra temporal e a atribuição da compensação precisam ser definidas antes de tratar o orçamento como conciliado após estornos.
 - Não há suporte a faturas/cartões, conciliação, importação bancária, recorrências editáveis, modo offline ou clientes Desktop/Mobile.
 - Datas do formulário são enviadas como horário UTC fixo ao meio-dia para preservar o dia selecionado enquanto a API ainda não possui timezone configurável por usuário. A regra de período precisa evoluir para timezone explícito.
 

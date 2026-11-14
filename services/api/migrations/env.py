@@ -2,7 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
-from sqlalchemy.engine import Connection
+from sqlalchemy.engine import Connection, make_url
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from sfi_api.config import get_settings
@@ -19,11 +19,15 @@ def database_url() -> str:
     value = get_settings().database_url
     if not value:
         raise RuntimeError("SFI_DATABASE_URL deve estar configurada para executar migrações.")
-    if value.startswith("postgres://"):
-        value = value.replace("postgres://", "postgresql+asyncpg://", 1)
-    elif value.startswith("postgresql://"):
-        value = value.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return value
+    url = make_url(value)
+    if url.drivername in {"postgres", "postgresql"}:
+        url = url.set(drivername="postgresql+asyncpg")
+    query = dict(url.query)
+    sslmode = query.pop("sslmode", None)
+    if sslmode and "ssl" not in query:
+        query["ssl"] = sslmode
+    query.pop("channel_binding", None)
+    return url.set(query=query).render_as_string(hide_password=False)
 
 
 def run_migrations_offline() -> None:

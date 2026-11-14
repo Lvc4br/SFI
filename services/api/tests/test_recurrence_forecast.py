@@ -39,9 +39,6 @@ def client(tmp_path, monkeypatch):
     asyncio.run(engine.dispose())
 
 
-from fastapi.testclient import TestClient
-
-
 def test_monthly_recurrence_forecast_clamps_month_end_without_creating_transactions(client):
     token_response = client.post(
         "/api/v1/auth/register",

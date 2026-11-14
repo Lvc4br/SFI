@@ -1,6 +1,6 @@
 const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
-const ACCESS_KEY = "sfi.access";
-const REFRESH_KEY = "sfi.refresh";
+let accessToken: string | null = null;
+let refreshInFlight: Promise<Session> | null = null;
 
 export type User = { id: string; email: string; is_active: boolean; timezone: string; created_at: string };
 export type SecurityEvent = { id: string; event_type: string; created_at: string };
@@ -12,21 +12,22 @@ export type Transaction = { id: string; account_id: string; category_id: string 
 export type Budget = { id: string; category_id: string; category_name: string; period: string; currency: string; limit_amount: string; spent_amount: string; remaining_amount: string; usage_percent: string; status: "within_limit" | "reached_limit" | "over_limit"; created_at: string };
 export type Summary = { start_date: string; end_date: string; totals_by_currency: { currency: string; income_total: string; expense_total: string; net_flow: string }[]; account_balances: { account_id: string; name: string; account_type: string; currency: string; opening_balance: string; income_total: string; expense_total: string; balance: string; balance_kind: "available_balance" | "credit_used" }[]; spending_by_category: { category_id: string; category_name: string; currency: string; amount: string }[] };
 
-function readToken(key: string) { return sessionStorage.getItem(key); }
+function readToken() { return accessToken; }
 function readCookie(name: string) {
   const entry = document.cookie.split("; ").find(value => value.startsWith(name + "="));
   return entry ? decodeURIComponent(entry.slice(name.length + 1)) : null;
 }
-function saveSession(session: Session) {
-  sessionStorage.setItem(ACCESS_KEY, session.access_token);
-  if (session.refresh_token) sessionStorage.setItem(REFRESH_KEY, session.refresh_token);
-  else sessionStorage.removeItem(REFRESH_KEY);
+function saveSession(session: Session) { accessToken = session.access_token; }
+export function clearSession() { accessToken = null; }
+
+async function renewSession(): Promise<Session> {
+  if (!refreshInFlight) {
+    refreshInFlight = request<Session>("/api/v1/auth/refresh", { method: "POST" }, false, false)
+      .then(session => { saveSession(session); return session; })
+      .finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
 }
-export function clearSession() {
-  sessionStorage.removeItem(ACCESS_KEY);
-  sessionStorage.removeItem(REFRESH_KEY);
-}
-export function hasSession() { return Boolean(readToken(ACCESS_KEY)); }
 
 async function request<T>(path: string, options: RequestInit = {}, authenticated = true, retry = true): Promise<T> {
   const headers = new Headers(options.headers);
@@ -36,7 +37,7 @@ async function request<T>(path: string, options: RequestInit = {}, authenticated
     if (csrfToken) headers.set("X-CSRF-Token", csrfToken);
   }
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-  const token = authenticated ? readToken(ACCESS_KEY) : null;
+  const token = authenticated ? readToken() : null;
   if (token) headers.set("Authorization", `Bearer ${token}`);
   let response: Response;
   try {
@@ -46,8 +47,7 @@ async function request<T>(path: string, options: RequestInit = {}, authenticated
   }
   if (response.status === 401 && authenticated && retry) {
     try {
-      const renewed = await request<Session>("/api/v1/auth/refresh", { method: "POST" }, false, false);
-      saveSession(renewed);
+      await renewSession();
       return request<T>(path, options, true, false);
     } catch {
       clearSession();

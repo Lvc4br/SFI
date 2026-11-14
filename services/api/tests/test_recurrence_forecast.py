@@ -1,5 +1,3 @@
-from datetime import date
-
 from fastapi.testclient import TestClient
 
 
@@ -37,6 +35,7 @@ def test_monthly_recurrence_forecast_clamps_month_end_without_creating_transacti
             "transaction_type": "expense",
             "amount": "1200.00",
             "description": "Aluguel mensal",
+            "idempotency_key": "recurrence-rent-2027-001",
             "frequency": "monthly",
             "start_date": "2027-01-31",
         },
@@ -94,6 +93,7 @@ def test_recurrence_pause_excludes_it_from_forecast(client):
             "transaction_type": "income",
             "amount": "250.00",
             "description": "Pagamento",
+            "idempotency_key": "recurrence-pay-2027-001",
             "frequency": "weekly",
             "start_date": "2027-01-01",
         },

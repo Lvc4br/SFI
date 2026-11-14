@@ -330,3 +330,174 @@ def test_monthly_budget_enforces_category_ownership_and_uniqueness(client):
     assert client.post("/api/v1/finance/budgets", headers=headers, json=payload).status_code == 201
     assert client.post("/api/v1/finance/budgets", headers=headers, json=payload).status_code == 409
     assert client.get("/api/v1/finance/budgets?period=2026-11", headers=other_headers).json() == []
+
+
+def test_transfer_moves_value_between_accounts_without_creating_net_income(client):
+    token = register(client, "transfer@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    source = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Conta origem", "account_type": "checking", "opening_balance": "500.00"},
+    )
+    destination = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Conta destino", "account_type": "savings"},
+    )
+    payload = {
+        "source_account_id": source.json()["id"],
+        "destination_account_id": destination.json()["id"],
+        "amount": "125.75",
+        "description": "Reserva",
+        "occurred_at": "2026-11-10T12:00:00+00:00",
+        "idempotency_key": "transfer-test-key-0001",
+    }
+    transfer = client.post("/api/v1/finance/transfers", headers=headers, json=payload)
+    assert transfer.status_code == 201
+    assert transfer.json()["amount"] == "125.75"
+    source_balance = client.get(
+        f"/api/v1/finance/accounts/{source.json()['id']}/balance", headers=headers
+    )
+    destination_balance = client.get(
+        f"/api/v1/finance/accounts/{destination.json()['id']}/balance", headers=headers
+    )
+    assert source_balance.json()["balance"] == "374.25"
+    assert destination_balance.json()["balance"] == "125.75"
+    summary = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-30",
+        headers=headers,
+    )
+    assert summary.status_code == 200
+    assert summary.json()["totals_by_currency"][0]["net_flow"] == "0.00"
+
+
+def test_transfer_rejects_foreign_accounts_and_duplicate_keys(client):
+    token = register(client, "transfer-owner@example.com")
+    other_token = register(client, "transfer-other@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+    source = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Origem", "account_type": "checking"},
+    )
+    foreign = client.post(
+        "/api/v1/finance/accounts", headers=other_headers,
+        json={"name": "Alheia", "account_type": "checking"},
+    )
+    payload = {
+        "source_account_id": source.json()["id"],
+        "destination_account_id": foreign.json()["id"],
+        "amount": "10.00",
+        "description": "Teste",
+        "idempotency_key": "transfer-owner-key-001",
+    }
+    foreign_transfer = client.post(
+        "/api/v1/finance/transfers", headers=headers, json=payload
+    )
+    assert foreign_transfer.status_code == 404
+    own_destination = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Destino", "account_type": "checking"},
+    )
+    payload["destination_account_id"] = own_destination.json()["id"]
+    first_transfer = client.post(
+        "/api/v1/finance/transfers", headers=headers, json=payload
+    )
+    assert first_transfer.status_code == 201
+    duplicate_transfer = client.post(
+        "/api/v1/finance/transfers", headers=headers, json=payload
+    )
+    assert duplicate_transfer.status_code == 409
+
+
+def test_transaction_reversal_is_compensating_and_cannot_be_repeated(client):
+    token = register(client, "reversal@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    )
+    original = client.post(
+        "/api/v1/finance/transactions", headers=headers,
+        json={
+            "account_id": account.json()["id"],
+            "transaction_type": "expense",
+            "amount": "42.90",
+            "description": "Compra",
+            "idempotency_key": "reversal-original-key-01",
+        },
+    )
+    assert original.status_code == 201
+    reversal = client.post(
+        f"/api/v1/finance/transactions/{original.json()['id']}/reverse",
+        headers=headers,
+        params={"idempotency_key": "reversal-compensate-key-01"},
+    )
+    assert reversal.status_code == 201
+    assert reversal.json()["reversal_transaction"]["transaction_type"] == "income"
+    assert reversal.json()["reversal_transaction"]["amount"] == "42.90"
+    repeated = client.post(
+        f"/api/v1/finance/transactions/{original.json()['id']}/reverse",
+        headers=headers,
+        params={"idempotency_key": "reversal-compensate-key-02"},
+    )
+    assert repeated.status_code == 409
+    listing = client.get("/api/v1/finance/transactions", headers=headers)
+    assert len(listing.json()) == 2
+
+
+def test_reversal_rejects_transactions_owned_by_another_user(client):
+    token = register(client, "reversal-owner@example.com")
+    other_token = register(client, "reversal-other@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+    account = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    )
+    original = client.post(
+        "/api/v1/finance/transactions", headers=headers,
+        json={
+            "account_id": account.json()["id"],
+            "transaction_type": "income",
+            "amount": "20.00",
+            "description": "Crédito",
+            "idempotency_key": "reversal-foreign-original",
+        },
+    )
+    response = client.post(
+        f"/api/v1/finance/transactions/{original.json()['id']}/reverse",
+        headers=other_headers,
+        params={"idempotency_key": "reversal-foreign-attempt"},
+    )
+    assert response.status_code == 404
+
+
+def test_compensating_transaction_cannot_be_reversed_again(client):
+    token = register(client, "double-reversal@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    )
+    original = client.post(
+        "/api/v1/finance/transactions", headers=headers,
+        json={
+            "account_id": account.json()["id"],
+            "transaction_type": "expense",
+            "amount": "15.00",
+            "description": "Despesa original",
+            "idempotency_key": "double-reverse-original-001",
+        },
+    )
+    reversal = client.post(
+        f"/api/v1/finance/transactions/{original.json()['id']}/reverse",
+        headers=headers,
+        params={"idempotency_key": "double-reverse-first-001"},
+    )
+    reversal_id = reversal.json()["reversal_transaction"]["id"]
+    second_reversal = client.post(
+        f"/api/v1/finance/transactions/{reversal_id}/reverse",
+        headers=headers,
+        params={"idempotency_key": "double-reverse-second-001"},
+    )
+    assert second_reversal.status_code == 422

@@ -135,3 +135,44 @@ class BudgetResponse(BaseModel):
     usage_percent: Decimal
     status: Literal["within_limit", "reached_limit", "over_limit"]
     created_at: datetime
+
+
+class TransferCreate(BaseModel):
+    source_account_id: uuid.UUID
+    destination_account_id: uuid.UUID
+    amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    description: str = Field(min_length=1, max_length=160)
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    idempotency_key: str = Field(min_length=16, max_length=100)
+
+    @field_validator("description")
+    @classmethod
+    def trim_transfer_description(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A descrição não pode ficar vazia.")
+        return value
+
+    @field_validator("occurred_at")
+    @classmethod
+    def require_transfer_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("A data da transferência precisa conter fuso horário.")
+        return value
+
+
+class TransferResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    source_account_id: uuid.UUID
+    destination_account_id: uuid.UUID
+    amount: Decimal
+    currency: str
+    description: str
+    occurred_at: datetime
+    created_at: datetime
+
+
+class TransactionReversalResponse(BaseModel):
+    original_transaction_id: uuid.UUID
+    reversal_transaction: TransactionResponse

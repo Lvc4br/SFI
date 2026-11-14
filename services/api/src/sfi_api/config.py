@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str | None = None
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 20
+    refresh_token_days: int = 30
 
     model_config = SettingsConfigDict(
         env_prefix="SFI_",

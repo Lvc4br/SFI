@@ -133,6 +133,7 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Definir timezone IANA por usuário, com configuração no Web e conversão de limites de dashboard, orçamento e filtros de calendário para UTC.
 - [ ] Executar auditoria completa de acessibilidade automatizada e manual; E2E agora verifica nomes acessíveis básicos de controles.
 - [x] Migrar refresh token Web para cookie HttpOnly/Secure/SameSite com proteção CSRF; manter estratégia compatível com clientes não-Web.
+- [x] Remover access token Web de sessionStorage; mantê-lo somente em memória e restaurar sessão por refresh cookie HttpOnly. E2E valida ausência de tokens no sessionStorage e restauração após reload.
 - [x] Implementar rate limiting de login persistido no banco e compartilhado entre instâncias; recuperação de senha ainda depende do fluxo de e-mail.
 - [ ] Implementar verificação de e-mail e recuperação de senha com tokens de uso único, hashes persistidos e provedor de e-mail configurado.
 - [ ] Implementar MFA TOTP com códigos de recuperação, rotação e auditoria.

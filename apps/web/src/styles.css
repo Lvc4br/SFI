@@ -61,3 +61,13 @@ button,input,select{font-family:inherit}
 /* Prevent a light flash before React hydrates the saved theme */
 html[data-theme="dark"],html[data-theme="dark"] body{background:#101a14;color:#edf4ee;color-scheme:dark}
 html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:#17251e;color-scheme:light}
+
+
+/* Transaction history search, filters and export */
+.transaction-tools{display:grid;grid-template-columns:minmax(180px,1.6fr) minmax(120px,.7fr) minmax(150px,1fr) auto;gap:10px;align-items:center;margin:0 0 18px}
+.transaction-tools input,.transaction-tools select{width:100%;min-width:0;min-height:42px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:12px;outline:none}
+.transaction-tools input:focus,.transaction-tools select:focus{border-color:#6a9b77;box-shadow:0 0 0 3px #77a98322}
+.results-note{margin:12px 0 0;color:var(--muted);font-size:11px}
+.app-shell[data-theme="dark"] .transaction-tools input,.app-shell[data-theme="dark"] .transaction-tools select{background:#111c15;color:var(--ink);border-color:#3a4b40}
+@media(max-width:850px){.transaction-tools{grid-template-columns:1fr 1fr}.transaction-tools input{grid-column:1/-1}}
+@media(max-width:480px){.transaction-tools{grid-template-columns:1fr}.transaction-tools input{grid-column:auto}.transaction-tools .button{width:100%}}

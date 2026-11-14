@@ -32,3 +32,67 @@ jobs:
           node-version: 22
       - run: pnpm install
       - run: pnpm --filter @sfi/web build
+
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      SFI_DATABASE_URL: sqlite+aiosqlite:////tmp/sfi-e2e.db
+      SFI_JWT_SECRET_KEY: sfi-e2e-only-secret-key-not-for-production-2026
+      SFI_CORS_ORIGINS: http://127.0.0.1:5173
+      VITE_API_URL: http://127.0.0.1:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install API and browser test dependencies
+        working-directory: services/api
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
+      - name: Install Web dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Prepare isolated SQLite database
+        working-directory: services/api
+        run: python scripts/create_e2e_db.py
+      - name: Start API and Web servers
+        run: |
+          nohup uvicorn sfi_api.main:app --host 127.0.0.1 --port 8000 > /tmp/sfi-api.log 2>&1 &
+          nohup pnpm --filter @sfi/web dev -- --host 127.0.0.1 > /tmp/sfi-web.log 2>&1 &
+          python - <<'PY'
+          import time
+          import urllib.request
+
+          endpoints = [
+              "http://127.0.0.1:8000/api/v1/health/ready",
+              "http://127.0.0.1:5173",
+          ]
+          deadline = time.time() + 60
+          while time.time() < deadline:
+              try:
+                  for endpoint in endpoints:
+                      with urllib.request.urlopen(endpoint, timeout=3) as response:
+                          if response.status != 200:
+                              raise RuntimeError(f"{endpoint}: HTTP {response.status}")
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("API/Web did not become ready; inspect /tmp/sfi-api.log and /tmp/sfi-web.log")
+          PY
+        working-directory: services/api
+      - name: Run browser-based financial journey
+        working-directory: services/api
+        run: python -m pytest tests/e2e/test_web_journey.py -m e2e -q

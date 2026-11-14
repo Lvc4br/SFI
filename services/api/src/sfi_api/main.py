@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sfi_api.config import get_settings
 from sfi_api.database import check_database, dispose_database
 from sfi_api.routers.auth import router as auth_router
+from sfi_api.routers.dashboard import router as dashboard_router
 from sfi_api.routers.finance import router as finance_router
 
 settings = get_settings()
@@ -39,6 +40,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(finance_router, prefix=settings.api_prefix)
+app.include_router(dashboard_router, prefix=settings.api_prefix)
 
 
 @app.get("/", tags=["system"])

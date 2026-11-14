@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -80,3 +80,36 @@ class TransactionResponse(BaseModel):
     description: str
     occurred_at: datetime
     created_at: datetime
+
+class AccountBalanceResponse(BaseModel):
+    account_id: uuid.UUID
+    name: str
+    account_type: str
+    currency: str
+    opening_balance: Decimal
+    income_total: Decimal
+    expense_total: Decimal
+    balance: Decimal
+    balance_kind: Literal["available_balance", "credit_used"]
+
+
+class CurrencyTotals(BaseModel):
+    currency: str
+    income_total: Decimal
+    expense_total: Decimal
+    net_flow: Decimal
+
+
+class CategorySpending(BaseModel):
+    category_id: uuid.UUID
+    category_name: str
+    currency: str
+    amount: Decimal
+
+
+class FinanceSummaryResponse(BaseModel):
+    start_date: date
+    end_date: date
+    totals_by_currency: list[CurrencyTotals]
+    account_balances: list[AccountBalanceResponse]
+    spending_by_category: list[CategorySpending]

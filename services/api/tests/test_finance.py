@@ -166,3 +166,95 @@ def test_transactions_are_append_only(client):
         headers=headers,
         json={"amount": "999.99"},
     ).status_code == 404
+
+
+def test_account_balance_and_summary_are_calculated_with_decimal(client):
+    token = register(client, "summary@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta principal", "account_type": "checking", "opening_balance": "1000.00"},
+    )
+    account_id = account.json()["id"]
+    category = client.post(
+        "/api/v1/finance/categories",
+        headers=headers,
+        json={"name": "Mercado", "category_type": "expense"},
+    )
+    for transaction_type, amount, key in [
+        ("income", "250.10", "summary-income-key-0001"),
+        ("expense", "49.99", "summary-expense-key-0001"),
+    ]:
+        response = client.post(
+            "/api/v1/finance/transactions",
+            headers=headers,
+            json={
+                "account_id": account_id,
+                "category_id": category.json()["id"] if transaction_type == "expense" else None,
+                "transaction_type": transaction_type,
+                "amount": amount,
+                "description": "Movimentação de teste",
+                "occurred_at": "2026-11-10T12:00:00+00:00",
+                "idempotency_key": key,
+            },
+        )
+        assert response.status_code == 201
+
+    balance = client.get(f"/api/v1/finance/accounts/{account_id}/balance", headers=headers)
+    assert balance.status_code == 200
+    assert balance.json()["balance"] == "1200.11"
+    assert balance.json()["balance_kind"] == "available_balance"
+
+    summary = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-30",
+        headers=headers,
+    )
+    assert summary.status_code == 200
+    assert summary.json()["totals_by_currency"] == [
+        {
+            "currency": "BRL",
+            "income_total": "250.10",
+            "expense_total": "49.99",
+            "net_flow": "200.11",
+        }
+    ]
+    assert summary.json()["spending_by_category"][0]["amount"] == "49.99"
+
+
+def test_credit_balance_is_reported_as_used_credit_not_cash(client):
+    token = register(client, "credit-summary@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Cartão", "account_type": "credit"},
+    )
+    transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account.json()["id"],
+            "transaction_type": "expense",
+            "amount": "89.90",
+            "description": "Compra no cartão",
+            "idempotency_key": "credit-summary-key-0001",
+        },
+    )
+    assert transaction.status_code == 201
+    balance = client.get(
+        f"/api/v1/finance/accounts/{account.json()['id']}/balance",
+        headers=headers,
+    )
+    assert balance.status_code == 200
+    assert balance.json()["balance"] == "89.90"
+    assert balance.json()["balance_kind"] == "credit_used"
+
+
+def test_summary_rejects_invalid_period(client):
+    token = register(client, "period@example.com")
+    response = client.get(
+        "/api/v1/finance/summary?start_date=2026-12-01&end_date=2026-11-01",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 422

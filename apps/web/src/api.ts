@@ -23,8 +23,8 @@ export function clearSession() { accessToken = null; }
 async function renewSession(): Promise<Session> {
   if (!refreshInFlight) {
     const rotate = () => request<Session>("/api/v1/auth/refresh", { method: "POST" }, false, false);
-    const coordinated = typeof navigator !== "undefined" && navigator.locks
-      ? navigator.locks.request("sfi-auth-refresh", rotate)
+    const coordinated: Promise<Session> = typeof navigator !== "undefined" && navigator.locks
+      ? navigator.locks.request<Session>("sfi-auth-refresh", async () => await rotate())
       : rotate();
     refreshInFlight = coordinated
       .then(session => { saveSession(session); return session; })

@@ -127,6 +127,12 @@ class Transaction(Base):
             ["reversal_of_transaction_id", "user_id"], ["transactions.id", "transactions.user_id"],
             name="fk_transactions_reversal_owner", ondelete="RESTRICT"
         ),
+        ForeignKeyConstraint(
+            ["transfer_reversal_id", "user_id"],
+            ["transfer_reversals.id", "transfer_reversals.user_id"],
+            name="fk_transactions_transfer_reversal_owner",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint(
             "user_id", "reversal_of_transaction_id", name="uq_transactions_one_reversal"
         ),
@@ -144,6 +150,7 @@ class Transaction(Base):
     reversal_of_transaction_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), nullable=True
     )
+    transfer_reversal_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     transaction_type: Mapped[str] = mapped_column(String(10), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)

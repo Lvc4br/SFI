@@ -79,3 +79,9 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: UserResponse
+
+
+class SecurityEventResponse(BaseModel):
+    id: uuid.UUID
+    event_type: str
+    created_at: datetime

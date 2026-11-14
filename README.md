@@ -90,6 +90,7 @@ O script confirma o host de destino e pede que você digite `APLICAR`; depois ex
 - [Especificação do produto](docs/PRODUCT_SPEC.md)
 - [Escopo funcional do MVP](docs/MVP_SCOPE.md)
 - [Critérios de aceite do MVP](docs/MVP_ACCEPTANCE_CRITERIA.md)
+- [Implementação Web do MVP e limitações](docs/WEB_MVP_IMPLEMENTATION.md)
 - [Regras do domínio financeiro](docs/FINANCIAL_DOMAIN_RULES.md)
 - [Educação financeira contextual](docs/FINANCIAL_EDUCATION.md)
 - [Backlog priorizado do MVP](planning/MVP_BACKLOG.md)
@@ -130,4 +131,4 @@ O script confirma o host de destino e pede que você digite `APLICAR`; depois ex
 
 **Fundação e núcleo financeiro de backend implementados; MVP Web ainda em desenvolvimento.** O repositório contém autenticação com rotação e revogação de sessões, contas, categorias, movimentações, saldos, resumo financeiro, orçamentos mensais, transferências, histórico paginado, estornos auditáveis, recorrências e projeções de fluxo de caixa. As migrations até a revisão atual foram aplicadas no ambiente Neon de desenvolvimento. A suíte local reportada nesta etapa passou com 36 testes.
 
-A interface Web ainda é uma fundação inicial, não uma aplicação financeira completa. Permanecem pendentes as jornadas integradas de interface, conciliação, regras completas de cartões/faturas, recuperação de senha/verificação de e-mail, revisão de segurança para beta público, clientes Desktop/Mobile e demais módulos do roadmap. **O SFI ainda não está pronto para produção.**
+A Web já possui uma primeira jornada integrada com autenticação, contas, categorias, movimentações, transferências, orçamento, dashboard e educação contextual; a implementação e suas limitações estão descritas em [WEB_MVP_IMPLEMENTATION.md](docs/WEB_MVP_IMPLEMENTATION.md). Permanecem pendentes filtros/paginação visual, edição/arquivamento, estornos na interface, conciliação, cartões/faturas, recuperação de senha/verificação de e-mail, hardening de sessão e segurança para beta público, clientes Desktop/Mobile e demais módulos do roadmap. **O SFI ainda não está pronto para produção.**

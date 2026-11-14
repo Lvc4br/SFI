@@ -135,7 +135,10 @@ def test_transaction_page_handles_large_dataset_without_duplicates_or_gaps(clien
                 "transaction_type": "expense",
                 "amount": "1.00",
                 "description": f"Movimentação volume {index:03d}",
-                "occurred_at": (datetime(2026, 11, 1, 12, 0, 0, tzinfo=UTC) + timedelta(seconds=index)).isoformat(),
+                "occurred_at": (
+                    datetime(2026, 11, 1, 12, 0, 0, tzinfo=UTC)
+                    + timedelta(seconds=index)
+                ).isoformat(),
                 "idempotency_key": f"page-volume-key-{index:04d}",
             },
         )

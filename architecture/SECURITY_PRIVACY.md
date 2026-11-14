@@ -58,3 +58,11 @@ Revisar arquitetura antes de integrações bancárias, pagamentos, investimentos
 
 ### Rate limit
 O controle usa estado compartilhado no banco, portanto funciona entre múltiplas instâncias da API, diferentemente de um contador em memória. A chave armazenada é hash SHA-256 do e-mail normalizado e IP remoto; não persistimos e-mail/IP em claro na tabela de tentativas. O proxy/ingress deve preservar o IP real de forma confiável; nunca confiar cegamente em X-Forwarded-For vindo diretamente do cliente.
+
+
+### Auditoria de eventos de autenticação (implementada nesta branch)
+- Eventos registrados: criação de conta, login bem-sucedido/falho, bloqueio por tentativas, rotação de refresh, reutilização detectada, logout, alteração de senha e logout global.
+- O usuário autenticado pode consultar os eventos recentes em GET /api/v1/auth/security-events; a interface exibe a atividade na página Configurações.
+- Não são armazenados tokens, senhas ou IP em claro. O IP remoto é persistido como hash SHA-256; User-Agent é limitado a 256 caracteres.
+- A tabela possui índices por usuário/data e tipo/data.
+- Política de retenção, exportação e alertas centralizados ainda precisam ser definidos antes do beta. Hash de IP continua sendo dado pseudonimizado e deve receber retenção limitada.

@@ -5,7 +5,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from math import ceil
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -17,6 +17,7 @@ from sfi_api.dependencies import get_current_user
 from sfi_api.models.login_attempt import LoginAttempt
 from sfi_api.models.refresh_token import RefreshToken
 from sfi_api.models.revoked_access_token import RevokedAccessToken
+from sfi_api.models.security_event import SecurityEvent
 from sfi_api.models.user import User
 from sfi_api.schemas.auth import (
     ChangePasswordRequest,
@@ -24,6 +25,7 @@ from sfi_api.schemas.auth import (
     LogoutRequest,
     RefreshRequest,
     RegisterRequest,
+    SecurityEventResponse,
     TimezoneUpdateRequest,
     TokenResponse,
     UserResponse,
@@ -42,6 +44,27 @@ _bearer = HTTPBearer(auto_error=False)
 
 def _hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _record_security_event(
+    session: AsyncSession,
+    request: Request,
+    event_type: str,
+    user_id: uuid.UUID | None = None,
+) -> None:
+    client_host = request.client.host if request.client is not None else None
+    source_ip_hash = (
+        hashlib.sha256(client_host.encode()).hexdigest() if client_host else None
+    )
+    user_agent = request.headers.get("user-agent", "")[:256] or None
+    session.add(
+        SecurityEvent(
+            user_id=user_id,
+            event_type=event_type,
+            source_ip_hash=source_ip_hash,
+            user_agent=user_agent,
+        )
+    )
 
 
 def _new_refresh_token() -> str:
@@ -162,6 +185,7 @@ async def register(
             status_code=status.HTTP_409_CONFLICT,
             detail="Já existe uma conta com este e-mail.",
         ) from None
+    _record_security_event(session, request, "account_registered", user.id)
     web_client = _is_web_client(request)
     return await _token_response(
         user,
@@ -195,6 +219,8 @@ async def login(
         )
         if locked_until is not None and locked_until > now:
             retry_after = max(1, ceil((locked_until - now).total_seconds()))
+            _record_security_event(session, request, "login_rate_limited")
+            await session.commit()
             raise HTTPException(
                 status_code=429,
                 detail="Muitas tentativas. Aguarde antes de tentar novamente.",
@@ -212,6 +238,9 @@ async def login(
         payload.password, user.password_hash
     )
     if not password_valid:
+        _record_security_event(
+            session, request, "login_failed", user.id if user is not None else None
+        )
         if attempt is None:
             attempt = LoginAttempt(
                 key_hash=attempt_key,
@@ -222,6 +251,9 @@ async def login(
         attempt.failed_attempts += 1
         if attempt.failed_attempts >= 5:
             attempt.locked_until = now + timedelta(minutes=15)
+            _record_security_event(
+                session, request, "login_rate_limited", user.id if user is not None else None
+            )
             await session.commit()
             raise HTTPException(
                 status_code=429,
@@ -238,6 +270,7 @@ async def login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta desativada.")
     if attempt is not None:
         await session.delete(attempt)
+    _record_security_event(session, request, "login_succeeded", user.id)
     web_client = _is_web_client(request)
     return await _token_response(
         user,
@@ -283,6 +316,7 @@ async def refresh(
             )
             .values(revoked_at=now)
         )
+        _record_security_event(session, request, "refresh_reuse_detected", stored.user_id)
         await session.commit()
         raise HTTPException(status_code=401, detail="Reutilização detectada; sessão revogada.")
 
@@ -309,6 +343,7 @@ async def refresh(
         )
     )
     access_token, expires_in = create_access_token(str(user.id), user.token_version)
+    _record_security_event(session, request, "refresh_rotated", user.id)
     await session.commit()
     web_client = from_cookie or _is_web_client(request)
     if web_client and response is not None:
@@ -378,6 +413,7 @@ async def logout(
                 .values(revoked_at=datetime.now(UTC))
             )
 
+    _record_security_event(session, request, "logout", user.id)
     try:
         await session.commit()
     except IntegrityError:
@@ -388,6 +424,21 @@ async def logout(
         ) from None
     if response is not None and (from_cookie or (request and _is_web_client(request))):
         _clear_auth_cookies(response)
+
+
+@router.get("/security-events", response_model=list[SecurityEventResponse])
+async def list_security_events(
+    limit: int = Query(default=50, ge=1, le=100),
+    user: User = Depends(get_current_user),  # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> list[SecurityEventResponse]:
+    result = await session.scalars(
+        select(SecurityEvent)
+        .where(SecurityEvent.user_id == user.id)
+        .order_by(SecurityEvent.created_at.desc(), SecurityEvent.id.desc())
+        .limit(limit)
+    )
+    return [SecurityEventResponse.model_validate(event) for event in result.all()]
 
 
 @router.patch("/me/timezone", response_model=UserResponse)
@@ -432,6 +483,7 @@ async def change_password(
         )
         .values(revoked_at=now)
     )
+    _record_security_event(session, request, "password_changed", user.id)
     await session.commit()
     if _is_web_client(request):
         _clear_auth_cookies(response)
@@ -453,6 +505,7 @@ async def logout_all(
         )
         .values(revoked_at=datetime.now(UTC))
     )
+    _record_security_event(session, request, "logout_all", user.id)
     await session.commit()
     if _is_web_client(request):
         _clear_auth_cookies(response)

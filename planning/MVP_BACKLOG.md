@@ -112,7 +112,7 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Exportar CSV de todo o conjunto filtrado, percorrendo páginas da API e aplicando busca textual no conjunto completo.
 - [ ] Expandir E2E para transferências, orçamento, paginação/filtros, tema claro/escuro e validação de saldos/indicadores; adicionar evidências de acessibilidade.
 - [x] Script PowerShell de validação unificada (`scripts/validate.ps1`): Ruff + pytest/SQLite + TypeScript + build Web; não acessa Neon.
-- [x] Primeira jornada E2E com Playwright/Chromium: cadastro, autenticação, criação de conta/categoria, despesa, exportação CSV, logout e novo login; banco SQLite descartável.
+- [x] Primeira jornada E2E com Playwright/Chromium: cadastro, autenticação, duas contas, categoria, despesa, transferência pareada, orçamento, filtros, tema claro/escuro, exportação CSV, logout e novo login; banco SQLite descartável.
 - [x] Job E2E independente no GitHub Actions e runner local `scripts/e2e.ps1`.
 - [x] Testes API para paginação, filtros, ordenação, validação de intervalo e isolamento por usuário.
 

@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    UniqueConstraint,
     Uuid,
     func,
 )
@@ -36,6 +37,7 @@ class Recurrence(Base):
             name="fk_recurrences_category_owner",
             ondelete="RESTRICT",
         ),
+        UniqueConstraint("user_id", "idempotency_key", name="uq_recurrences_user_idempotency"),
         CheckConstraint("amount > 0", name="ck_recurrences_amount_positive"),
         CheckConstraint(
             "frequency IN ('weekly', 'monthly', 'yearly')",
@@ -59,6 +61,7 @@ class Recurrence(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     description: Mapped[str] = mapped_column(String(160), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(100), nullable=False)
     frequency: Mapped[str] = mapped_column(String(10), nullable=False)
     interval_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)

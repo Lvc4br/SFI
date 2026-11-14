@@ -41,7 +41,7 @@ Revisar arquitetura antes de integrações bancárias, pagamentos, investimentos
 - Isolamento de recursos por usuário; contas/categorias arquivadas deixam de aceitar novos lançamentos/recorrências. Arquivamento de conta exige saldo zero e ausência de recorrências ativas.
 
 ### Ainda obrigatório antes de beta público
-- O access token Web continua em sessionStorage nesta etapa; uma XSS ainda pode utilizá-lo até expirar. Migrar para memória e restaurar sessão via refresh cookie ou justificar formalmente a decisão.
+- O access token Web permanece apenas em memória JavaScript e não é persistido em sessionStorage/localStorage. Após recarregar a página, a sessão é restaurada pelo refresh cookie HttpOnly com CSRF; chamadas simultâneas compartilham uma única renovação em andamento.
 - Aplicar CSP e headers no servidor/CDN que entrega apps/web (o middleware FastAPI protege a API, não substitui a política da origem Web).
 - Rate limit por e-mail+IP no banco não substitui proteção de borda por IP/WAF; configurar proxy confiável e proteção contra abuso distribuído.
 - Verificação de e-mail, recuperação de senha e MFA TOTP com códigos de recuperação ainda não implementados.

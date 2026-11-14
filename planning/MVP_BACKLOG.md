@@ -110,7 +110,8 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Integrar paginação server-side à tela de histórico (25 por página), totalizador e navegação anterior/próxima.
 - [x] Aplicar filtros server-side por tipo, categoria e período (datas inicial/final).
 - [x] Exportar CSV de todo o conjunto filtrado, percorrendo páginas da API e aplicando busca textual no conjunto completo.
-- [ ] Expandir E2E para transferências, orçamento, paginação/filtros, tema claro/escuro e validação de saldos/indicadores; adicionar evidências de acessibilidade.
+- [x] Expandir E2E para transferências, orçamento, paginação/filtros, tema claro/escuro e validação de saldos/indicadores.
+- [ ] Completar auditoria de acessibilidade com axe/WCAG, leitor de tela, contraste e navegação integral por teclado.
 - [x] Script PowerShell de validação unificada (`scripts/validate.ps1`): Ruff + pytest/SQLite + TypeScript + build Web; não acessa Neon.
 - [x] Primeira jornada E2E com Playwright/Chromium: cadastro, autenticação, duas contas, categoria, despesa, transferência pareada, orçamento, filtros, tema claro/escuro, exportação CSV, logout e novo login; banco SQLite descartável.
 - [x] Job E2E independente no GitHub Actions e runner local `scripts/e2e.ps1`.
@@ -130,14 +131,16 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Implementar edição e arquivamento lógico de contas/categorias com migration reversível, bloqueio de saldo/recorrência e preservação dos rótulos históricos.
 - [x] Adicionar cobertura E2E para paginação multi-página, filtros de datas e CSV com mais de 25 registros (CI desta última alteração pendente).
 - [x] Definir timezone IANA por usuário, com configuração no Web e conversão de limites de dashboard, orçamento e filtros de calendário para UTC.
-- [ ] Executar auditoria de acessibilidade automatizada e manual (teclado, foco, labels, contraste e leitor de tela).
+- [ ] Executar auditoria completa de acessibilidade automatizada e manual; E2E agora verifica nomes acessíveis básicos de controles.
 - [x] Migrar refresh token Web para cookie HttpOnly/Secure/SameSite com proteção CSRF; manter estratégia compatível com clientes não-Web.
 - [x] Implementar rate limiting de login persistido no banco e compartilhado entre instâncias; recuperação de senha ainda depende do fluxo de e-mail.
 - [ ] Implementar verificação de e-mail e recuperação de senha com tokens de uso único, hashes persistidos e provedor de e-mail configurado.
 - [ ] Implementar MFA TOTP com códigos de recuperação, rotação e auditoria.
 - [ ] Aplicar CSP e demais security headers na camada que efetivamente serve a Web; validar política em produção/staging.
-- [ ] Criar trilha de auditoria para eventos de segurança e painel/alertas operacionais.
-- [ ] Automatizar backup, retenção, restauração em ambiente isolado e evidência periódica de restore.
+- [x] Criar trilha persistente de eventos de autenticação e exibir atividade recente na área de Configurações.
+- [ ] Integrar monitoramento/alertas centralizados, política de retenção e revisão de eventos.
+- [x] Criar scripts de backup criptografado e restauração protegida para branch isolada, com runbook.
+- [ ] Executar o ensaio real de backup/restore, definir retenção/RPO/RTO e registrar evidências.
 - [ ] Completar testes de abuso, concorrência, sessão, CSRF, rate limit, isolamento e recuperação de desastre.
 
 **Nota de segurança:** esta branch ainda não é um release seguro para produção. O rate limit de login usa estado no banco compartilhado, mas não substitui proteção de borda/WAF nem testes de concorrência e limpeza de registros. Verificação de e-mail, recuperação de senha e MFA ainda dependem de provedor de e-mail, armazenamento de segredos, telas e testes próprios.

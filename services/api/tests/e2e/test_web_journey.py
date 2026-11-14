@@ -79,8 +79,7 @@ def test_complete_web_financial_journey() -> None:
 
             page.get_by_role("button", name="Orçamento").click()
             page.get_by_label("Categoria").select_option(label="Categoria E2E")
-            budget_form = page.locator("form").filter(has=page.get_by_label("Limite mensal"))
-            budget_form.get_by_label("Valor em reais").fill("20000")
+            page.locator("form").get_by_label("Valor em reais").fill("20000")
             page.get_by_role("button", name="Criar orçamento").click()
             expect(page.get_by_text("Orçamento criado.")).to_be_visible()
             expect(page.get_by_text("Dentro do limite")).to_be_visible()

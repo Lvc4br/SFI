@@ -97,6 +97,8 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_label("E-mail").fill(email)
             page.get_by_label("Senha").fill(password)
             page.get_by_role("button", name="Entrar", exact=True).click()
+            expect(page.get_by_text(email)).to_be_visible()
+            page.get_by_role("button", name="Visão geral").click()
             expect(page.get_by_role("heading", name="Visão geral")).to_be_visible()
         finally:
             browser.close()

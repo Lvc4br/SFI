@@ -81,6 +81,7 @@ class TransactionResponse(BaseModel):
     occurred_at: datetime
     created_at: datetime
 
+
 class AccountBalanceResponse(BaseModel):
     account_id: uuid.UUID
     name: str
@@ -113,3 +114,23 @@ class FinanceSummaryResponse(BaseModel):
     totals_by_currency: list[CurrencyTotals]
     account_balances: list[AccountBalanceResponse]
     spending_by_category: list[CategorySpending]
+
+
+class BudgetCreate(BaseModel):
+    category_id: uuid.UUID
+    period: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    limit_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+
+
+class BudgetResponse(BaseModel):
+    id: uuid.UUID
+    category_id: uuid.UUID
+    category_name: str
+    period: str
+    currency: str
+    limit_amount: Decimal
+    spent_amount: Decimal
+    remaining_amount: Decimal
+    usage_percent: Decimal
+    status: Literal["within_limit", "reached_limit", "over_limit"]
+    created_at: datetime

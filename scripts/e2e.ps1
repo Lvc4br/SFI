@@ -47,7 +47,7 @@ try {
         Start-Sleep -Seconds 1
         try {
             $apiHealth = Invoke-RestMethod "http://127.0.0.1:8000/api/v1/health/ready" -TimeoutSec 2
-            $webResponse = Invoke-WebRequest "http://127.0.0.1:5173" -TimeoutSec 2
+            $webResponse = Invoke-WebRequest "http://127.0.0.1:5173" -UseBasicParsing -TimeoutSec 2
             if ($apiHealth.ready -eq $true -and $webResponse.StatusCode -eq 200) { $ready = $true; break }
         } catch {}
         if (($apiProcess -and $apiProcess.HasExited) -or ($webProcess -and $webProcess.HasExited)) {

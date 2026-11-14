@@ -182,6 +182,7 @@ async def _budget_response(
             Transaction.user_id == user_id,
             Transaction.category_id == budget.category_id,
             Transaction.transaction_type == "expense",
+            Transaction.currency == budget.currency,
             Transaction.occurred_at >= start,
             Transaction.occurred_at < end,
         )
@@ -200,7 +201,7 @@ async def _budget_response(
         category_id=budget.category_id,
         category_name=category.name,
         period=budget.period,
-        currency="BRL",
+        currency=budget.currency,
         limit_amount=budget.limit_amount,
         spent_amount=spent_amount,
         remaining_amount=remaining,

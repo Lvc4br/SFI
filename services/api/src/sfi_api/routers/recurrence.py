@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
-from sfi_api.models.finance import Account, Category, Recurrence
+from sfi_api.models.finance import Account, Category
+from sfi_api.models.recurrence import Recurrence
 from sfi_api.models.user import User
 from sfi_api.schemas.recurrence import (
     CashFlowForecastResponse,

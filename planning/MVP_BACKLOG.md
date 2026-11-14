@@ -89,7 +89,7 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 | MVP-01 — Inspeção e contratos | Parcialmente concluído | Endpoints e schemas consumidos foram inspecionados; cliente tipado manualmente. |
 | MVP-02 — Base Web | Base implementada | Login/cadastro, refresh, logout, navegação protegida, estados e layout responsivo. Segurança de sessão ainda requer hardening. |
 | MVP-03 — Contas e categorias | Parcialmente implementado | Listagem e criação; API ainda não oferece edição/arquivamento. |
-| MVP-04 — Movimentações | Parcialmente implementado | Registro, histórico recente e transferências. Filtros/paginação visual e estorno seguro pela interface pendentes. |
+| MVP-04 — Movimentações | Parcialmente implementado | Registro, histórico paginado com filtros server-side e CSV completo. Fluxo de estorno seguro pela interface ainda pendente. |
 | MVP-05 — Orçamento | Base implementada | Criar/listar limites mensais e comparar planejado versus realizado. Estornos e múltiplas moedas ainda precisam de regra/UX completas. |
 | MVP-06 — Dashboard | Base implementada | Resumo por período/moeda, saldos, despesas por categoria e conteúdo contextual. |
 | MVP-07 — Educação contextual | Base inicial implementada | Conceitos essenciais nas telas; revisão pedagógica e conteúdo versionado pendentes. |
@@ -107,8 +107,10 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Filtros locais no histórico carregado: busca por descrição/conta/categoria, tipo e categoria.
 - [x] Exportação CSV dos resultados atualmente filtrados.
 - [x] Endpoint de paginação no backend com total, offset, limite, filtros server-side e ordenação determinística; cliente API tipado disponível.
-- [ ] Integrar paginação server-side à tela de histórico; até essa integração, a tela continua usando a listagem antiga de até 100 registros.
+- [x] Integrar paginação server-side à tela de histórico (25 por página), totalizador e navegação anterior/próxima.
+- [x] Aplicar filtros server-side por tipo, categoria e período (datas inicial/final).
+- [x] Exportar CSV de todo o conjunto filtrado, percorrendo páginas da API e aplicando busca textual no conjunto completo.
 - [ ] Testes automatizados de componentes e E2E para tema, filtros, exportação e fluxos financeiros.
 - [x] Testes API para paginação, filtros, ordenação, validação de intervalo e isolamento por usuário.
 
-**Limite importante:** até a integração da nova paginação na interface, filtros e exportação operam somente sobre os registros carregados pela API antiga (até 100 mais recentes). O novo endpoint `/api/v1/finance/transactions/page` já disponibiliza paginação e filtros server-side; ainda não é consumido pela tela. O CSV atual não deve ser interpretado como extrato completo da conta.
+**Limite importante:** a paginação usa offset/limit; inserções concorrentes durante uma exportação longa podem deslocar registros entre páginas. Evoluir para cursor/snapshot antes de prometer exportação transacionalmente consistente. A busca textual filtra a página visível, mas a exportação reaplica o mesmo termo ao conjunto completo recuperado.

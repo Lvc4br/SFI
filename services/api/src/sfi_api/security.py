@@ -19,10 +19,15 @@ def verify_password(password: str, password_hash: str) -> bool:
     return _password_hash.verify(password, password_hash)
 
 
+def _jwt_secret() -> str:
+    secret = get_settings().jwt_secret_key
+    if not secret or len(secret.encode("utf-8")) < 32:
+        raise RuntimeError("SFI_JWT_SECRET_KEY deve ter pelo menos 32 bytes.")
+    return secret
+
+
 def create_access_token(subject: str) -> tuple[str, int]:
     settings = get_settings()
-    if not settings.jwt_secret_key:
-        raise RuntimeError("SFI_JWT_SECRET_KEY não foi configurada.")
     expires_in = settings.access_token_minutes * 60
     now = datetime.now(timezone.utc)
     payload = {
@@ -33,17 +38,15 @@ def create_access_token(subject: str) -> tuple[str, int]:
         "exp": now + timedelta(seconds=expires_in),
         "jti": str(uuid4()),
     }
-    token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    token = jwt.encode(payload, _jwt_secret(), algorithm=settings.jwt_algorithm)
     return token, expires_in
 
 
 def decode_access_token(token: str) -> dict:
     settings = get_settings()
-    if not settings.jwt_secret_key:
-        raise RuntimeError("SFI_JWT_SECRET_KEY não foi configurada.")
     return jwt.decode(
         token,
-        settings.jwt_secret_key,
+        _jwt_secret(),
         algorithms=[settings.jwt_algorithm],
         issuer=_issuer,
         audience=_audience,

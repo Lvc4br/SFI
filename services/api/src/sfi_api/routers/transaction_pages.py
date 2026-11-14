@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -52,11 +53,27 @@ async def list_transaction_page(
     transaction_type: str | None = Query(default=None, pattern="^(income|expense)$"),
     start_at: datetime | None = None,
     end_at: datetime | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     min_amount: Decimal | None = Query(default=None, gt=0),  # noqa: B008
     max_amount: Decimal | None = Query(default=None, gt=0),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
+    if start_date is not None and start_at is not None:
+        raise HTTPException(status_code=422, detail="Use start_date ou start_at, não ambos.")
+    if end_date is not None and end_at is not None:
+        raise HTTPException(status_code=422, detail="Use end_date ou end_at, não ambos.")
+    timezone = ZoneInfo(user.timezone)
+    if start_date is not None:
+        start_at = datetime.combine(start_date, time.min, tzinfo=timezone).astimezone(UTC)
+    if end_date is not None:
+        end_at = (
+            datetime.combine(end_date + timedelta(days=1), time.min, tzinfo=timezone)
+            .astimezone(UTC)
+            - timedelta(microseconds=1)
+        )
+
     if start_at is not None and (start_at.tzinfo is None or start_at.utcoffset() is None):
         raise HTTPException(status_code=422, detail="start_at precisa conter fuso horário.")
     if end_at is not None and (end_at.tzinfo is None or end_at.utcoffset() is None):

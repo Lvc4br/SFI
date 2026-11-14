@@ -226,7 +226,10 @@ async def create_budget(
     if category is None:
         raise HTTPException(status_code=404, detail="Categoria não encontrada.")
     if category.category_type != "expense":
-        raise HTTPException(status_code=422, detail="Orçamentos só podem usar categorias de despesa.")
+        raise HTTPException(
+            status_code=422,
+            detail="Orçamentos só podem usar categorias de despesa.",
+        )
     budget = Budget(user_id=user.id, **payload.model_dump())
     session.add(budget)
     try:

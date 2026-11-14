@@ -5,6 +5,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sfi_api.database import get_session
@@ -215,14 +216,25 @@ async def _budget_response(
     year, month = (int(part) for part in budget.period.split("-"))
     start = datetime(year, month, 1, tzinfo=UTC)
     end = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=UTC)
+    reversal = aliased(Transaction)
+    has_reversal = (
+        select(reversal.id)
+        .where(
+            reversal.user_id == user_id,
+            reversal.reversal_of_transaction_id == Transaction.id,
+        )
+        .exists()
+    )
     spent = await session.scalar(
         select(func.coalesce(func.sum(Transaction.amount), 0)).where(
             Transaction.user_id == user_id,
             Transaction.category_id == budget.category_id,
             Transaction.transaction_type == "expense",
+            Transaction.reversal_of_transaction_id.is_(None),
             Transaction.currency == budget.currency,
             Transaction.occurred_at >= start,
             Transaction.occurred_at < end,
+            ~has_reversal,
         )
     )
     spent_amount = Decimal(spent or 0)

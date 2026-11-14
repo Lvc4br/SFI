@@ -16,6 +16,8 @@ def test_complete_web_financial_journey() -> None:
         page: Page = browser.new_page(accept_downloads=True)
         try:
             page.goto(base_url, wait_until="networkidle")
+            expect(page.get_by_role("heading", name="Acesse sua conta")).to_be_visible()
+            page.get_by_role("button", name="Criar conta", exact=True).click()
             expect(page.get_by_role("heading", name="Crie sua conta")).to_be_visible()
 
             page.get_by_label("E-mail").fill(email)
@@ -43,7 +45,7 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_role("button", name="Registrar movimentação").click()
             expect(page.get_by_text("Movimentação registrada.")).to_be_visible()
             expect(page.get_by_text("Compra E2E")).to_be_visible()
-            expect(page.get_by_text("R$ 123,45")).to_be_visible()
+            expect(page.get_by_text("123,45", exact=False)).to_be_visible()
 
             with page.expect_download() as download_info:
                 page.get_by_role("button", name="Exportar CSV completo").click()

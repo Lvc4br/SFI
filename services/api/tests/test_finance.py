@@ -367,7 +367,10 @@ def test_transfer_moves_value_between_accounts_without_creating_net_income(clien
         headers=headers,
     )
     assert summary.status_code == 200
-    assert summary.json()["totals_by_currency"][0]["net_flow"] == "0.00"
+    totals = summary.json()["totals_by_currency"][0]
+    assert totals["income_total"] == "0.00"
+    assert totals["expense_total"] == "0.00"
+    assert totals["net_flow"] == "0.00"
 
 
 def test_transfer_rejects_foreign_accounts_and_duplicate_keys(client):

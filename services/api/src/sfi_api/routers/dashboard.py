@@ -129,6 +129,8 @@ async def get_finance_summary(
             Transaction.user_id == user.id,
             Transaction.occurred_at >= start,
             Transaction.occurred_at < end,
+            Transaction.transfer_id.is_(None),
+            Transaction.transfer_reversal_id.is_(None),
         )
         .group_by(Transaction.currency)
         .order_by(Transaction.currency)

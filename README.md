@@ -89,6 +89,11 @@ sfi/
 - [Fase 2.1 — saldos e resumo](docs/PHASE_2_1_BALANCES_SUMMARY.md)
 - [Fase 2.2 — orçamentos mensais](docs/PHASE_2_2_MONTHLY_BUDGETS.md)
 
+- [Fase 2.3 — transferências e estornos auditáveis](docs/PHASE_2_3_TRANSFERS_REVERSALS.md)
+- [Fase 2.4 — histórico de transferências](docs/PHASE_2_4_TRANSFER_HISTORY.md)
+- [Fase 2.5 — recorrências e projeção de fluxo de caixa](docs/PHASE_2_5_RECURRENCES_FORECAST.md)
+- [Fase 2.6 — estorno pareado de transferências](docs/PHASE_2_6_PAIRED_TRANSFER_REVERSALS.md)
+
 ## Como começar
 
 Pré-requisitos previstos: Git, Python 3.12 ou versão validada, Node.js LTS, pnpm recomendado e conta Neon. Os comandos de execução serão fixados quando os projetos-base e versões forem criados.
@@ -102,4 +107,4 @@ Pré-requisitos previstos: Git, Python 3.12 ou versão validada, Node.js LTS, pn
 
 ## Status
 
-**Fase 2 — núcleo financeiro em evolução.** A fundação Web/API, autenticação, contas, categorias, movimentações, saldos calculados, resumo financeiro por período e orçamentos mensais por categoria foram integrados após validação automatizada. Transferências, estornos auditáveis, conciliação, dashboard visual e implantação no Neon permanecem pendentes. O produto ainda não está pronto para produção.
+**Fase 2 — núcleo financeiro em evolução.** A fundação Web/API, autenticação, contas, categorias, movimentações, saldos, resumo financeiro, orçamentos mensais, transferências, histórico paginado, estornos individuais auditáveis, estornos pareados de transferências, recorrências e projeções de fluxo de caixa foram integrados após CI aprovado (Ruff, pytest e build Web). Permanecem pendentes, entre outros, conciliação, importação de extratos, regras completas de cartão, dashboard visual, implantação no Neon e clientes Desktop/Mobile. As migrations ainda não foram aplicadas ao banco Neon. O produto ainda não está pronto para produção.

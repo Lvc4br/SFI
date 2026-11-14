@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 20
     refresh_token_days: int = 30
+    refresh_cookie_name: str = "sfi_refresh"
+    csrf_cookie_name: str = "sfi_csrf"
+    refresh_cookie_secure: bool = False
+    refresh_cookie_samesite: str = "lax"
+    refresh_cookie_domain: str | None = None
 
     model_config = SettingsConfigDict(
         env_prefix="SFI_",

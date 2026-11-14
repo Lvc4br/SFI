@@ -45,9 +45,8 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_text("Compra E2E")).to_be_visible()
             expect(page.get_by_text("R$ 123,45")).to_be_visible()
 
-            page.get_by_role("button", name="Exportar CSV completo").click()
             with page.expect_download() as download_info:
-                pass
+                page.get_by_role("button", name="Exportar CSV completo").click()
             download = download_info.value
             assert download.suggested_filename == "sfi-movimentacoes-filtradas.csv"
 

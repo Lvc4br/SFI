@@ -97,3 +97,16 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 | MVP-09 — E2E e release candidate | Pendente | CI unitário/API e build Web passam; ainda falta teste manual integrado e E2E isolado. |
 
 **CI da implementação inicial:** `ruff check src tests` aprovado; `pytest -q` aprovado com 36 testes; build Web aprovado. A execução validou o commit de implementação; mudanças documentais posteriores não alteram código.
+
+
+## Atualização — histórico e experiência Web
+
+- [x] Alternância de tema claro/escuro com preferência persistida.
+- [x] Aplicação do tema antes da primeira pintura para reduzir clarão na inicialização.
+- [x] Campos monetários com entrada amigável em centavos e formatação pt-BR.
+- [x] Filtros locais no histórico carregado: busca por descrição/conta/categoria, tipo e categoria.
+- [x] Exportação CSV dos resultados atualmente filtrados.
+- [ ] Paginação real no backend e na interface; o histórico ainda carrega até 100 registros.
+- [ ] Testes automatizados de componentes e E2E para tema, filtros, exportação e fluxos financeiros.
+
+**Limite importante:** filtros e exportação operam somente sobre os registros carregados pela API (até 100 mais recentes). O CSV não deve ser interpretado como extrato completo da conta.

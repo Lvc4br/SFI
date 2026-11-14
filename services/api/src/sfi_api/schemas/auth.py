@@ -13,7 +13,7 @@ class RegisterRequest(BaseModel):
     @classmethod
     def normalize_email(cls, value: str) -> str:
         normalized = value.strip().lower()
-        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", normalized):
+        if not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+", normalized):
             raise ValueError("Informe um e-mail válido.")
         return normalized
 
@@ -28,6 +28,10 @@ class LoginRequest(BaseModel):
         return value.strip().lower()
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(min_length=32, max_length=256)
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -39,6 +43,7 @@ class UserResponse(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     expires_in: int
     user: UserResponse

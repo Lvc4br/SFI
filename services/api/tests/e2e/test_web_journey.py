@@ -69,7 +69,7 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_text("123,45", exact=False)).to_be_visible()
 
             page.get_by_label("Filtrar tipo").select_option("expense")
-            expect(page.get_by_text("Exibindo 1–1 de 1 movimentações filtradas.")).to_be_visible()
+            expect(page.get_by_text("Exibindo 1–2 de 2 movimentações filtradas.")).to_be_visible()
             page.get_by_label("Filtrar tipo").select_option("all")
 
             page.get_by_role("button", name="Ativar tema escuro").click()

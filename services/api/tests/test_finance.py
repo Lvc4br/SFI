@@ -258,3 +258,72 @@ def test_summary_rejects_invalid_period(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 422
+
+
+def test_monthly_budget_tracks_spending_and_remaining_amount(client):
+    token = register(client, "budget@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    )
+    category = client.post(
+        "/api/v1/finance/categories",
+        headers=headers,
+        json={"name": "Mercado", "category_type": "expense"},
+    )
+    transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account.json()["id"],
+            "category_id": category.json()["id"],
+            "transaction_type": "expense",
+            "amount": "125.50",
+            "description": "Compra mensal",
+            "occurred_at": "2026-11-10T12:00:00+00:00",
+            "idempotency_key": "budget-expense-key-0001",
+        },
+    )
+    assert transaction.status_code == 201
+
+    budget = client.post(
+        "/api/v1/finance/budgets",
+        headers=headers,
+        json={
+            "category_id": category.json()["id"],
+            "period": "2026-11",
+            "limit_amount": "200.00",
+        },
+    )
+    assert budget.status_code == 201
+    assert budget.json()["spent_amount"] == "125.50"
+    assert budget.json()["remaining_amount"] == "74.50"
+    assert budget.json()["usage_percent"] == "62.75"
+    assert budget.json()["status"] == "within_limit"
+
+    listing = client.get("/api/v1/finance/budgets?period=2026-11", headers=headers)
+    assert listing.status_code == 200
+    assert len(listing.json()) == 1
+
+
+def test_monthly_budget_enforces_category_ownership_and_uniqueness(client):
+    token = register(client, "budget-owner@example.com")
+    other_token = register(client, "budget-other@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+    category = client.post(
+        "/api/v1/finance/categories",
+        headers=headers,
+        json={"name": "Transporte", "category_type": "expense"},
+    )
+    payload = {
+        "category_id": category.json()["id"],
+        "period": "2026-11",
+        "limit_amount": "300.00",
+    }
+    assert client.post("/api/v1/finance/budgets", headers=other_headers, json=payload).status_code == 404
+    assert client.post("/api/v1/finance/budgets", headers=headers, json=payload).status_code == 201
+    assert client.post("/api/v1/finance/budgets", headers=headers, json=payload).status_code == 409
+    assert client.get("/api/v1/finance/budgets?period=2026-11", headers=other_headers).json() == []

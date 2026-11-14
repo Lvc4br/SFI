@@ -1,6 +1,9 @@
 import os
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 
+import httpx
 import pytest
 from playwright.sync_api import Page, expect, sync_playwright
 
@@ -76,7 +79,57 @@ def test_complete_web_financial_journey() -> None:
                 page.get_by_text("Estorno registrado. O lançamento original foi preservado.")
             ).to_be_visible()
             expect(page.get_by_text("Estornada")).to_be_visible()
+
+            access_token = page.evaluate("() => sessionStorage.getItem('sfi.access')")
+            api_url = os.environ.get("SFI_E2E_API_URL", "http://127.0.0.1:8000")
+            today = datetime.now(UTC).date().isoformat()
+            with httpx.Client(
+                base_url=api_url,
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10.0,
+            ) as api:
+                account_rows = api.get("/api/v1/finance/accounts").json()
+                category_rows = api.get("/api/v1/finance/categories").json()
+                account_id = next(row["id"] for row in account_rows if row["name"] == "Conta E2E")
+                category_id = next(
+                    row["id"] for row in category_rows if row["name"] == "Categoria E2E"
+                )
+                for index in range(30):
+                    created = api.post(
+                        "/api/v1/finance/transactions",
+                        json={
+                            "account_id": account_id,
+                            "category_id": category_id,
+                            "transaction_type": "expense",
+                            "amount": "1.00",
+                            "description": f"Volume E2E {index:02d}",
+                            "occurred_at": f"{today}T12:00:00+00:00",
+                            "idempotency_key": f"e2e-volume-{uuid.uuid4().hex}",
+                        },
+                    )
+                    assert created.status_code == 201, created.text
+
+            page.get_by_label("Filtrar tipo").select_option("expense")
+            page.get_by_label("Data inicial").fill(today)
+            page.get_by_label("Data final").fill(today)
+            expect(page.get_by_text("Página 1 de 2")).to_be_visible()
+            expect(page.locator(".results-note")).to_contain_text("Exibindo 1–25 de")
+            page.get_by_role("button", name="Próxima").click()
+            expect(page.get_by_text("Página 2 de 2")).to_be_visible()
+            expect(page.locator(".results-note")).to_contain_text("Exibindo 26–")
+            page.get_by_role("button", name="Anterior").click()
+            page.get_by_label("Buscar movimentação").fill("Volume E2E")
+            with page.expect_download() as volume_download_info:
+                page.get_by_role("button", name="Exportar CSV completo").click()
+            volume_download = volume_download_info.value
+            volume_path = volume_download.path()
+            assert volume_path is not None
+            volume_rows = Path(volume_path).read_text(encoding="utf-8-sig").splitlines()
+            assert len(volume_rows) == 31
+            page.get_by_label("Buscar movimentação").fill("")
             page.get_by_label("Filtrar tipo").select_option("all")
+            page.get_by_label("Data inicial").fill("")
+            page.get_by_label("Data final").fill("")
 
             page.get_by_role("button", name="Ativar tema escuro").click()
             expect(page.locator(".app-shell")).to_have_attribute("data-theme", "dark")

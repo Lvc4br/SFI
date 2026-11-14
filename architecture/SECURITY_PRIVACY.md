@@ -27,3 +27,34 @@ Definir responsáveis, severidade, contenção, preservação de evidências, co
 ## Revisão de risco
 
 Revisar arquitetura antes de integrações bancárias, pagamentos, investimentos ou processamento de documentos em escala.
+
+
+## Estado dos controles no MVP (14/11/2026)
+
+### Implementado nesta branch em validação
+- Access JWT curto e refresh token opaco com hash SHA-256 persistido, rotação de uso único e detecção de reutilização da família.
+- Revogação de sessões por logout, logout global e versão de token do usuário.
+- Para o cliente Web: refresh token em cookie HttpOnly, rotação por cookie e proteção CSRF double-submit (cookie legível + header) nos endpoints de refresh/logout.
+- Cookies de refresh com SameSite configurável, Secure obrigatório em ambiente production e escopo restrito a /api/v1/auth; cookie CSRF fica no escopo / para leitura pelo frontend.
+- Rate limiting persistido no banco por combinação de e-mail normalizado + endereço remoto: cinco falhas em janela de 15 minutos acionam bloqueio de 15 minutos; login bem-sucedido limpa as falhas.
+- Headers base na API: nosniff, frame deny, referrer policy, permissions policy e no-store para respostas da API; HSTS apenas quando SFI_ENV=production.
+- Isolamento de recursos por usuário; contas/categorias arquivadas deixam de aceitar novos lançamentos/recorrências. Arquivamento de conta exige saldo zero e ausência de recorrências ativas.
+
+### Ainda obrigatório antes de beta público
+- O access token Web continua em sessionStorage nesta etapa; uma XSS ainda pode utilizá-lo até expirar. Migrar para memória e restaurar sessão via refresh cookie ou justificar formalmente a decisão.
+- Aplicar CSP e headers no servidor/CDN que entrega apps/web (o middleware FastAPI protege a API, não substitui a política da origem Web).
+- Rate limit por e-mail+IP no banco não substitui proteção de borda por IP/WAF; configurar proxy confiável e proteção contra abuso distribuído.
+- Verificação de e-mail, recuperação de senha e MFA TOTP com códigos de recuperação ainda não implementados.
+- Auditoria de segurança, alertas e observabilidade ainda não concluídos.
+- Backup automático, política de retenção, RPO/RTO e restauração em ambiente isolado ainda precisam de execução documentada e evidência.
+- Executar testes independentes de CSRF, fixação/roubo de sessão, rotação concorrente, abuso de login, autorização horizontal, carga e dependências.
+
+### Configuração de cookies
+- Desenvolvimento HTTP: SFI_REFRESH_COOKIE_SECURE=false.
+- Produção: SFI_REFRESH_COOKIE_SECURE=true, HTTPS obrigatório.
+- SFI_REFRESH_COOKIE_SAMESITE=lax quando frontend/API forem same-site. Usar none somente com HTTPS e frontend/API realmente cross-site.
+- Definir SFI_REFRESH_COOKIE_DOMAIN somente se houver necessidade real de compartilhar cookies entre subdomínios.
+- Não usar wildcard em CORS com credenciais. Manter origens exatas.
+
+### Rate limit
+O controle usa estado compartilhado no banco, portanto funciona entre múltiplas instâncias da API, diferentemente de um contador em memória. A chave armazenada é hash SHA-256 do e-mail normalizado e IP remoto; não persistimos e-mail/IP em claro na tabela de tentativas. O proxy/ingress deve preservar o IP real de forma confiável; nunca confiar cegamente em X-Forwarded-For vindo diretamente do cliente.

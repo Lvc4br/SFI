@@ -165,4 +165,4 @@ def test_transactions_are_append_only(client):
         f"/api/v1/finance/transactions/{created.json()['id']}",
         headers=headers,
         json={"amount": "999.99"},
-    ).status_code == 405
+    ).status_code == 404

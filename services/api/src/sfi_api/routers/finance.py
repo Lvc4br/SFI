@@ -164,13 +164,45 @@ async def create_transaction(
 async def list_transactions(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    account_id: uuid.UUID | None = None,
+    category_id: uuid.UUID | None = None,
+    transaction_type: str | None = Query(default=None, pattern="^(income|expense)$"),
+    start_at: datetime | None = None,
+    end_at: datetime | None = None,
+    min_amount: Decimal | None = Query(default=None, gt=0),  # noqa: B008
+    max_amount: Decimal | None = Query(default=None, gt=0),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[TransactionResponse]:
+    if start_at is not None and (start_at.tzinfo is None or start_at.utcoffset() is None):
+        raise HTTPException(status_code=422, detail="start_at precisa conter fuso horário.")
+    if end_at is not None and (end_at.tzinfo is None or end_at.utcoffset() is None):
+        raise HTTPException(status_code=422, detail="end_at precisa conter fuso horário.")
+    if start_at is not None and end_at is not None and end_at < start_at:
+        raise HTTPException(status_code=422, detail="end_at não pode ser anterior a start_at.")
+    if min_amount is not None and max_amount is not None and max_amount < min_amount:
+        raise HTTPException(
+            status_code=422, detail="max_amount não pode ser menor que min_amount."
+        )
+
+    query = select(Transaction).where(Transaction.user_id == user.id)
+    if account_id is not None:
+        query = query.where(Transaction.account_id == account_id)
+    if category_id is not None:
+        query = query.where(Transaction.category_id == category_id)
+    if transaction_type is not None:
+        query = query.where(Transaction.transaction_type == transaction_type)
+    if start_at is not None:
+        query = query.where(Transaction.occurred_at >= start_at)
+    if end_at is not None:
+        query = query.where(Transaction.occurred_at <= end_at)
+    if min_amount is not None:
+        query = query.where(Transaction.amount >= min_amount)
+    if max_amount is not None:
+        query = query.where(Transaction.amount <= max_amount)
+
     result = await session.scalars(
-        select(Transaction)
-        .where(Transaction.user_id == user.id)
-        .order_by(Transaction.occurred_at.desc(), Transaction.created_at.desc())
+        query.order_by(Transaction.occurred_at.desc(), Transaction.created_at.desc())
         .limit(limit)
         .offset(offset)
     )

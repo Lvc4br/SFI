@@ -121,7 +121,10 @@ O script confirma o host de destino e pede que você digite `APLICAR`; depois ex
 - [Fase 2.5 — recorrências e projeção de fluxo de caixa](docs/PHASE_2_5_RECURRENCES_FORECAST.md)
 - [Fase 2.6 — estorno pareado de transferências](docs/PHASE_2_6_PAIRED_TRANSFER_REVERSALS.md)
 - [Fase 2.7 — filtros do histórico de movimentações](docs/PHASE_2_7_TRANSACTION_FILTERS.md)
-- [Fase 2.8–2.11 — revogação, rotação e encerramento de sessões](docs/PHASE_2_8_AUTH_TOKEN_REVOCATION.md)
+- [Fase 2.8 — revogação de access tokens](docs/PHASE_2_8_AUTH_TOKEN_REVOCATION.md)
+- [Fase 2.9 — rotação de refresh tokens](docs/PHASE_2_9_REFRESH_TOKEN_ROTATION.md)
+- [Fase 2.10 — logout e revogação de sessão](docs/PHASE_2_10_SESSION_LOGOUT.md)
+- [Fase 2.11 — alteração de senha e logout global](docs/PHASE_2_11_PASSWORD_AND_GLOBAL_LOGOUT.md)
 
 ## Status do projeto
 

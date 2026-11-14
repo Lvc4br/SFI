@@ -192,8 +192,6 @@ def test_complete_web_financial_journey() -> None:
             assert download.suggested_filename == "sfi-movimentacoes-filtradas.csv"
 
             page.get_by_role("button", name="Sair da conta").click()
-            expect(page.get_by_role("heading", name="Crie sua conta")).to_be_visible()
-            page.get_by_role("button", name="Entrar", exact=True).click()
             expect(page.get_by_role("heading", name="Acesse sua conta")).to_be_visible()
             page.get_by_label("E-mail").fill(email)
             page.get_by_label("Senha").fill(password)

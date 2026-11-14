@@ -106,7 +106,10 @@ class Budget(Base):
             name="fk_budgets_category_owner",
             ondelete="RESTRICT",
         ),
-        UniqueConstraint("user_id", "category_id", "period", "currency", name="uq_budgets_user_category_period_currency"),
+        UniqueConstraint(
+            "user_id", "category_id", "period", "currency",
+            name="uq_budgets_user_category_period_currency",
+        ),
         CheckConstraint("limit_amount > 0", name="ck_budgets_limit_positive"),
         Index("ix_budgets_user_period", "user_id", "period"),
     )

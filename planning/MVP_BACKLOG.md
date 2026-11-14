@@ -78,3 +78,22 @@ Este backlog organiza entregas verticais. Não substitui o backlog geral dos 19 
 - Não implementar dados fictícios como se fossem reais.
 - Atualizar OpenAPI, testes, docs e critérios no mesmo PR da funcionalidade.
 - Não iniciar frontend de um domínio antes de confirmar seu contrato backend.
+
+
+## Progresso da implementação — 14/11/2026
+
+A primeira fatia Web está implementada na branch `feature/mvp-financial-foundation`. O status abaixo diferencia implementação inicial de conclusão integral do item.
+
+| Item | Situação | Observação |
+|---|---|---|
+| MVP-01 — Inspeção e contratos | Parcialmente concluído | Endpoints e schemas consumidos foram inspecionados; cliente tipado manualmente. |
+| MVP-02 — Base Web | Base implementada | Login/cadastro, refresh, logout, navegação protegida, estados e layout responsivo. Segurança de sessão ainda requer hardening. |
+| MVP-03 — Contas e categorias | Parcialmente implementado | Listagem e criação; API ainda não oferece edição/arquivamento. |
+| MVP-04 — Movimentações | Parcialmente implementado | Registro, histórico recente e transferências. Filtros/paginação visual e estorno seguro pela interface pendentes. |
+| MVP-05 — Orçamento | Base implementada | Criar/listar limites mensais e comparar planejado versus realizado. Estornos e múltiplas moedas ainda precisam de regra/UX completas. |
+| MVP-06 — Dashboard | Base implementada | Resumo por período/moeda, saldos, despesas por categoria e conteúdo contextual. |
+| MVP-07 — Educação contextual | Base inicial implementada | Conceitos essenciais nas telas; revisão pedagógica e conteúdo versionado pendentes. |
+| MVP-08 — Segurança e experiência | Pendente | Sessão HttpOnly, recuperação de senha, verificação de e-mail, rate limiting, CSP e revisão de acessibilidade. |
+| MVP-09 — E2E e release candidate | Pendente | CI unitário/API e build Web passam; ainda falta teste manual integrado e E2E isolado. |
+
+**CI da implementação inicial:** `ruff check src tests` aprovado; `pytest -q` aprovado com 36 testes; build Web aprovado. A execução validou o commit de implementação; mudanças documentais posteriores não alteram código.

@@ -31,7 +31,7 @@ def verify_password(password: str, password_hash: str) -> bool:
     return _password_hash.verify(password, password_hash)
 
 
-def create_access_token(subject: str) -> tuple[str, int]:
+def create_access_token(subject: str, token_version: int = 0) -> tuple[str, int]:
     settings = get_settings()
     expires_in = settings.access_token_minutes * 60
     now = datetime.now(UTC)
@@ -42,6 +42,7 @@ def create_access_token(subject: str) -> tuple[str, int]:
         "iat": now,
         "exp": now + timedelta(seconds=expires_in),
         "jti": str(uuid4()),
+        "ver": token_version,
     }
     token = jwt.encode(payload, _jwt_secret(), algorithm=settings.jwt_algorithm)
     return token, expires_in
@@ -55,5 +56,5 @@ def decode_access_token(token: str) -> dict:
         algorithms=[settings.jwt_algorithm],
         issuer=_issuer,
         audience=_audience,
-        options={"require": ["sub", "iss", "aud", "iat", "exp", "jti"]},
+        options={"require": ["sub", "iss", "aud", "iat", "exp", "jti", "ver"]},
     )

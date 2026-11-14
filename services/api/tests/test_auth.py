@@ -384,3 +384,34 @@ def test_user_timezone_update(client):
     )
     assert updated.status_code == 200
     assert updated.json()["timezone"] == "Europe/Lisbon"
+
+
+def test_security_event_history_records_authentication_activity(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "security-events@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    token = registered.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    failed = client.post(
+        "/api/v1/auth/login",
+        json={"email": "security-events@example.com", "password": "senha-errada"},
+    )
+    assert failed.status_code == 401
+    logged_in = client.post(
+        "/api/v1/auth/login",
+        json={"email": "security-events@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert logged_in.status_code == 200
+    current_headers = {
+        "Authorization": f"Bearer {logged_in.json()['access_token']}"
+    }
+
+    events = client.get("/api/v1/auth/security-events", headers=current_headers)
+    assert events.status_code == 200
+    event_types = [event["event_type"] for event in events.json()]
+    assert "account_registered" in event_types
+    assert "login_failed" in event_types
+    assert "login_succeeded" in event_types

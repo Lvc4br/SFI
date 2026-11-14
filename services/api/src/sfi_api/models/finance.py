@@ -36,6 +36,7 @@ class Account(Base):
     opening_balance: Mapped[Decimal] = mapped_column(
         Numeric(18, 2), default=Decimal("0.00"), nullable=False
     )
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -55,6 +56,7 @@ class Category(Base):
     )
     name: Mapped[str] = mapped_column(String(60), nullable=False)
     category_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

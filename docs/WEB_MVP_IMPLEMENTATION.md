@@ -12,7 +12,8 @@ A aplicação `apps/web` deixou de ser apenas uma tela de apresentação e passo
 - Listagem e cadastro de categorias.
 - Registro de receitas e despesas com chave de idempotência.
 - Transferência entre contas próprias com chave de idempotência.
-- Histórico recente de movimentações.
+- Histórico de movimentações com paginação server-side (25 por página), total de registros, filtros de tipo/categoria/período e ordenação estável.
+- Exportação CSV completa: percorre todas as páginas do filtro atual e aplica a busca textual também ao conjunto integral.
 - Consulta de orçamento mensal e cadastro de limites.
 - Dashboard com resumo por período, saldos por conta e despesas por categoria.
 - Explicações educacionais contextuais.
@@ -30,7 +31,7 @@ A aplicação `apps/web` deixou de ser apenas uma tela de apresentação e passo
 | Logout | `POST /api/v1/auth/logout` |
 | Contas | `GET/POST /api/v1/finance/accounts` |
 | Categorias | `GET/POST /api/v1/finance/categories` |
-| Movimentações | `GET/POST /api/v1/finance/transactions` |
+| Movimentações | `GET/POST /api/v1/finance/transactions` |\n| Histórico paginado | `GET /api/v1/finance/transactions/page` (limit, offset, account_id, category_id, transaction_type, start_at, end_at, min_amount, max_amount) |
 | Transferências | `POST /api/v1/finance/transfers` |
 | Orçamentos | `GET/POST /api/v1/finance/budgets` |
 | Dashboard | `GET /api/v1/finance/summary` |
@@ -55,7 +56,8 @@ Antes de exposição pública, avaliar migração para refresh token em cookie `
 ## Limitações conhecidas
 
 - A API atual oferece criação e listagem de contas/categorias, não edição/arquivamento pela Web.
-- O histórico está limitado aos 100 registros mais recentes na interface; filtros e paginação visual ficam para a próxima fatia.
+- A paginação do histórico usa offset/limit e ordenação determinística; durante uma exportação longa, novos lançamentos simultâneos podem alterar a posição dos registros entre páginas. Para extratos imutáveis/snapshot, será necessário evoluir para cursor ou snapshot de exportação.
+- A busca textual é aplicada no conjunto da página exibida e, na exportação, ao conjunto completo já recuperado pelos filtros do servidor.
 - O contrato de movimentação ainda não expõe metadados suficientes para apresentar com segurança a ação de estorno e o estado "já estornada" na lista. A ação de estorno fica pendente até ampliar e testar o contrato.
 - Transferências são apresentadas como entradas/saídas por conta no histórico, com rótulo de transferência interna. O dashboard não as contabiliza como receita/despesa.
 - A interface de orçamento cria limites em BRL nesta primeira versão.
@@ -68,6 +70,6 @@ Antes de exposição pública, avaliar migração para refresh token em cookie `
 - Executar `pnpm install --frozen-lockfile`.
 - Executar `pnpm typecheck` e `pnpm build`.
 - Executar `ruff check src tests` e `pytest -q` na API.
-- Testar manualmente cadastro/login, refresh, contas, categorias, receitas, despesas, transferências, orçamento e dashboard contra banco de teste.
+- Testar manualmente cadastro/login, refresh, contas, categorias, receitas, despesas, transferências, orçamento, dashboard, paginação, filtros de data/tipo/categoria e exportação CSV completa contra banco de teste.
 - Verificar comportamento em larguras móvel e desktop e navegação por teclado.
 - Não usar dados reais de produção nos testes de interface.

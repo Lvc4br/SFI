@@ -1,6 +1,6 @@
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
-import uuid
 
 from sqlalchemy import (
     Boolean,

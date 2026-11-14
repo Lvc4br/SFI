@@ -14,6 +14,8 @@ from sfi_api.models.finance import Account, Budget, Category, Transaction, Trans
 from sfi_api.models.transfer_reversal import TransferReversal
 from sfi_api.models.user import User
 from sfi_api.schemas.finance import (
+    AccountUpdate,
+    CategoryUpdate,
     AccountCreate,
     AccountResponse,
     BudgetCreate,
@@ -50,9 +52,128 @@ async def list_accounts(
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[AccountResponse]:
     result = await session.scalars(
-        select(Account).where(Account.user_id == user.id).order_by(Account.created_at.desc())
+        select(Account).where(Account.user_id == user.id, Account.archived_at.is_(None)).order_by(Account.created_at.desc())
     )
     return [AccountResponse.model_validate(item) for item in result.all()]
+
+
+@router.patch("/accounts/{account_id}", response_model=AccountResponse)
+async def update_account(
+    account_id: uuid.UUID,
+    payload: AccountUpdate,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> AccountResponse:
+    account = await session.scalar(
+        select(Account).where(
+            Account.id == account_id,
+            Account.user_id == user.id,
+            Account.archived_at.is_(None),
+        )
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail="Conta ativa não encontrada.")
+    account.name = payload.name
+    await session.commit()
+    await session.refresh(account)
+    return AccountResponse.model_validate(account)
+
+
+@router.post("/accounts/{account_id}/archive", response_model=AccountResponse)
+async def archive_account(
+    account_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> AccountResponse:
+    account = await session.scalar(
+        select(Account).where(
+            Account.id == account_id,
+            Account.user_id == user.id,
+            Account.archived_at.is_(None),
+        )
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail="Conta ativa não encontrada.")
+    income = func.coalesce(
+        func.sum(case((Transaction.transaction_type == "income", Transaction.amount), else_=0)),
+        Decimal("0.00"),
+    )
+    expenses = func.coalesce(
+        func.sum(case((Transaction.transaction_type == "expense", Transaction.amount), else_=0)),
+        Decimal("0.00"),
+    )
+    totals = (
+        await session.execute(
+            select(income.label("income"), expenses.label("expenses")).where(
+                Transaction.user_id == user.id,
+                Transaction.account_id == account.id,
+            )
+        )
+    ).one()
+    balance = (
+        account.opening_balance + Decimal(totals.expenses) - Decimal(totals.income)
+        if account.account_type == "credit"
+        else account.opening_balance + Decimal(totals.income) - Decimal(totals.expenses)
+    )
+    if balance != Decimal("0.00"):
+        raise HTTPException(
+            status_code=409,
+            detail="Zere o saldo da conta antes de arquivá-la.",
+        )
+    account.archived_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(account)
+    return AccountResponse.model_validate(account)
+
+
+@router.post("/categories/{category_id}/archive", response_model=CategoryResponse)
+async def archive_category(
+    category_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> CategoryResponse:
+    category = await session.scalar(
+        select(Category).where(
+            Category.id == category_id,
+            Category.user_id == user.id,
+            Category.archived_at.is_(None),
+        )
+    )
+    if category is None:
+        raise HTTPException(status_code=404, detail="Categoria ativa não encontrada.")
+    category.archived_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(category)
+    return CategoryResponse.model_validate(category)
+
+
+@router.patch("/categories/{category_id}", response_model=CategoryResponse)
+async def update_category(
+    category_id: uuid.UUID,
+    payload: CategoryUpdate,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> CategoryResponse:
+    category = await session.scalar(
+        select(Category).where(
+            Category.id == category_id,
+            Category.user_id == user.id,
+            Category.archived_at.is_(None),
+        )
+    )
+    if category is None:
+        raise HTTPException(status_code=404, detail="Categoria ativa não encontrada.")
+    category.name = payload.name
+    try:
+        await session.commit()
+        await session.refresh(category)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma categoria ativa com este nome e tipo.",
+        ) from None
+    return CategoryResponse.model_validate(category)
 
 
 @router.post("/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
@@ -81,7 +202,7 @@ async def list_categories(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[CategoryResponse]:
-    query = select(Category).where(Category.user_id == user.id)
+    query = select(Category).where(Category.user_id == user.id, Category.archived_at.is_(None))
     if category_type:
         query = query.where(Category.category_type == category_type)
     result = await session.scalars(query.order_by(Category.name.asc()))
@@ -111,7 +232,7 @@ async def create_transaction(
         )
 
     account = await session.scalar(
-        select(Account).where(Account.id == payload.account_id, Account.user_id == user.id)
+        select(Account).where(Account.id == payload.account_id, Account.user_id == user.id, Account.archived_at.is_(None))
     )
     if account is None:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
@@ -127,6 +248,7 @@ async def create_transaction(
             select(Category).where(
                 Category.id == payload.category_id,
                 Category.user_id == user.id,
+                Category.archived_at.is_(None),
             )
         )
         if category is None:
@@ -271,6 +393,7 @@ async def create_budget(
         select(Category).where(
             Category.id == payload.category_id,
             Category.user_id == user.id,
+            Category.archived_at.is_(None),
         )
     )
     if category is None:
@@ -339,6 +462,7 @@ async def create_transfer(
     accounts = await session.scalars(
         select(Account).where(
             Account.user_id == user.id,
+            Account.archived_at.is_(None),
             Account.id.in_([payload.source_account_id, payload.destination_account_id]),
         )
     )

@@ -3,7 +3,6 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    CheckConstraint,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -23,7 +22,6 @@ class Account(Base):
     __tablename__ = "accounts"
     __table_args__ = (
         UniqueConstraint("id", "user_id", name="uq_accounts_id_user"),
-        CheckConstraint("opening_balance >= 0", name="ck_accounts_opening_balance_nonnegative"),
         Index("ix_accounts_user_created", "user_id", "created_at"),
     )
 

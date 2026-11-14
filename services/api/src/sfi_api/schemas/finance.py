@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -50,7 +50,7 @@ class TransactionCreate(BaseModel):
     transaction_type: Literal["income", "expense"]
     amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
     description: str = Field(min_length=1, max_length=160)
-    occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     idempotency_key: str = Field(min_length=16, max_length=100)
 
     @field_validator("description")

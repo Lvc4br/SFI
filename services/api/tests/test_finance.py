@@ -323,7 +323,10 @@ def test_monthly_budget_enforces_category_ownership_and_uniqueness(client):
         "period": "2026-11",
         "limit_amount": "300.00",
     }
-    assert client.post("/api/v1/finance/budgets", headers=other_headers, json=payload).status_code == 404
+    foreign_budget = client.post(
+        "/api/v1/finance/budgets", headers=other_headers, json=payload
+    )
+    assert foreign_budget.status_code == 404
     assert client.post("/api/v1/finance/budgets", headers=headers, json=payload).status_code == 201
     assert client.post("/api/v1/finance/budgets", headers=headers, json=payload).status_code == 409
     assert client.get("/api/v1/finance/budgets?period=2026-11", headers=other_headers).json() == []

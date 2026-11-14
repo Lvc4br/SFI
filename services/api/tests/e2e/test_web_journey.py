@@ -88,6 +88,17 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_text("Orçamento criado.")).to_be_visible()
             expect(page.get_by_text("Dentro do limite")).to_be_visible()
 
+            page.get_by_role("button", name="Contas e categorias").click()
+            page.locator(".account-card").filter(
+                has=page.get_by_role("heading", name="Conta E2E")
+            ).get_by_role("button", name="Renomear").click()
+            page.once("dialog", lambda dialog: dialog.accept("Conta E2E renomeada"))
+            expect(page.get_by_role("heading", name="Conta E2E renomeada")).to_be_visible()
+
+            page.once("dialog", lambda dialog: dialog.accept())
+            page.get_by_role("button", name="Arquivar Categoria E2E").click()
+            expect(page.get_by_text("Categoria arquivada. O histórico foi preservado.")).to_be_visible()
+
             page.get_by_role("button", name="Movimentações").click()
             with page.expect_download() as download_info:
                 page.get_by_role("button", name="Exportar CSV completo").click()

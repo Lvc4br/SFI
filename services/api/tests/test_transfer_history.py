@@ -33,11 +33,17 @@ def test_transfer_history_is_paginated_and_user_scoped(tmp_path, monkeypatch):
     with TestClient(app) as client:
         first = client.post(
             "/api/v1/auth/register",
-            json={"email": "transfer-history-owner@example.com", "password": "senha-forte-teste-123"},
+            json={
+                "email": "transfer-history-owner@example.com",
+                "password": "senha-forte-teste-123",
+            },
         )
         second = client.post(
             "/api/v1/auth/register",
-            json={"email": "transfer-history-other@example.com", "password": "senha-forte-teste-123"},
+            json={
+                "email": "transfer-history-other@example.com",
+                "password": "senha-forte-teste-123",
+            },
         )
         owner_headers = {"Authorization": f"Bearer {first.json()['access_token']}"}
         other_headers = {"Authorization": f"Bearer {second.json()['access_token']}"}

@@ -116,3 +116,42 @@ def test_transaction_page_rejects_invalid_ranges(client):
         headers=headers,
     )
     assert response.status_code == 422
+
+
+def test_transaction_page_handles_large_dataset_without_duplicates_or_gaps(client):
+    owner = _register(client, "page-volume@example.com")
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=owner,
+        json={"name": "Conta volume", "account_type": "checking"},
+    ).json()
+
+    for index in range(65):
+        response = client.post(
+            "/api/v1/finance/transactions",
+            headers=owner,
+            json={
+                "account_id": account["id"],
+                "transaction_type": "expense",
+                "amount": "1.00",
+                "description": f"Movimentação volume {index:03d}",
+                "occurred_at": datetime(2026, 11, 1, 12, 0, index, tzinfo=UTC).isoformat(),
+                "idempotency_key": f"page-volume-key-{index:04d}",
+            },
+        )
+        assert response.status_code == 201
+
+    collected = []
+    for offset in (0, 25, 50):
+        response = client.get(
+            f"/api/v1/finance/transactions/page?limit=25&offset={offset}",
+            headers=owner,
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["total"] == 65
+        collected.extend(item["id"] for item in payload["items"])
+        assert payload["has_more"] is (offset < 50)
+
+    assert len(collected) == 65
+    assert len(set(collected)) == 65

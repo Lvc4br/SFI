@@ -379,7 +379,7 @@ async def _budget_response(
         .exists()
     )
     spent = await session.scalar(
-        select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+        select(func.coalesce(func.sum(Transaction.amount), Decimal("0.00"))).where(
             Transaction.user_id == user_id,
             Transaction.category_id == budget.category_id,
             Transaction.transaction_type == "expense",
@@ -390,7 +390,7 @@ async def _budget_response(
             ~has_reversal,
         )
     )
-    spent_amount = Decimal(spent or 0)
+    spent_amount = Decimal(spent or Decimal("0.00")).quantize(Decimal("0.01"))
     remaining = budget.limit_amount - spent_amount
     usage = (spent_amount / budget.limit_amount * Decimal("100")).quantize(Decimal("0.01"))
     if spent_amount > budget.limit_amount:

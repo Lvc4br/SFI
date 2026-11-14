@@ -4,4 +4,14 @@ from sfi_api.models.recurrence import Recurrence
 from sfi_api.models.transfer_reversal import TransferReversal
 from sfi_api.models.user import User
 
-__all__ = ["Account", "Base", "Budget", "Category", "Recurrence", "Transaction", "Transfer", "TransferReversal", "User"]
+__all__ = [
+    "Account",
+    "Base",
+    "Budget",
+    "Category",
+    "Recurrence",
+    "Transaction",
+    "Transfer",
+    "TransferReversal",
+    "User",
+]

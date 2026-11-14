@@ -33,6 +33,13 @@ jobs:
       - run: pnpm install
       - run: pnpm --filter @sfi/web build
 
+  backup-integrity:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test backup checksum integrity (Windows PowerShell 5.1)
+        shell: powershell
+        run: .\scripts\test-backup-integrity.ps1
 
   e2e:
     runs-on: ubuntu-latest

@@ -363,3 +363,24 @@ def test_successful_login_clears_prior_failed_attempts(client):
         json={"email": "rate-reset@example.com", "password": "uma-senha-forte-123"},
     )
     assert successful.status_code == 200
+
+
+def test_user_timezone_update(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "timezone-user@example.com",
+            "password": "uma-senha-forte-123",
+            "timezone": "America/Manaus",
+        },
+    )
+    assert registered.status_code == 201
+    assert registered.json()["user"]["timezone"] == "America/Manaus"
+    headers = {"Authorization": f"Bearer {registered.json()['access_token']}"}
+    updated = client.patch(
+        "/api/v1/auth/me/timezone",
+        headers=headers,
+        json={"timezone": "Europe/Lisbon"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["timezone"] == "Europe/Lisbon"

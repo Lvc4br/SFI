@@ -70,6 +70,10 @@ def test_complete_web_financial_journey() -> None:
 
             page.get_by_label("Filtrar tipo").select_option("expense")
             expect(page.get_by_text("Exibindo 1–2 de 2 movimentações filtradas.")).to_be_visible()
+            page.once("dialog", lambda dialog: dialog.accept())
+            page.get_by_role("button", name="Estornar Compra E2E").click()
+            expect(page.get_by_text("Estorno registrado. O lançamento original foi preservado.")).to_be_visible()
+            expect(page.get_by_text("Estornada")).to_be_visible()
             page.get_by_label("Filtrar tipo").select_option("all")
 
             page.get_by_role("button", name="Ativar tema escuro").click()

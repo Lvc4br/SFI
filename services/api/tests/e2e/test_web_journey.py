@@ -89,10 +89,10 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_text("Dentro do limite")).to_be_visible()
 
             page.get_by_role("button", name="Contas e categorias").click()
+            page.once("dialog", lambda dialog: dialog.accept("Conta E2E renomeada"))
             page.locator(".account-card").filter(
                 has=page.get_by_role("heading", name="Conta E2E")
             ).get_by_role("button", name="Renomear").click()
-            page.once("dialog", lambda dialog: dialog.accept("Conta E2E renomeada"))
             expect(page.get_by_role("heading", name="Conta E2E renomeada")).to_be_visible()
 
             page.once("dialog", lambda dialog: dialog.accept())

@@ -113,7 +113,11 @@ async def create_recurrence(
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> RecurrenceResponse:
     account = await session.scalar(
-        select(Account).where(Account.id == payload.account_id, Account.user_id == user.id, Account.archived_at.is_(None))
+        select(Account).where(
+            Account.id == payload.account_id,
+            Account.user_id == user.id,
+            Account.archived_at.is_(None),
+        )
     )
     if account is None:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")

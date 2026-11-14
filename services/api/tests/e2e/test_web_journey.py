@@ -61,7 +61,7 @@ def test_complete_web_financial_journey() -> None:
                 has=page.get_by_placeholder("Ex.: Compra no mercado")
             )
             transaction_form.get_by_label("Valor em reais").fill("12345")
-            page.get_by_label("Conta").select_option(label="Conta E2E")
+            transaction_form.get_by_label("Conta").select_option(label="Conta E2E")
             page.get_by_label("Categoria (opcional)").select_option(label="Categoria E2E")
             page.get_by_role("button", name="Registrar movimentação").click()
             expect(page.get_by_text("Movimentação registrada.")).to_be_visible()

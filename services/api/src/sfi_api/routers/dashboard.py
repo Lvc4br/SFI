@@ -108,7 +108,12 @@ async def get_finance_summary(
     income = func.coalesce(
         func.sum(
             case(
-                ((Transaction.transaction_type == "income") & Transaction.transfer_id.is_(None) & Transaction.transfer_reversal_id.is_(None), Transaction.amount),
+                (
+                    (Transaction.transaction_type == "income")
+                    & Transaction.transfer_id.is_(None)
+                    & Transaction.transfer_reversal_id.is_(None),
+                    Transaction.amount,
+                ),
                 else_=Decimal("0.00"),
             )
         ),
@@ -117,7 +122,12 @@ async def get_finance_summary(
     expenses = func.coalesce(
         func.sum(
             case(
-                ((Transaction.transaction_type == "expense") & Transaction.transfer_id.is_(None) & Transaction.transfer_reversal_id.is_(None), Transaction.amount),
+                (
+                    (Transaction.transaction_type == "expense")
+                    & Transaction.transfer_id.is_(None)
+                    & Transaction.transfer_reversal_id.is_(None),
+                    Transaction.amount,
+                ),
                 else_=Decimal("0.00"),
             )
         ),

@@ -604,6 +604,11 @@ def test_accounts_and_categories_can_be_renamed_and_archived_without_deleting_hi
     assert archived_category.status_code == 200
     assert archived_category.json()["archived_at"] is not None
     assert client.get("/api/v1/finance/categories", headers=headers).json() == []
+    archived_categories = client.get(
+        "/api/v1/finance/categories?include_archived=true", headers=headers
+    ).json()
+    assert len(archived_categories) == 1
+    assert archived_categories[0]["name"] == "Categoria renomeada"
 
     archived_category_transaction = client.post(
         "/api/v1/finance/transactions",
@@ -626,6 +631,11 @@ def test_accounts_and_categories_can_be_renamed_and_archived_without_deleting_hi
     assert archived_account.status_code == 200
     assert archived_account.json()["archived_at"] is not None
     assert client.get("/api/v1/finance/accounts", headers=headers).json() == []
+    archived_accounts = client.get(
+        "/api/v1/finance/accounts?include_archived=true", headers=headers
+    ).json()
+    assert len(archived_accounts) == 1
+    assert archived_accounts[0]["name"] == "Conta renomeada"
 
     archived_account_transaction = client.post(
         "/api/v1/finance/transactions",

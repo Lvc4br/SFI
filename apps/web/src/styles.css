@@ -71,3 +71,15 @@ html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:
 .app-shell[data-theme="dark"] .transaction-tools input,.app-shell[data-theme="dark"] .transaction-tools select{background:#111c15;color:var(--ink);border-color:#3a4b40}
 @media(max-width:850px){.transaction-tools{grid-template-columns:1fr 1fr}.transaction-tools input{grid-column:1/-1}}
 @media(max-width:480px){.transaction-tools{grid-template-columns:1fr}.transaction-tools input{grid-column:auto}.transaction-tools .button{width:100%}}
+
+
+/* Server-side transaction pagination and date filters */
+.transaction-tools{grid-template-columns:minmax(180px,1.5fr) minmax(120px,.7fr) minmax(150px,1fr) minmax(125px,.7fr) minmax(125px,.7fr) auto}
+.transaction-date-filter{display:grid;gap:5px;color:var(--muted);font-size:10px;font-weight:650}
+.transaction-date-filter input{width:100%;min-width:0;min-height:42px;padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:11px}
+.transaction-date-filter input:focus{outline:none;border-color:#6a9b77;box-shadow:0 0 0 3px #77a98322}
+.pagination-controls{display:flex;align-items:center;justify-content:flex-end;gap:14px;margin-top:16px}
+.pagination-controls span{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.app-shell[data-theme="dark"] .transaction-date-filter input{background:#111c15;color:var(--ink);border-color:#3a4b40}
+@media(max-width:1050px){.transaction-tools{grid-template-columns:repeat(3,minmax(0,1fr))}.transaction-tools>input{grid-column:span 3}}
+@media(max-width:600px){.transaction-tools{grid-template-columns:1fr 1fr}.transaction-tools>input{grid-column:span 2}.transaction-tools .button{grid-column:span 2;width:100%}.pagination-controls{justify-content:space-between;gap:8px}.pagination-controls .button{padding:9px 12px}}

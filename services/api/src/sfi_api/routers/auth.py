@@ -186,9 +186,9 @@ async def login(
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(
+    request: Request,
+    response: Response,
     payload: RefreshRequest | None = None,
-    request: Request = None,  # type: ignore[assignment]
-    response: Response = None,  # type: ignore[assignment]
     session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> TokenResponse:
     settings = get_settings()
@@ -265,9 +265,9 @@ async def me(user: User = Depends(get_current_user)) -> UserResponse:  # noqa: B
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
+    request: Request,
+    response: Response,
     payload: LogoutRequest | None = None,
-    request: Request = None,  # type: ignore[assignment]
-    response: Response = None,  # type: ignore[assignment]
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008

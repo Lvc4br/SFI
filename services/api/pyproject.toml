@@ -33,6 +33,8 @@ packages = ["src/sfi_api"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+addopts = "-m 'not e2e'"
+markers = ["e2e: browser-based end-to-end tests requiring running SFI services"]
 
 [tool.ruff]
 line-length = 100

@@ -102,14 +102,15 @@ def test_complete_web_financial_journey() -> None:
             ).to_be_visible()
             expect(page.get_by_text("Estornada")).to_be_visible()
 
-            access_token = page.evaluate("() => sessionStorage.getItem('sfi.access')")
             api_url = os.environ.get("SFI_E2E_API_URL", "http://127.0.0.1:8000")
             today = datetime.now(UTC).date().isoformat()
-            with httpx.Client(
-                base_url=api_url,
-                headers={"Authorization": f"Bearer {access_token}"},
-                timeout=10.0,
-            ) as api:
+            with httpx.Client(base_url=api_url, timeout=10.0) as api:
+                test_login = api.post(
+                    "/api/v1/auth/login",
+                    json={"email": email, "password": password},
+                )
+                assert test_login.status_code == 200, test_login.text
+                api.headers["Authorization"] = f"Bearer {test_login.json()['access_token']}"
                 account_rows = api.get("/api/v1/finance/accounts").json()
                 category_rows = api.get("/api/v1/finance/categories").json()
                 account_id = next(row["id"] for row in account_rows if row["name"] == "Conta E2E")

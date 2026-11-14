@@ -24,6 +24,7 @@ def upgrade() -> None:
         sa.Column("amount", sa.Numeric(18, 2), nullable=False),
         sa.Column("currency", sa.String(length=3), nullable=False),
         sa.Column("description", sa.String(length=160), nullable=False),
+        sa.Column("idempotency_key", sa.String(length=100), nullable=False),
         sa.Column("frequency", sa.String(length=10), nullable=False),
         sa.Column("interval_count", sa.Integer(), server_default="1", nullable=False),
         sa.Column("start_date", sa.Date(), nullable=False),
@@ -56,6 +57,9 @@ def upgrade() -> None:
             name="fk_recurrences_category_owner", ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "user_id", "idempotency_key", name="uq_recurrences_user_idempotency"
+        ),
     )
     op.create_index(
         "ix_recurrences_user_active", "recurrences", ["user_id", "is_active"]

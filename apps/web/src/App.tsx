@@ -1,4 +1,5 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { api, Account, Budget, Category, Summary, Transaction, User, hasSession } from "./api";
 
 type Page = "overview" | "transactions" | "accounts" | "budget" | "education";

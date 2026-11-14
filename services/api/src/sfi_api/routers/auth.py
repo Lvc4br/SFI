@@ -7,7 +7,7 @@ from math import ceil
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -208,6 +208,11 @@ async def login(
     now = datetime.now(UTC)
     client_host = request.client.host if request.client is not None else "unknown"
     attempt_key = _login_attempt_key(payload.email, client_host)
+    await session.execute(
+        delete(LoginAttempt).where(
+            LoginAttempt.updated_at < now - timedelta(days=30)
+        )
+    )
     attempt = await session.scalar(
         select(LoginAttempt)
         .where(LoginAttempt.key_hash == attempt_key)

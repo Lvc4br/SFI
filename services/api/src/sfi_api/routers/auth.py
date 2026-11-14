@@ -17,6 +17,7 @@ from sfi_api.models.revoked_access_token import RevokedAccessToken
 from sfi_api.models.user import User
 from sfi_api.schemas.auth import (
     LoginRequest,
+    LogoutRequest,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
@@ -129,12 +130,6 @@ async def refresh(
         raise HTTPException(status_code=401, detail="Refresh token inválido ou expirado.")
 
     now = datetime.now(UTC)
-    expires_at = stored.expires_at
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=UTC)
-    if expires_at <= now:
-        raise HTTPException(status_code=401, detail="Refresh token inválido ou expirado.")
-
     if stored.revoked_at is not None:
         await session.execute(
             update(RefreshToken)
@@ -146,6 +141,12 @@ async def refresh(
         )
         await session.commit()
         raise HTTPException(status_code=401, detail="Reutilização detectada; sessão revogada.")
+
+    expires_at = stored.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    if expires_at <= now:
+        raise HTTPException(status_code=401, detail="Refresh token inválido ou expirado.")
 
     user = await session.get(User, stored.user_id)
     if user is None or not user.is_active:
@@ -180,6 +181,7 @@ async def me(user: User = Depends(get_current_user)) -> UserResponse:  # noqa: B
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
+    payload: LogoutRequest | None = None,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
@@ -191,13 +193,33 @@ async def logout(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    payload = decode_access_token(credentials.credentials)
+    access_payload = decode_access_token(credentials.credentials)
     revoked_token = RevokedAccessToken(
         user_id=user.id,
-        jti=payload["jti"],
-        expires_at=datetime.fromtimestamp(payload["exp"], UTC),
+        jti=access_payload["jti"],
+        expires_at=datetime.fromtimestamp(access_payload["exp"], UTC),
     )
     session.add(revoked_token)
+
+    if payload is not None and payload.refresh_token is not None:
+        refresh_result = await session.execute(
+            select(RefreshToken).where(
+                RefreshToken.token_hash == _hash_refresh_token(payload.refresh_token),
+                RefreshToken.user_id == user.id,
+            ).with_for_update()
+        )
+        refresh_record = refresh_result.scalar_one_or_none()
+        if refresh_record is not None:
+            await session.execute(
+                update(RefreshToken)
+                .where(
+                    RefreshToken.family_id == refresh_record.family_id,
+                    RefreshToken.user_id == user.id,
+                    RefreshToken.revoked_at.is_(None),
+                )
+                .values(revoked_at=datetime.now(UTC))
+            )
+
     try:
         await session.commit()
     except IntegrityError:

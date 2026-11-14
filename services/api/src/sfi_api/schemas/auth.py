@@ -32,6 +32,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=32, max_length=256)
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = Field(default=None, min_length=32, max_length=256)
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

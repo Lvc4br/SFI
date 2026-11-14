@@ -144,3 +144,52 @@ def test_unknown_refresh_token_is_rejected(client):
         json={"refresh_token": "x" * 64},
     )
     assert response.status_code == 401
+
+
+def test_logout_revokes_refresh_token_family(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "logout-refresh@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    body = registered.json()
+    headers = {"Authorization": f"Bearer {body['access_token']}"}
+
+    logged_out = client.post(
+        "/api/v1/auth/logout",
+        headers=headers,
+        json={"refresh_token": body["refresh_token"]},
+    )
+    assert logged_out.status_code == 204
+
+    refresh_attempt = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": body["refresh_token"]},
+    )
+    assert refresh_attempt.status_code == 401
+
+
+def test_logout_does_not_revoke_another_users_refresh_family(client):
+    first = client.post(
+        "/api/v1/auth/register",
+        json={"email": "logout-owner@example.com", "password": "uma-senha-forte-123"},
+    ).json()
+    second = client.post(
+        "/api/v1/auth/register",
+        json={"email": "logout-other@example.com", "password": "uma-senha-forte-123"},
+    ).json()
+
+    response = client.post(
+        "/api/v1/auth/logout",
+        headers={"Authorization": f"Bearer {first['access_token']}"},
+        json={"refresh_token": second["refresh_token"]},
+    )
+    assert response.status_code == 204
+
+    second_refresh = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": second["refresh_token"]},
+    )
+    assert second_refresh.status_code == 200
+
+

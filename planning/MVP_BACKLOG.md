@@ -111,6 +111,7 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Aplicar filtros server-side por tipo, categoria e período (datas inicial/final).
 - [x] Exportar CSV de todo o conjunto filtrado, percorrendo páginas da API e aplicando busca textual no conjunto completo.
 - [ ] Testes automatizados de componentes e E2E para tema, filtros, exportação e fluxos financeiros.
+- [x] Script PowerShell de validação unificada (`scripts/validate.ps1`): Ruff + pytest/SQLite + TypeScript + build Web; não acessa Neon.
 - [x] Testes API para paginação, filtros, ordenação, validação de intervalo e isolamento por usuário.
 
 **Limite importante:** a paginação usa offset/limit; inserções concorrentes durante uma exportação longa podem deslocar registros entre páginas. Evoluir para cursor/snapshot antes de prometer exportação transacionalmente consistente. A busca textual filtra a página visível, mas a exportação reaplica o mesmo termo ao conjunto completo recuperado.

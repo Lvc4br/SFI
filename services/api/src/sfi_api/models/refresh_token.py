@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, ForeignKeyConstraint, String, Uuid, func
+from sqlalchemy import DateTime, ForeignKeyConstraint, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sfi_api.models.base import Base

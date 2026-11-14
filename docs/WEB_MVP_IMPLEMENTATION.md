@@ -57,7 +57,7 @@ Se as dependências e o navegador já estiverem instalados, basta:
 .\scripts\validate.ps1 -E2E
 ```
 
-A etapa E2E cria um banco SQLite descartável, inicia API e Web localmente, executa uma jornada real no Chromium (cadastro, conta, categoria, movimentação, exportação CSV e novo login) e encerra os processos. Não usa Neon, não executa migrations e não altera dados de produção. O banco temporário é removido ao final.
+A etapa E2E cria um banco SQLite descartável, inicia API e Web localmente, executa uma jornada real no Chromium (cadastro, duas contas, categoria, despesa, transferência entre contas, orçamento, filtro por tipo, tema claro/escuro, exportação CSV, logout e novo login) e encerra os processos. Não usa Neon, não executa migrations e não altera dados de produção. O banco temporário é removido ao final.
 
 No GitHub Actions, o job `e2e` executa a mesma jornada em ambiente Linux isolado. A jornada atual cobre o fluxo financeiro principal da primeira fatia Web; ela não representa ainda validação de todos os 19 módulos do roadmap nem testes de carga, segurança avançada ou sincronização offline.
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
-import { api, Account, Budget, Category, Summary, Transaction, User, hasSession } from "./api";
+import type { FormEvent, ReactNode } from "react";
+import { api, hasSession } from "./api";
+import type { Account, Budget, Category, Summary, Transaction, User } from "./api";
 
 type Page = "overview" | "transactions" | "accounts" | "budget" | "education";
 const money = (v: string | number, currency = "BRL") => new Intl.NumberFormat("pt-BR",{style:"currency",currency}).format(Number(v));
@@ -40,7 +41,7 @@ export default function App() {
  {page==="education"&&<section className="content-grid"><div className="welcome-row"><div><h2>Aprender faz parte de organizar.</h2><p className="muted">Conceitos essenciais explicados no contexto das suas finanças.</p></div></div><div className="learning-grid"><Learning n="01" title="Saldo, receita e resultado" text="Saldo é a posição de uma conta. Receita é uma entrada classificada como ganho. Resultado é a diferença entre receitas e despesas em um período."/><Learning n="02" title="Transferências próprias" text="Mover dinheiro entre suas contas não cria renda nem representa consumo. O saldo de origem diminui e o saldo de destino aumenta."/><Learning n="03" title="Orçamento" text="O orçamento é um plano para orientar gastos. Compare o planejado com o que foi efetivamente registrado."/><Learning n="04" title="Crédito não é renda" text="Limite de crédito é uma possibilidade de assumir uma obrigação. Não é dinheiro próprio, renda ou patrimônio disponível."/><Learning n="05" title="Fluxo de caixa" text="Observe quando os valores entram e saem. Pessoas com o mesmo resultado mensal podem ter necessidades de caixa diferentes."/><Learning n="06" title="Projeções e realidade" text="Uma recorrência futura é uma estimativa baseada em uma regra. Só um lançamento confirmado deve alterar os valores realizados."/></div></section>}
  <footer className="app-footer"><span>SFI · Gestão financeira com educação e clareza</span><span>Cálculos financeiros processados pela API.</span></footer></main></div>;
 }
-function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="field">{label}{children}</label>;}
+function Field({label,children}:{label:string;children:ReactNode}){return <label className="field">{label}{children}</label>;}
 function PanelTitle({title,note,action,onAction}:{title:string;note:string;action?:string;onAction?:()=>void}){return <div className="panel-heading"><div><h3>{title}</h3><p className="muted">{note}</p></div>{action&&onAction&&<button className="text-button" onClick={onAction}>{action}</button>}</div>;}
 function Metric({title,value,note,positive}:{title:string;value:string;note:string;positive?:boolean}){return <article className="metric-card"><span>{title}</span><strong className={positive?"positive":""}>{value}</strong><small>{note}</small></article>;}
 function Empty({text,action,onClick}:{text:string;action?:string;onClick?:()=>void}){return <div className="empty-state"><span>◌</span><p>{text}</p>{action&&onClick&&<button className="button secondary" onClick={onClick}>{action}</button>}</div>;}

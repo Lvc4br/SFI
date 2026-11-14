@@ -1,9 +1,9 @@
 import hashlib
 import hmac
 import secrets
-from math import ceil
 import uuid
 from datetime import UTC, datetime, timedelta
+from math import ceil
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -48,7 +48,7 @@ def _new_refresh_token() -> str:
 
 
 def _login_attempt_key(email: str, client_host: str) -> str:
-    material = f"{email.strip().lower()}|{client_host}".encode("utf-8")
+    material = f"{email.strip().lower()}|{client_host}".encode()
     return hashlib.sha256(material).hexdigest()
 
 

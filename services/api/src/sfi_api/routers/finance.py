@@ -169,8 +169,8 @@ async def list_transactions(
     transaction_type: str | None = Query(default=None, pattern="^(income|expense)$"),
     start_at: datetime | None = None,
     end_at: datetime | None = None,
-    min_amount: Decimal | None = Query(default=None, gt=0),
-    max_amount: Decimal | None = Query(default=None, gt=0),
+    min_amount: Decimal | None = Query(default=None, gt=0),  # noqa: B008
+    max_amount: Decimal | None = Query(default=None, gt=0),  # noqa: B008
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[TransactionResponse]:

@@ -288,7 +288,9 @@ async def logout(
     session.add(revoked_token)
 
     body_refresh_token = payload.refresh_token if payload is not None else None
-    cookie_refresh_token = request.cookies.get(get_settings().refresh_cookie_name) if request else None
+    cookie_refresh_token = (
+        request.cookies.get(get_settings().refresh_cookie_name) if request else None
+    )
     from_cookie = body_refresh_token is None and cookie_refresh_token is not None
     refresh_token = body_refresh_token or cookie_refresh_token
     if from_cookie:

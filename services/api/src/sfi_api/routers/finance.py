@@ -284,7 +284,10 @@ async def create_transfer(
         )
 
     if payload.source_account_id == payload.destination_account_id:
-        raise HTTPException(status_code=422, detail="As contas de origem e destino devem ser diferentes.")
+        raise HTTPException(
+            status_code=422,
+            detail="As contas de origem e destino devem ser diferentes.",
+        )
 
     accounts = await session.scalars(
         select(Account).where(
@@ -298,7 +301,10 @@ async def create_transfer(
     if source is None or destination is None:
         raise HTTPException(status_code=404, detail="Conta de origem ou destino não encontrada.")
     if source.currency != destination.currency:
-        raise HTTPException(status_code=422, detail="Transferências entre moedas diferentes não são permitidas.")
+        raise HTTPException(
+            status_code=422,
+            detail="Transferências entre moedas diferentes não são permitidas.",
+        )
     if source.account_type == "credit" or destination.account_type == "credit":
         raise HTTPException(
             status_code=422,
@@ -382,7 +388,9 @@ async def reverse_transaction(
     if original.transfer_id is not None:
         raise HTTPException(
             status_code=422,
-            detail="Movimentações de transferência devem ser estornadas pelo fluxo de transferência.",
+            detail=(
+                "Movimentações de transferência devem ser estornadas pelo fluxo de transferência."
+            ),
         )
     existing = await session.scalar(
         select(Transaction).where(

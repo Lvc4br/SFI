@@ -119,6 +119,7 @@ class FinanceSummaryResponse(BaseModel):
 class BudgetCreate(BaseModel):
     category_id: uuid.UUID
     period: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    currency: str = Field(default="BRL", pattern=r"^[A-Z]{3}$")
     limit_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
 
 

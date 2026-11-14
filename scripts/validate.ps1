@@ -47,6 +47,7 @@ if (-not $pnpmCommand) {
 }
 
 if ($InstallDependencies) {
+    Invoke-ValidationStep -Name "Instalar dependências Python de desenvolvimento" -WorkingDirectory $apiRoot -Executable $apiPython -Arguments @("-m", "pip", "install", "-e", ".[dev]")
     Invoke-ValidationStep -Name "Instalar dependências Web (lockfile congelado)" -WorkingDirectory $repoRoot -Executable "pnpm" -Arguments @("install", "--frozen-lockfile")
 }
 

@@ -79,14 +79,19 @@ export const api = {
     try { await request<void>("/api/v1/auth/logout", { method: "POST" }); }
     finally { clearSession(); }
   },
-  accounts: () => request<Account[]>("/api/v1/finance/accounts"),
+  accounts: (includeArchived = false) => request<Account[]>(`/api/v1/finance/accounts${includeArchived ? "?include_archived=true" : ""}`),
   createAccount: (data: { name: string; account_type: Account["account_type"]; currency: string; opening_balance: string }) =>
     request<Account>("/api/v1/finance/accounts", { method: "POST", body: JSON.stringify(data) }),
   updateAccount: (id: string, name: string) =>
     request<Account>(`/api/v1/finance/accounts/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
   archiveAccount: (id: string) =>
     request<Account>(`/api/v1/finance/accounts/${id}/archive`, { method: "POST" }),
-  categories: (type?: Category["category_type"]) => request<Category[]>(`/api/v1/finance/categories${type ? `?category_type=${type}` : ""}`),
+  categories: (type?: Category["category_type"], includeArchived = false) => {
+    const query = new URLSearchParams();
+    if (type) query.set("category_type", type);
+    if (includeArchived) query.set("include_archived", "true");
+    return request<Category[]>(`/api/v1/finance/categories${query.size ? `?${query.toString()}` : ""}`);
+  },
   createCategory: (data: { name: string; category_type: Category["category_type"] }) =>
     request<Category>("/api/v1/finance/categories", { method: "POST", body: JSON.stringify(data) }),
   updateCategory: (id: string, name: string) =>

@@ -28,6 +28,15 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_role("button", name="Criar conta", exact=True).click()
             expect(page.get_by_role("heading", name="Visão geral")).to_be_visible()
             expect(page.get_by_text(email)).to_be_visible()
+            unnamed_controls = page.locator("button,input,select,textarea").evaluate_all(
+                "(elements) => elements.filter((element) => {"
+                + "const name = element.getAttribute('aria-label') || element.getAttribute('aria-labelledby');"
+                + "const label = element.labels && element.labels.length > 0;"
+                + "const text = (element.innerText || element.value || '').trim();"
+                + "return !name && !label && !text;"
+                + "}).map((element) => element.outerHTML)"
+            )
+            assert not unnamed_controls, unnamed_controls
 
             page.get_by_role("button", name="Configurações").click()
             expect(page.get_by_text("Conta criada")).to_be_visible()

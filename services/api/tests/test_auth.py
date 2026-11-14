@@ -48,6 +48,7 @@ def test_register_login_and_authenticated_profile(client):
     body = registered.json()
     assert body["user"]["email"] == "luca@example.com"
     assert body["token_type"] == "bearer"
+    assert body["refresh_token"]
     assert "password_hash" not in body["user"]
 
     logged_in = client.post(
@@ -56,6 +57,7 @@ def test_register_login_and_authenticated_profile(client):
     )
     assert logged_in.status_code == 200
     token = logged_in.json()["access_token"]
+    assert logged_in.json()["refresh_token"]
 
     profile = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert profile.status_code == 200
@@ -111,3 +113,34 @@ def test_logout_revokes_only_the_current_access_token(client):
     assert new_login.status_code == 200
     new_headers = {"Authorization": f"Bearer {new_login.json()['access_token']}"}
     assert client.get("/api/v1/auth/me", headers=new_headers).status_code == 200
+
+
+def test_refresh_token_rotates_and_reuse_revokes_family(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "refresh@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    original = registered.json()["refresh_token"]
+
+    rotated = client.post("/api/v1/auth/refresh", json={"refresh_token": original})
+    assert rotated.status_code == 200
+    replacement = rotated.json()["refresh_token"]
+    assert replacement != original
+    assert client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {rotated.json()['access_token']}"},
+    ).status_code == 200
+
+    reused = client.post("/api/v1/auth/refresh", json={"refresh_token": original})
+    assert reused.status_code == 401
+    family_revoked = client.post("/api/v1/auth/refresh", json={"refresh_token": replacement})
+    assert family_revoked.status_code == 401
+
+
+def test_unknown_refresh_token_is_rejected(client):
+    response = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": "x" * 64},
+    )
+    assert response.status_code == 401

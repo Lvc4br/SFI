@@ -3,6 +3,7 @@ const ACCESS_KEY = "sfi.access";
 const REFRESH_KEY = "sfi.refresh";
 
 export type User = { id: string; email: string; is_active: boolean; timezone: string; created_at: string };
+export type SecurityEvent = { id: string; event_type: string; created_at: string };
 export type Session = { access_token: string; refresh_token: string | null; expires_in: number; user: User };
 export type Account = { id: string; name: string; account_type: "checking" | "savings" | "cash" | "credit"; currency: string; opening_balance: string; archived_at: string | null; created_at: string };
 export type Category = { id: string; name: string; category_type: "income" | "expense"; archived_at: string | null; created_at: string };
@@ -78,6 +79,7 @@ export const api = {
   me: () => request<User>("/api/v1/auth/me"),
   updateTimezone: (timezone: string) =>
     request<User>("/api/v1/auth/me/timezone", { method: "PATCH", body: JSON.stringify({ timezone }) }),
+  securityEvents: () => request<SecurityEvent[]>("/api/v1/auth/security-events"),
   logout: async () => {
     try { await request<void>("/api/v1/auth/logout", { method: "POST" }); }
     finally { clearSession(); }

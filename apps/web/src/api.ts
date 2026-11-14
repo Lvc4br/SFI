@@ -4,8 +4,8 @@ const REFRESH_KEY = "sfi.refresh";
 
 export type User = { id: string; email: string; is_active: boolean; created_at: string };
 export type Session = { access_token: string; refresh_token: string; expires_in: number; user: User };
-export type Account = { id: string; name: string; account_type: "checking" | "savings" | "cash" | "credit"; currency: string; opening_balance: string; created_at: string };
-export type Category = { id: string; name: string; category_type: "income" | "expense"; created_at: string };
+export type Account = { id: string; name: string; account_type: "checking" | "savings" | "cash" | "credit"; currency: string; opening_balance: string; archived_at: string | null; created_at: string };
+export type Category = { id: string; name: string; category_type: "income" | "expense"; archived_at: string | null; created_at: string };
 export type TransactionPage = { items: Transaction[]; total: number; limit: number; offset: number; has_more: boolean };
 export type Transaction = { id: string; account_id: string; category_id: string | null; transaction_type: "income" | "expense"; amount: string; currency: string; description: string; occurred_at: string; created_at: string };
 export type Budget = { id: string; category_id: string; category_name: string; period: string; currency: string; limit_amount: string; spent_amount: string; remaining_amount: string; usage_percent: string; status: "within_limit" | "reached_limit" | "over_limit"; created_at: string };
@@ -76,9 +76,17 @@ export const api = {
   accounts: () => request<Account[]>("/api/v1/finance/accounts"),
   createAccount: (data: { name: string; account_type: Account["account_type"]; currency: string; opening_balance: string }) =>
     request<Account>("/api/v1/finance/accounts", { method: "POST", body: JSON.stringify(data) }),
+  updateAccount: (id: string, name: string) =>
+    request<Account>(`/api/v1/finance/accounts/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  archiveAccount: (id: string) =>
+    request<Account>(`/api/v1/finance/accounts/${id}/archive`, { method: "POST" }),
   categories: (type?: Category["category_type"]) => request<Category[]>(`/api/v1/finance/categories${type ? `?category_type=${type}` : ""}`),
   createCategory: (data: { name: string; category_type: Category["category_type"] }) =>
     request<Category>("/api/v1/finance/categories", { method: "POST", body: JSON.stringify(data) }),
+  updateCategory: (id: string, name: string) =>
+    request<Category>(`/api/v1/finance/categories/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  archiveCategory: (id: string) =>
+    request<Category>(`/api/v1/finance/categories/${id}/archive`, { method: "POST" }),
   transactions: (limit = 100) => request<Transaction[]>(`/api/v1/finance/transactions?limit=${limit}&offset=0`),
   transactionPage: (params: { limit?: number; offset?: number; account_id?: string; category_id?: string; transaction_type?: "income" | "expense"; start_at?: string; end_at?: string; min_amount?: string; max_amount?: string } = {}) => {
     const query = new URLSearchParams();

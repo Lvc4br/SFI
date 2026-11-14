@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
@@ -161,6 +162,15 @@ async def get_finance_summary(
         for account in accounts_result.all()
     ]
 
+    reversal = aliased(Transaction)
+    has_reversal = (
+        select(reversal.id)
+        .where(
+            reversal.user_id == user.id,
+            reversal.reversal_of_transaction_id == Transaction.id,
+        )
+        .exists()
+    )
     category_result = await session.execute(
         select(
             Category.id,
@@ -172,6 +182,8 @@ async def get_finance_summary(
         .where(
             Transaction.user_id == user.id,
             Transaction.transaction_type == "expense",
+            Transaction.reversal_of_transaction_id.is_(None),
+            ~has_reversal,
             Transaction.occurred_at >= start,
             Transaction.occurred_at < end,
         )

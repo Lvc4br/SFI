@@ -102,7 +102,7 @@ export const api = {
   archiveCategory: (id: string) =>
     request<Category>(`/api/v1/finance/categories/${id}/archive`, { method: "POST" }),
   transactions: (limit = 100) => request<Transaction[]>(`/api/v1/finance/transactions?limit=${limit}&offset=0`),
-  transactionPage: (params: { limit?: number; offset?: number; account_id?: string; category_id?: string; transaction_type?: "income" | "expense"; start_at?: string; end_at?: string; min_amount?: string; max_amount?: string } = {}) => {
+  transactionPage: (params: { limit?: number; offset?: number; account_id?: string; category_id?: string; transaction_type?: "income" | "expense"; start_at?: string; end_at?: string; start_date?: string; end_date?: string; min_amount?: string; max_amount?: string } = {}) => {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== "") query.set(key, String(value));
     return request<TransactionPage>(`/api/v1/finance/transactions/page?${query.toString()}`);

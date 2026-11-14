@@ -31,7 +31,8 @@ A aplicação `apps/web` deixou de ser apenas uma tela de apresentação e passo
 | Logout | `POST /api/v1/auth/logout` |
 | Contas | `GET/POST /api/v1/finance/accounts` |
 | Categorias | `GET/POST /api/v1/finance/categories` |
-| Movimentações | `GET/POST /api/v1/finance/transactions` |\n| Histórico paginado | `GET /api/v1/finance/transactions/page` (limit, offset, account_id, category_id, transaction_type, start_at, end_at, min_amount, max_amount) |
+| Movimentações | `GET/POST /api/v1/finance/transactions` |
+| Histórico paginado | `GET /api/v1/finance/transactions/page` (limit, offset, account_id, category_id, transaction_type, start_at, end_at, min_amount, max_amount) |
 | Transferências | `POST /api/v1/finance/transfers` |
 | Orçamentos | `GET/POST /api/v1/finance/budgets` |
 | Dashboard | `GET /api/v1/finance/summary` |

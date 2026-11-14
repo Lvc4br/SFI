@@ -26,3 +26,15 @@ def test_api_responses_include_baseline_security_headers() -> None:
     assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
     assert response.headers["cache-control"] == "no-store"
     assert "default-src 'none'" in response.headers["content-security-policy"]
+
+
+def test_hsts_is_enabled_only_in_production(monkeypatch) -> None:
+    monkeypatch.setattr("sfi_api.main.settings.environment", "production")
+    response = TestClient(app).get("/api/v1/health/live")
+    assert response.headers["strict-transport-security"] == "max-age=31536000; includeSubDomains"
+
+
+def test_hsts_is_not_enabled_in_development(monkeypatch) -> None:
+    monkeypatch.setattr("sfi_api.main.settings.environment", "development")
+    response = TestClient(app).get("/api/v1/health/live")
+    assert "strict-transport-security" not in response.headers

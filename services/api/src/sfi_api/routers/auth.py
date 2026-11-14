@@ -24,6 +24,7 @@ from sfi_api.schemas.auth import (
     LogoutRequest,
     RefreshRequest,
     RegisterRequest,
+    TimezoneUpdateRequest,
     TokenResponse,
     UserResponse,
 )
@@ -146,7 +147,11 @@ async def register(
     if not jwt_is_configured():
         raise HTTPException(status_code=503, detail="Autenticação não configurada.")
 
-    user = User(email=payload.email, password_hash=hash_password(payload.password))
+    user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        timezone=payload.timezone,
+    )
     session.add(user)
     try:
         await session.commit()
@@ -383,6 +388,18 @@ async def logout(
         ) from None
     if response is not None and (from_cookie or (request and _is_web_client(request))):
         _clear_auth_cookies(response)
+
+
+@router.patch("/me/timezone", response_model=UserResponse)
+async def update_timezone(
+    payload: TimezoneUpdateRequest,
+    user: User = Depends(get_current_user),  # noqa: B008
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+) -> UserResponse:
+    user.timezone = payload.timezone
+    await session.commit()
+    await session.refresh(user)
+    return UserResponse.model_validate(user)
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)

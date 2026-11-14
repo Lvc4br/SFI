@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-    [switch]$InstallDependencies
+    [switch]$InstallDependencies,
+    [switch]$E2E,
+    [switch]$InstallBrowser
 )
 
 $ErrorActionPreference = "Stop"
@@ -54,4 +56,11 @@ Invoke-ValidationStep -Name "Typecheck Web" -WorkingDirectory $repoRoot -Executa
 Invoke-ValidationStep -Name "Build Web de produção" -WorkingDirectory $repoRoot -Executable "pnpm" -Arguments @("build")
 
 Write-Host ""
+if ($E2E) {
+    $e2eArgs = @()
+    if ($InstallBrowser) { $e2eArgs += "-InstallBrowser" }
+    & (Join-Path $PSScriptRoot "e2e.ps1") @e2eArgs
+    if ($LASTEXITCODE -ne 0) { throw "A validação E2E falhou." }
+}
+
 Write-Host "VALIDAÇÃO UNIFICADA CONCLUÍDA COM SUCESSO." -ForegroundColor Green

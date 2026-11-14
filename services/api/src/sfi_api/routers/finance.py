@@ -11,6 +11,7 @@ from sqlalchemy.orm import aliased
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
 from sfi_api.models.finance import Account, Budget, Category, Transaction, Transfer
+from sfi_api.models.recurrence import Recurrence
 from sfi_api.models.transfer_reversal import TransferReversal
 from sfi_api.models.user import User
 from sfi_api.schemas.finance import (
@@ -94,6 +95,18 @@ async def archive_account(
     )
     if account is None:
         raise HTTPException(status_code=404, detail="Conta ativa não encontrada.")
+    active_recurrence = await session.scalar(
+        select(Recurrence.id).where(
+            Recurrence.user_id == user.id,
+            Recurrence.account_id == account.id,
+            Recurrence.is_active.is_(True),
+        ).limit(1)
+    )
+    if active_recurrence is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Desative as recorrências desta conta antes de arquivá-la.",
+        )
     income = func.coalesce(
         func.sum(case((Transaction.transaction_type == "income", Transaction.amount), else_=0)),
         Decimal("0.00"),
@@ -141,6 +154,18 @@ async def archive_category(
     )
     if category is None:
         raise HTTPException(status_code=404, detail="Categoria ativa não encontrada.")
+    active_recurrence = await session.scalar(
+        select(Recurrence.id).where(
+            Recurrence.user_id == user.id,
+            Recurrence.category_id == category.id,
+            Recurrence.is_active.is_(True),
+        ).limit(1)
+    )
+    if active_recurrence is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Desative as recorrências desta categoria antes de arquivá-la.",
+        )
     category.archived_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(category)

@@ -30,6 +30,7 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_text(email)).to_be_visible()
 
             page.get_by_role("button", name="Configurações").click()
+            expect(page.get_by_text("Conta criada")).to_be_visible()
             page.get_by_label("Fuso horário IANA").fill("America/Sao_Paulo")
             page.get_by_role("button", name="Salvar fuso horário").click()
             expect(

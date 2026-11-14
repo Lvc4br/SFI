@@ -28,6 +28,10 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_role("button", name="Criar conta", exact=True).click()
             expect(page.get_by_role("heading", name="Visão geral")).to_be_visible()
             expect(page.get_by_text(email)).to_be_visible()
+            assert page.evaluate("() => sessionStorage.getItem('sfi.access')") is None
+            assert page.evaluate("() => sessionStorage.getItem('sfi.refresh')") is None
+            page.reload(wait_until="networkidle")
+            expect(page.get_by_text(email)).to_be_visible(timeout=10000)
             unnamed_controls = page.locator("button,input,select,textarea").evaluate_all(
                 """
                 (elements) => elements.filter((element) => {

@@ -86,7 +86,18 @@ O script confirma o host de destino e pede que você digite `APLICAR`; depois ex
 
 ## Documentação
 
+### Produto e MVP
 - [Especificação do produto](docs/PRODUCT_SPEC.md)
+- [Escopo funcional do MVP](docs/MVP_SCOPE.md)
+- [Critérios de aceite do MVP](docs/MVP_ACCEPTANCE_CRITERIA.md)
+- [Implementação Web do MVP e limitações](docs/WEB_MVP_IMPLEMENTATION.md)
+- [Regras do domínio financeiro](docs/FINANCIAL_DOMAIN_RULES.md)
+- [Educação financeira contextual](docs/FINANCIAL_EDUCATION.md)
+- [Backlog priorizado do MVP](planning/MVP_BACKLOG.md)
+- [Plano de entrega do MVP](planning/MVP_DELIVERY_PLAN.md)
+- [Plano de testes do MVP](planning/MVP_TEST_PLAN.md)
+
+### Arquitetura e operação
 - [Arquitetura](architecture/ARCHITECTURE.md)
 - [Modelo de dados](architecture/DATA_MODEL.md)
 - [Contratos de API](architecture/API_CONTRACTS.md)
@@ -94,11 +105,15 @@ O script confirma o host de destino e pede que você digite `APLICAR`; depois ex
 - [Arquitetura de IA](architecture/AI_DESIGN.md)
 - [Pipeline fiscal](architecture/FISCAL_PIPELINE.md)
 - [Segurança e privacidade](architecture/SECURITY_PRIVACY.md)
-- [Roadmap](planning/ROADMAP.md)
-- [Backlog](planning/BACKLOG.md)
-- [Estratégia de testes](planning/TEST_STRATEGY.md)
+- [Roadmap geral](planning/ROADMAP.md)
+- [Backlog geral](planning/BACKLOG.md)
+- [Estratégia geral de testes](planning/TEST_STRATEGY.md)
 - [Implantação e operação](planning/DEPLOYMENT_OPERATIONS.md)
 - [Decisões arquiteturais](planning/ADRs.md)
+
+### Entregas técnicas já documentadas
+- [Fase 1 — fundação](docs/PHASE_1_FOUNDATION.md)
+- [Fase 1.1 — autenticação](docs/PHASE_1_1_AUTH.md)
 - [Fase 2.0 — núcleo financeiro](docs/PHASE_2_FINANCIAL_CORE.md)
 - [Fase 2.1 — saldos e resumo](docs/PHASE_2_1_BALANCES_SUMMARY.md)
 - [Fase 2.2 — orçamentos mensais](docs/PHASE_2_2_MONTHLY_BUDGETS.md)
@@ -107,7 +122,13 @@ O script confirma o host de destino e pede que você digite `APLICAR`; depois ex
 - [Fase 2.5 — recorrências e projeção de fluxo de caixa](docs/PHASE_2_5_RECURRENCES_FORECAST.md)
 - [Fase 2.6 — estorno pareado de transferências](docs/PHASE_2_6_PAIRED_TRANSFER_REVERSALS.md)
 - [Fase 2.7 — filtros do histórico de movimentações](docs/PHASE_2_7_TRANSACTION_FILTERS.md)
+- [Fase 2.8 — revogação de access tokens](docs/PHASE_2_8_AUTH_TOKEN_REVOCATION.md)
+- [Fase 2.9 — rotação de refresh tokens](docs/PHASE_2_9_REFRESH_TOKEN_ROTATION.md)
+- [Fase 2.10 — logout e revogação de sessão](docs/PHASE_2_10_SESSION_LOGOUT.md)
+- [Fase 2.11 — alteração de senha e logout global](docs/PHASE_2_11_PASSWORD_AND_GLOBAL_LOGOUT.md)
 
-## Status
+## Status do projeto
 
-**Fase 2 — núcleo financeiro em evolução.** A fundação Web/API, autenticação com rotação e revogação de sessões, contas, categorias, movimentações, saldos, resumo financeiro, orçamentos mensais, transferências, histórico paginado, estornos auditáveis, recorrências, projeções de fluxo de caixa e filtros avançados no histórico foram integrados após CI aprovado. As migrations ainda não foram aplicadas ao banco Neon. Permanecem pendentes, entre outros, conciliação, importação de extratos, regras completas de cartão, dashboard visual e clientes Desktop/Mobile. O produto ainda não está pronto para produção.
+**Fundação e núcleo financeiro de backend implementados; MVP Web ainda em desenvolvimento.** O repositório contém autenticação com rotação e revogação de sessões, contas, categorias, movimentações, saldos, resumo financeiro, orçamentos mensais, transferências, histórico paginado, estornos auditáveis, recorrências e projeções de fluxo de caixa. As migrations até a revisão atual foram aplicadas no ambiente Neon de desenvolvimento. A suíte local reportada nesta etapa passou com 36 testes.
+
+A Web já possui uma primeira jornada integrada com autenticação, contas, categorias, movimentações, transferências, orçamento, dashboard e educação contextual; a implementação e suas limitações estão descritas em [WEB_MVP_IMPLEMENTATION.md](docs/WEB_MVP_IMPLEMENTATION.md). Permanecem pendentes filtros/paginação visual, edição/arquivamento, estornos na interface, conciliação, cartões/faturas, recuperação de senha/verificação de e-mail, hardening de sessão e segurança para beta público, clientes Desktop/Mobile e demais módulos do roadmap. **O SFI ainda não está pronto para produção.**

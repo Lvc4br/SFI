@@ -2,6 +2,12 @@
 
 Roadmap orientado a entregáveis e critérios de saída, sem datas artificiais.
 
+## Entrega prioritária atual — MVP Web
+
+O recorte executável da primeira versão está detalhado em [Escopo do MVP](../docs/MVP_SCOPE.md), [Backlog priorizado](MVP_BACKLOG.md), [Plano de entrega](MVP_DELIVERY_PLAN.md), [Critérios de aceite](../docs/MVP_ACCEPTANCE_CRITERIA.md) e [Plano de testes](MVP_TEST_PLAN.md).
+
+A sequência de implementação é: baseline/contratos → fundação Web autenticada → contas e categorias → movimentações e transferências → orçamento e dashboard → educação contextual → estabilização. Essa sequência aproveita o backend já integrado e não elimina os módulos posteriores.
+
 ## Fase 0 — Descoberta e validação
 Requisitos priorizados, jornadas, protótipos, provas de conceito Neon/Tauri/Expo, avaliação OCR/XML e estimativa de custos. **Saída:** riscos críticos identificados e arquitetura aprovada.
 
@@ -12,7 +18,7 @@ Monorepo, padrões, CI, ambientes, autenticação, FastAPI, Neon, migrações, d
 Contas, categorias, receitas/despesas, transferências, orçamento, fluxo de caixa, dashboard e importação CSV. **Progresso:** autenticação, contas, categorias, movimentações, saldos, resumo, orçamentos mensais, transferências, histórico, estornos individuais e pareados, recorrências e previsão de fluxo de caixa já integrados com CI aprovado. **Pendências:** conciliação, cartões/faturas, importação de extratos e dashboard visual. **Saída:** testes de domínio e integração aprovados e saldos reconciliáveis.
 
 ## Fase 3 — Educação e calculadoras
-Cursos, aulas, glossário, progresso, motor financeiro, calculadoras e avaliações. **Saída:** fórmulas validadas e conteúdo revisado.
+Cursos, aulas, glossário, progresso, motor financeiro, calculadoras e avaliações. **Saída:** fórmulas validadas e conteúdo revisado. A educação contextual básica já entra no MVP Web, sem antecipar o módulo completo de cursos.
 
 ## Fase 4 — Dívidas, metas e patrimônio
 Cartões, faturas, dívidas, parcelamentos, reservas, objetivos, ativos, passivos e relatórios básicos. **Saída:** valores reais, estimados e futuros claramente separados.

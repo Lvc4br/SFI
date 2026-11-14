@@ -114,7 +114,16 @@ class Transaction(Base):
             name="fk_transactions_category_owner",
             ondelete="RESTRICT",
         ),
+        UniqueConstraint("id", "user_id", name="uq_transactions_id_user"),
         UniqueConstraint("user_id", "idempotency_key", name="uq_transactions_user_idempotency"),
+        ForeignKeyConstraint(
+            ["transfer_id", "user_id"], ["transfers.id", "transfers.user_id"],
+            name="fk_transactions_transfer_owner", ondelete="RESTRICT"
+        ),
+        ForeignKeyConstraint(
+            ["reversal_of_transaction_id", "user_id"], ["transactions.id", "transactions.user_id"],
+            name="fk_transactions_reversal_owner", ondelete="RESTRICT"
+        ),
         UniqueConstraint("user_id", "reversal_of_transaction_id", name="uq_transactions_one_reversal"),
         CheckConstraint("amount > 0", name="ck_transactions_amount_positive"),
         Index("ix_transactions_user_date", "user_id", "occurred_at"),

@@ -31,8 +31,6 @@ def client(tmp_path, monkeypatch):
         jwt_secret_key="test-only-secret-key-with-at-least-32-bytes"
     )
     monkeypatch.setattr("sfi_api.security.get_settings", test_settings)
-    monkeypatch.setattr("sfi_api.routers.auth.get_settings", test_settings)
-    monkeypatch.setattr("sfi_api.dependencies.get_settings", test_settings)
 
     with TestClient(app) as test_client:
         yield test_client

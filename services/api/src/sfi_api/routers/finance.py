@@ -15,14 +15,14 @@ from sfi_api.models.recurrence import Recurrence
 from sfi_api.models.transfer_reversal import TransferReversal
 from sfi_api.models.user import User
 from sfi_api.schemas.finance import (
-    AccountUpdate,
-    CategoryUpdate,
     AccountCreate,
     AccountResponse,
+    AccountUpdate,
     BudgetCreate,
     BudgetResponse,
     CategoryCreate,
     CategoryResponse,
+    CategoryUpdate,
     TransactionCreate,
     TransactionResponse,
     TransactionReversalResponse,
@@ -53,7 +53,9 @@ async def list_accounts(
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[AccountResponse]:
     result = await session.scalars(
-        select(Account).where(Account.user_id == user.id, Account.archived_at.is_(None)).order_by(Account.created_at.desc())
+        select(Account)
+        .where(Account.user_id == user.id, Account.archived_at.is_(None))
+        .order_by(Account.created_at.desc())
     )
     return [AccountResponse.model_validate(item) for item in result.all()]
 
@@ -257,7 +259,11 @@ async def create_transaction(
         )
 
     account = await session.scalar(
-        select(Account).where(Account.id == payload.account_id, Account.user_id == user.id, Account.archived_at.is_(None))
+        select(Account).where(
+            Account.id == payload.account_id,
+            Account.user_id == user.id,
+            Account.archived_at.is_(None),
+        )
     )
     if account is None:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")

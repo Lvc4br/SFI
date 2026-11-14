@@ -666,3 +666,77 @@ def test_account_with_nonzero_balance_cannot_be_archived(client):
     )
     assert archived.status_code == 409
     assert "Zere o saldo" in archived.json()["detail"]
+
+
+def test_summary_and_monthly_budget_use_user_timezone_boundaries(client):
+    token = register(client, "timezone-period@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    ).json()
+    category = client.post(
+        "/api/v1/finance/categories",
+        headers=headers,
+        json={"name": "Mercado", "category_type": "expense"},
+    ).json()
+    transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "category_id": category["id"],
+            "transaction_type": "expense",
+            "amount": "10.00",
+            "description": "Compra próxima da meia-noite",
+            "occurred_at": "2026-11-01T02:00:00+00:00",
+            "idempotency_key": "timezone-boundary-expense-01",
+        },
+    )
+    assert transaction.status_code == 201
+
+    for period in ("2026-10", "2026-11"):
+        created = client.post(
+            "/api/v1/finance/budgets",
+            headers=headers,
+            json={
+                "category_id": category["id"],
+                "period": period,
+                "limit_amount": "100.00",
+            },
+        )
+        assert created.status_code == 201
+
+    october = client.get(
+        "/api/v1/finance/budgets?period=2026-10", headers=headers
+    ).json()[0]
+    november = client.get(
+        "/api/v1/finance/budgets?period=2026-11", headers=headers
+    ).json()[0]
+    assert october["spent_amount"] == "10.00"
+    assert november["spent_amount"] == "0.00"
+
+    local_october = client.get(
+        "/api/v1/finance/summary?start_date=2026-10-31&end_date=2026-10-31",
+        headers=headers,
+    ).json()
+    local_november = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-01",
+        headers=headers,
+    ).json()
+    assert local_october["totals_by_currency"][0]["expense_total"] == "10.00"
+    assert local_november["totals_by_currency"] == []
+
+    updated_timezone = client.patch(
+        "/api/v1/auth/me/timezone",
+        headers=headers,
+        json={"timezone": "UTC"},
+    )
+    assert updated_timezone.status_code == 200
+
+    utc_november = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-01",
+        headers=headers,
+    ).json()
+    assert utc_november["totals_by_currency"][0]["expense_total"] == "10.00"

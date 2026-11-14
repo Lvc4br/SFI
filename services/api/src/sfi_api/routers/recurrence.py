@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -205,8 +205,8 @@ async def update_recurrence_status(
 
 @router.get("/cash-flow/forecast", response_model=CashFlowForecastResponse)
 async def get_cash_flow_forecast(
-    start_date: date = Query(),
-    end_date: date = Query(),
+    start_date: date,
+    end_date: date,
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> CashFlowForecastResponse:

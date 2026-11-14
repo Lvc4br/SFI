@@ -39,19 +39,27 @@ A aplicação `apps/web` deixou de ser apenas uma tela de apresentação e passo
 
 ## Validação unificada local
 
-Na raiz do repositório, com a API virtualenv em `services/api/.venv` e as dependências Web instaladas, execute:
+Na raiz do repositório, com PowerShell, execute os testes automatizados de API, lint, TypeScript e build Web:
 
 ```powershell
 .\scripts\validate.ps1
 ```
 
-Se precisar instalar as dependências Web a partir do lockfile antes de validar:
+Para preparar dependências e executar toda a jornada, incluindo Chromium/Playwright:
 
 ```powershell
-.\scripts\validate.ps1 -InstallDependencies
+.\scripts\validate.ps1 -InstallDependencies -E2E -InstallBrowser
 ```
 
-O script executa, em sequência, Ruff, todos os testes da API (SQLite isolado), TypeScript e build Web. Ele não inicia servidores, não executa migrations e não conecta nem modifica o Neon. Essa validação automatizada é a barreira local única; o roteiro manual/E2E ainda precisa ser executado antes de considerar a release candidata validada.
+Se as dependências e o navegador já estiverem instalados, basta:
+
+```powershell
+.\scripts\validate.ps1 -E2E
+```
+
+A etapa E2E cria um banco SQLite descartável, inicia API e Web localmente, executa uma jornada real no Chromium (cadastro, conta, categoria, movimentação, exportação CSV e novo login) e encerra os processos. Não usa Neon, não executa migrations e não altera dados de produção. O banco temporário é removido ao final.
+
+No GitHub Actions, o job `e2e` executa a mesma jornada em ambiente Linux isolado. A jornada atual cobre o fluxo financeiro principal da primeira fatia Web; ela não representa ainda validação de todos os 19 módulos do roadmap nem testes de carga, segurança avançada ou sincronização offline.
 
 ## Configuração local
 

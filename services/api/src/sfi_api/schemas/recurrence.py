@@ -12,6 +12,7 @@ class RecurrenceCreate(BaseModel):
     transaction_type: Literal["income", "expense"]
     amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
     description: str = Field(min_length=1, max_length=160)
+    idempotency_key: str = Field(min_length=16, max_length=100)
     frequency: Literal["weekly", "monthly", "yearly"]
     interval_count: int = Field(default=1, ge=1, le=52)
     start_date: date

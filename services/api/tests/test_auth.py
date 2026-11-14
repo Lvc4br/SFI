@@ -319,3 +319,47 @@ def test_web_refresh_cookie_is_httponly_and_refresh_requires_csrf(client):
     logged_out = client.post("/api/v1/auth/logout", headers=access_headers)
     assert logged_out.status_code == 204
     assert client.get("/api/v1/auth/me", headers=access_headers).status_code == 401
+
+
+def test_login_rate_limit_blocks_repeated_invalid_passwords(client):
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": "rate-limit@example.com", "password": "uma-senha-forte-123"},
+    )
+    for _ in range(4):
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "rate-limit@example.com", "password": "senha-errada"},
+        )
+        assert response.status_code == 401
+
+    limited = client.post(
+        "/api/v1/auth/login",
+        json={"email": "rate-limit@example.com", "password": "senha-errada"},
+    )
+    assert limited.status_code == 429
+    assert limited.headers["retry-after"] == "900"
+
+    correct_password = client.post(
+        "/api/v1/auth/login",
+        json={"email": "rate-limit@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert correct_password.status_code == 429
+
+
+def test_successful_login_clears_prior_failed_attempts(client):
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": "rate-reset@example.com", "password": "uma-senha-forte-123"},
+    )
+    failed = client.post(
+        "/api/v1/auth/login",
+        json={"email": "rate-reset@example.com", "password": "senha-errada"},
+    )
+    assert failed.status_code == 401
+
+    successful = client.post(
+        "/api/v1/auth/login",
+        json={"email": "rate-reset@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert successful.status_code == 200

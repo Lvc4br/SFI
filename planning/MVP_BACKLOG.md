@@ -106,7 +106,9 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Campos monetários com entrada amigável em centavos e formatação pt-BR.
 - [x] Filtros locais no histórico carregado: busca por descrição/conta/categoria, tipo e categoria.
 - [x] Exportação CSV dos resultados atualmente filtrados.
-- [ ] Paginação real no backend e na interface; o histórico ainda carrega até 100 registros.
+- [x] Endpoint de paginação no backend com total, offset, limite, filtros server-side e ordenação determinística; cliente API tipado disponível.
+- [ ] Integrar paginação server-side à tela de histórico; até essa integração, a tela continua usando a listagem antiga de até 100 registros.
 - [ ] Testes automatizados de componentes e E2E para tema, filtros, exportação e fluxos financeiros.
+- [x] Testes API para paginação, filtros, ordenação, validação de intervalo e isolamento por usuário.
 
-**Limite importante:** filtros e exportação operam somente sobre os registros carregados pela API (até 100 mais recentes). O CSV não deve ser interpretado como extrato completo da conta.
+**Limite importante:** até a integração da nova paginação na interface, filtros e exportação operam somente sobre os registros carregados pela API antiga (até 100 mais recentes). O novo endpoint `/api/v1/finance/transactions/page` já disponibiliza paginação e filtros server-side; ainda não é consumido pela tela. O CSV atual não deve ser interpretado como extrato completo da conta.

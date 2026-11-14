@@ -30,7 +30,7 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_text(email)).to_be_visible()
             assert page.evaluate("() => sessionStorage.getItem('sfi.access')") is None
             assert page.evaluate("() => sessionStorage.getItem('sfi.refresh')") is None
-            page.reload(wait_until="networkidle")
+            page.reload(wait_until="domcontentloaded")
             expect(page.get_by_text(email)).to_be_visible(timeout=10000)
             unnamed_controls = page.locator("button,input,select,textarea").evaluate_all(
                 """

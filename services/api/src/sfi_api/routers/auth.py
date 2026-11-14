@@ -78,7 +78,7 @@ def _set_auth_cookies(response: Response, refresh_token: str) -> None:
         value=secrets.token_urlsafe(32),
         httponly=False,
         max_age=settings.refresh_token_days * 24 * 60 * 60,
-        **options,
+        **{**options, "path": "/"},
     )
 
 
@@ -86,7 +86,7 @@ def _clear_auth_cookies(response: Response) -> None:
     settings = get_settings()
     options = _cookie_options()
     response.delete_cookie(key=settings.refresh_cookie_name, **options)
-    response.delete_cookie(key=settings.csrf_cookie_name, **options)
+    response.delete_cookie(key=settings.csrf_cookie_name, **{**options, "path": "/"})
 
 
 def _require_csrf(request: Request) -> None:

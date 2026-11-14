@@ -38,6 +38,8 @@ app.add_middleware(
         "Content-Type",
         "Idempotency-Key",
         "If-Match",
+        "X-SFI-Client",
+        "X-CSRF-Token",
     ],
 )
 

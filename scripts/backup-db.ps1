@@ -6,9 +6,14 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "backup-integrity.ps1")
 
-if (-not $env:SFI_DATABASE_URL) {
-    throw "Defina SFI_DATABASE_URL no ambiente local. Não cole a URL no terminal ou no chat."
+if (-not $env:SFI_BACKUP_DATABASE_URL) {
+    throw "Defina SFI_BACKUP_DATABASE_URL com a URL do banco que será copiado."
 }
+if (-not $env:SFI_BACKUP_EXPECTED_HOST) {
+    throw "Defina SFI_BACKUP_EXPECTED_HOST com o host exato autorizado para o backup."
+}
+
+$null = Assert-SfiDatabaseHost -DatabaseUrl $env:SFI_BACKUP_DATABASE_URL -ExpectedHost $env:SFI_BACKUP_EXPECTED_HOST
 if (-not $env:SFI_BACKUP_AGE_RECIPIENT) {
     throw "Defina SFI_BACKUP_AGE_RECIPIENT com a chave pública age para criptografar o backup."
 }
@@ -24,7 +29,7 @@ $checksumPath = "$encryptedPath.sha256"
 
 try {
     # Libpq recebe a connection string pelo ambiente, evitando expô-la nos argumentos do processo.
-    $env:PGDATABASE = $env:SFI_DATABASE_URL
+    $env:PGDATABASE = $env:SFI_BACKUP_DATABASE_URL
     & pg_dump --format=custom --no-owner --no-acl --file $plainPath
     if ($LASTEXITCODE -ne 0) {
         throw "pg_dump falhou com código $LASTEXITCODE."

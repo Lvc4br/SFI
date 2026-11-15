@@ -740,3 +740,110 @@ def test_summary_and_monthly_budget_use_user_timezone_boundaries(client):
         headers=headers,
     ).json()
     assert utc_november["totals_by_currency"][0]["expense_total"] == "10.00"
+
+
+
+def test_transaction_amount_preserves_decimal_precision_and_rejects_excess_scale(client):
+    token = register(client, "decimal-boundary@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta decimal", "account_type": "checking"},
+    )
+    account_id = account.json()["id"]
+
+    accepted = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account_id,
+            "transaction_type": "income",
+            "amount": "9999999999999999.99",
+            "description": "Limite decimal aceito",
+            "idempotency_key": "decimal-limit-accepted-001",
+        },
+    )
+    assert accepted.status_code == 201, accepted.text
+    assert accepted.json()["amount"] == "9999999999999999.99"
+
+    rejected = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account_id,
+            "transaction_type": "income",
+            "amount": "0.001",
+            "description": "Escala excedente",
+            "idempotency_key": "decimal-excess-scale-001",
+        },
+    )
+    assert rejected.status_code == 422
+
+
+def test_idempotency_keys_are_scoped_to_each_user(client):
+    first_token = register(client, "decimal-owner-a@example.com")
+    second_token = register(client, "decimal-owner-b@example.com")
+    first_headers = {"Authorization": f"Bearer {first_token}"}
+    second_headers = {"Authorization": f"Bearer {second_token}"}
+
+    first_account = client.post(
+        "/api/v1/finance/accounts",
+        headers=first_headers,
+        json={"name": "Conta A", "account_type": "checking"},
+    )
+    second_account = client.post(
+        "/api/v1/finance/accounts",
+        headers=second_headers,
+        json={"name": "Conta B", "account_type": "checking"},
+    )
+    shared_key = "same-idempotency-key-two-users"
+
+    first = client.post(
+        "/api/v1/finance/transactions",
+        headers=first_headers,
+        json={
+            "account_id": first_account.json()["id"],
+            "transaction_type": "income",
+            "amount": "10.10",
+            "description": "Lançamento A",
+            "idempotency_key": shared_key,
+        },
+    )
+    second = client.post(
+        "/api/v1/finance/transactions",
+        headers=second_headers,
+        json={
+            "account_id": second_account.json()["id"],
+            "transaction_type": "income",
+            "amount": "10.10",
+            "description": "Lançamento B",
+            "idempotency_key": shared_key,
+        },
+    )
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+    assert first.json()["id"] != second.json()["id"]
+
+
+def test_transaction_requires_timezone_aware_timestamp(client):
+    token = register(client, "timezone-required@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta timezone", "account_type": "checking"},
+    )
+    response = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account.json()["id"],
+            "transaction_type": "expense",
+            "amount": "1.00",
+            "description": "Data sem timezone",
+            "occurred_at": "2026-11-14T12:00:00",
+            "idempotency_key": "timezone-missing-offset-001",
+        },
+    )
+    assert response.status_code == 422

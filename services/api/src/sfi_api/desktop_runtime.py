@@ -54,6 +54,14 @@ def run() -> None:
     os.environ["SFI_DATA_DIR"] = str(data_dir)
     os.environ["SFI_ENVIRONMENT"] = "desktop"
     os.environ["SFI_JWT_SECRET_KEY"] = ensure_local_secret(data_dir)
+    from sqlalchemy.engine import URL
+
+    local_database = data_dir / "database" / "sfi.sqlite3"
+    local_database.parent.mkdir(parents=True, exist_ok=True)
+    os.environ["SFI_DATABASE_URL"] = URL.create(
+        "sqlite+aiosqlite",
+        database=str(local_database),
+    ).render_as_string(hide_password=False)
     os.environ["SFI_CORS_ORIGINS"] = "tauri://localhost,http://tauri.localhost"
 
     root = runtime_root()

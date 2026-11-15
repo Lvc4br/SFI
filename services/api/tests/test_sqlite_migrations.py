@@ -18,10 +18,7 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
     api_root = Path(__file__).resolve().parents[1]
     database_path = tmp_path / "existing-sfi.sqlite3"
     engine = create_engine(f"sqlite:///{database_path}")
-    excluded = {
-        "shopping_products",
-        "product_price_observations",
-    }
+    excluded = {"shopping_products", "product_price_observations"}
     if not shopping_tables_already_exist:
         excluded.update({"shopping_lists", "shopping_list_items"})
     with engine.begin() as connection:
@@ -74,11 +71,23 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
         }
+        list_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(shopping_lists)")
+        }
+        item_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(shopping_list_items)")
+        }
+        item_foreign_keys = connection.execute(
+            "PRAGMA foreign_key_list(shopping_list_items)"
+        ).fetchall()
 
-    assert revision == "0015_product_catalog"
+    assert revision == "0016_shopping_catalog_templates"
     assert {
         "shopping_lists",
         "shopping_list_items",
         "shopping_products",
         "product_price_observations",
     } <= tables
+    assert "is_template" in list_columns
+    assert "product_id" in item_columns
+    assert any(row[2] == "shopping_products" for row in item_foreign_keys)

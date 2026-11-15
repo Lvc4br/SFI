@@ -70,5 +70,9 @@ def test_alembic_bootstraps_empty_sqlite_from_current_domain_metadata(
         "budgets",
         "recurrences",
         "security_events",
+        "shopping_lists",
+        "shopping_list_items",
+        "shopping_products",
+        "product_price_observations",
     }.issubset(tables)
-    assert revision == ("0014_shopping_lists",)
+    assert revision == ("0015_product_catalog",)

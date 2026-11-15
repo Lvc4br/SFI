@@ -17,6 +17,7 @@ router = APIRouter(prefix="/shopping/stock", tags=["shopping-stock"])
 
 INBOUND = {"purchase", "adjustment_in"}
 OUTBOUND = {"adjustment_out", "consumption", "waste"}
+MANUAL_TYPES = {"adjustment_in", "adjustment_out", "consumption", "waste"}
 
 
 class StockMovementCreate(BaseModel):
@@ -29,7 +30,7 @@ class StockMovementCreate(BaseModel):
     @field_validator("movement_type")
     @classmethod
     def validate_type(cls, value: str) -> str:
-        if value not in INBOUND | OUTBOUND:
+        if value not in MANUAL_TYPES:
             raise ValueError("Tipo de movimentação inválido.")
         return value
 

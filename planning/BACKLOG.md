@@ -1,43 +1,42 @@
 # Backlog Inicial — SFI
 
+O SFI é um aplicativo pessoal de gestão financeira, patrimonial e de consumo. Não inclui cursos, aulas, avaliações ou plataforma de educação financeira.
+
 ## E01 — Identidade e perfil
-Cadastro/login, recuperação, perfil, moeda/fuso, sessões, dispositivos, consentimentos, exportação e exclusão.
+Cadastro/login local, perfil, moeda/fuso, sessões, dispositivos, consentimentos, exportação e exclusão.
 
 ## E02 — Núcleo financeiro
 Contas, categorias, receitas/despesas, transferências, estornos, recorrências, conciliação e auditoria.
 
-## E03 — Orçamento
+## E03 — Orçamento e fluxo de caixa
 Períodos, limites, planejado versus realizado, projeções e alertas.
 
-## E04 — Educação
-Cursos, aulas versionadas, glossário, avaliações e progresso.
+## E04 — Calculadoras e planejamento
+Decimal, juros simples/compostos, taxas equivalentes, valor presente/futuro, SAC/Price, inflação, rentabilidade real e simulações.
 
-## E05 — Cálculos
-Decimal, juros simples/compostos, taxas equivalentes, valor presente/futuro, SAC/Price, inflação e rentabilidade real.
+## E05 — Dívidas, crédito e metas
+Dívidas, cronogramas, cartões, faturas, parcelamentos, objetivos e reservas.
 
-## E06 — Dívidas e metas
-Dívidas, cronogramas, cartões, faturas, estratégias de quitação, objetivos e reserva de emergência.
+## E06 — Documentos fiscais
+Upload privado, antimalware, hash, parser XML, OCR, confiança por campo, revisão, confirmação e integração financeira.
 
-## E07 — Documentos fiscais
-Upload, antimalware, hash, parser XML, OCR, confiança por campo, revisão, confirmação e integração financeira.
+## E07 — Compras
+Catálogo, variantes, códigos, listas favoritas/modelos, itens, preço-alvo, orçamento e histórico de preços.
 
-## E08 — Compras
-Catálogo, variantes, códigos, listas, itens, preço-alvo, orçamento e histórico.
+## E08 — Estoque e consumo
+Estoque doméstico, validade, unidades, movimentos, custo e comparação normalizada.
 
-## E09 — Estoque e comparação
-Estoque doméstico, validade, unidade, movimentos, preços e comparação normalizada.
-
-## E10 — Patrimônio e investimentos
+## E09 — Patrimônio e investimentos
 Ativos/passivos, posições, eventos, fontes, rentabilidade e relatórios.
 
-## E11 — Economia
-Indicadores, adaptadores de fontes, histórico, atualização e alertas de obsolescência.
+## E10 — Indicadores externos
+Adaptadores de fontes, histórico, atualização, origem e alertas de obsolescência.
 
-## E12 — IA
-Gateway, políticas, RAG, ferramentas, consentimento, avaliação e logs redigidos.
+## E11 — Assistente de IA pessoal
+Gateway, políticas, RAG com fontes, ferramentas tipadas, consentimento, avaliação e logs redigidos.
 
-## E13 — Clientes
-Web responsiva, Desktop Tauri, Mobile Expo, acessibilidade, offline e sincronização.
+## E12 — Clientes e sincronização
+Web responsiva, Desktop Tauri, cliente móvel, acessibilidade, offline, outbox, Neon e resolução explícita de conflitos.
 
-## E14 — Operação
-Backup, restauração, observabilidade, alertas, segurança, release e atualização.
+## E13 — Operação e segurança
+Backup, restauração, observabilidade, alertas, LGPD, auditoria, release, assinatura e atualização.

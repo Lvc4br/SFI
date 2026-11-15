@@ -148,7 +148,7 @@ export default function ShoppingPage() {
           <div className="shopping-detail-heading">
             <div><span className="eyebrow">LISTA DE COMPRAS</span><h2>{detail.name}</h2><p className="muted">{pending} pendentes · {checked} comprados</p></div>
             <div className="shopping-actions">
-              <button className="button secondary" type="button" disabled={busy} onClick={() => void run(() => api.updateShoppingList(detail.id, { is_favorite: !detail.is_favorite }), detail.is_favorite ? "Removida das favoritas." : "Adicionada às favoritas.")}>{detail.is_favorite ? "★ Favorita" : "☆ Favoritar"}</button>
+              <button className="button secondary" type="button" disabled={busy} onClick={() => void run(async () => { await api.updateShoppingList(detail.id, { is_favorite: !detail.is_favorite }); await refreshLists(detail.id); }, detail.is_favorite ? "Removida das favoritas." : "Adicionada às favoritas.")}>{detail.is_favorite ? "★ Favorita" : "☆ Favoritar"}</button>
               <button className="button secondary" type="button" disabled={busy} onClick={renameList}>Renomear</button>
               <button className="button secondary" type="button" disabled={busy} onClick={archiveList}>Arquivar</button>
             </div>

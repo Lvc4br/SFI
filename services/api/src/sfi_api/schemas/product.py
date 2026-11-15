@@ -50,6 +50,13 @@ class PriceObservationCreate(BaseModel):
             raise ValueError("A moeda deve ser um código ISO de três letras.")
         return value
 
+    @field_validator("observed_at")
+    @classmethod
+    def require_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("A data da observação precisa incluir fuso horário.")
+        return value
+
 
 class PriceObservationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

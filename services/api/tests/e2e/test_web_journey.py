@@ -28,9 +28,6 @@ def test_complete_web_financial_journey() -> None:
             assert (
                 page.get_by_role("heading", level=1).count() >= 1
             ), "A primary heading is required"
-            page.set_viewport_size({"width": 390, "height": 844})
-            expect(page.get_by_role("button", name="Visão geral")).to_be_visible()
-            page.set_viewport_size({"width": 1365, "height": 900})
             page.keyboard.press("Tab")
             assert page.evaluate(
                 "document.activeElement !== document.body"
@@ -43,6 +40,9 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_label("Senha").fill(password)
             page.get_by_role("button", name="Criar conta", exact=True).click()
             expect(page.get_by_role("heading", name="Visão geral")).to_be_visible()
+            page.set_viewport_size({"width": 390, "height": 844})
+            expect(page.get_by_role("heading", name="Visão geral")).to_be_visible()
+            page.set_viewport_size({"width": 1365, "height": 900})
             expect(page.get_by_text(email)).to_be_visible()
             assert page.evaluate("() => sessionStorage.getItem('sfi.access')") is None
             assert page.evaluate("() => sessionStorage.getItem('sfi.refresh')") is None

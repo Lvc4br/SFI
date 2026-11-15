@@ -61,12 +61,21 @@ async def confirm_purchase(
         select(ShoppingList).where(
             ShoppingList.id == list_id,
             ShoppingList.user_id == user.id,
-            ShoppingList.archived_at.is_(None),
             ShoppingList.is_template.is_(False),
         )
     )
     if shopping_list is None:
-        raise HTTPException(status_code=404, detail="Lista de compras ativa não encontrada.")
+        raise HTTPException(status_code=404, detail="Lista de compras não encontrada.")
+
+    idempotency_key = f"shopping-purchase:{shopping_list.id}"
+    existing = await session.scalar(
+        select(Transaction).where(
+            Transaction.user_id == user.id,
+            Transaction.idempotency_key == idempotency_key,
+        )
+    )
+    if existing is not None or shopping_list.archived_at is not None:
+        raise HTTPException(status_code=409, detail="Esta lista já foi convertida em uma compra.")
 
     items_result = await session.scalars(
         select(ShoppingListItem).where(
@@ -119,16 +128,6 @@ async def confirm_purchase(
         raise HTTPException(status_code=422, detail="O total da compra precisa ser maior que zero.")
 
     # A deterministic key makes a retry safe even if the client loses the response.
-    idempotency_key = f"shopping-purchase:{shopping_list.id}"
-    existing = await session.scalar(
-        select(Transaction).where(
-            Transaction.user_id == user.id,
-            Transaction.idempotency_key == idempotency_key,
-        )
-    )
-    if existing is not None:
-        raise HTTPException(status_code=409, detail="Esta lista já foi convertida em uma compra.")
-
     merchant = payload.merchant
     description = f"Compra: {shopping_list.name}"
     if merchant:

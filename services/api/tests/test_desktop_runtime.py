@@ -86,7 +86,6 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
             "shopping_list_items",
             "shopping_products",
             "product_price_observations",
-            "shopping_products",
         } <= tables
     finally:
         if process.poll() is None:

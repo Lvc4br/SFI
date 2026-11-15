@@ -32,8 +32,8 @@ async def _owned_list(session: AsyncSession, user_id: uuid.UUID, list_id: uuid.U
 @router.post("/lists", response_model=ShoppingListResponse, status_code=status.HTTP_201_CREATED)
 async def create_list(
     payload: ShoppingListCreate,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ):
     item = ShoppingList(user_id=user.id, name=payload.name, is_favorite=payload.is_favorite)
     session.add(item)
@@ -46,8 +46,8 @@ async def create_list(
 async def list_lists(
     favorites_only: bool = Query(default=False),
     include_archived: bool = Query(default=False),
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ):
     query = select(ShoppingList).where(ShoppingList.user_id == user.id)
     if not include_archived:
@@ -61,15 +61,17 @@ async def list_lists(
 @router.get("/lists/{list_id}", response_model=ShoppingListDetail)
 async def get_list(
     list_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ):
     item = await _owned_list(session, user.id, list_id)
     rows = await session.scalars(
-        select(ShoppingListItem).where(
+        select(ShoppingListItem)
+        .where(
             ShoppingListItem.list_id == item.id,
             ShoppingListItem.user_id == user.id,
-        ).order_by(ShoppingListItem.position, ShoppingListItem.created_at)
+        )
+        .order_by(ShoppingListItem.position, ShoppingListItem.created_at)
     )
     return ShoppingListDetail(
         **ShoppingListResponse.model_validate(item).model_dump(),
@@ -81,8 +83,8 @@ async def get_list(
 async def update_list(
     list_id: uuid.UUID,
     payload: ShoppingListUpdate,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ):
     item = await _owned_list(session, user.id, list_id)
     changes = payload.model_dump(exclude_unset=True)
@@ -101,8 +103,8 @@ async def update_list(
 @router.post("/lists/{list_id}/archive", response_model=ShoppingListResponse)
 async def archive_list(
     list_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ):
     from datetime import UTC, datetime
 
@@ -121,8 +123,8 @@ async def archive_list(
 async def create_item(
     list_id: uuid.UUID,
     payload: ShoppingItemCreate,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ):
     await _owned_list(session, user.id, list_id)
     item = ShoppingListItem(user_id=user.id, list_id=list_id, **payload.model_dump())
@@ -137,15 +139,17 @@ async def update_item(
     list_id: uuid.UUID,
     item_id: uuid.UUID,
     payload: ShoppingItemUpdate,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ):
     await _owned_list(session, user.id, list_id)
-    item = await session.scalar(select(ShoppingListItem).where(
-        ShoppingListItem.id == item_id,
-        ShoppingListItem.list_id == list_id,
-        ShoppingListItem.user_id == user.id,
-    ))
+    item = await session.scalar(
+        select(ShoppingListItem).where(
+            ShoppingListItem.id == item_id,
+            ShoppingListItem.list_id == list_id,
+            ShoppingListItem.user_id == user.id,
+        )
+    )
     if item is None:
         raise HTTPException(status_code=404, detail="Item não encontrado.")
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -167,8 +171,8 @@ async def update_item(
 async def delete_item(
     list_id: uuid.UUID,
     item_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ):
     await _owned_list(session, user.id, list_id)
     item = await session.scalar(select(ShoppingListItem).where(

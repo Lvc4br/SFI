@@ -157,7 +157,19 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_label("Data final").fill(today)
             expect(page.get_by_text("Página 1 de 2")).to_be_visible()
             expect(page.locator(".results-note")).to_contain_text("Exibindo 1–25 de")
-            page.get_by_role("button", name="Próxima").click()
+            with page.expect_response(
+                lambda response: (
+                    "/api/v1/finance/transactions/page?" in response.url
+                    and "offset=25" in response.url
+                )
+            ) as next_page_response:
+                page.get_by_role("button", name="Próxima").click()
+            response = next_page_response.value
+            assert response.ok, f"Next-page request failed: {response.status} {response.url}"
+            page_payload = response.json()
+            assert page_payload["offset"] == 25, page_payload
+            assert page_payload["total"] == 30, page_payload
+            assert len(page_payload["items"]) == 5, page_payload
             expect(page.get_by_text("Página 2 de 2")).to_be_visible()
             expect(page.locator(".results-note")).to_contain_text("Exibindo 26–")
             page.get_by_role("button", name="Anterior").click()

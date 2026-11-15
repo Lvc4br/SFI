@@ -193,6 +193,7 @@ O teste do limite máximo `Numeric(18,2)` valida agora o schema Pydantic diretam
 - Tela inicial do Desktop permite configurar a origem HTTPS da API; URLs remotas sem HTTPS, credenciais, caminhos ou query strings são rejeitadas.
 - API permite as origens Tauri no CORS padrão. O ambiente hospedado deverá configurar `SFI_CORS_ORIGINS` com as origens Tauri reais.
 - Teste de backend adicionado para o fluxo Desktop de registro, rotação e logout.
+- O workflow Windows usa o CLI oficial distribuído pelo pacote npm `@tauri-apps/cli`, evitando compilar o próprio CLI Rust no runner; o build do aplicativo continua sendo compilado pelo toolchain Rust.
 - Investigação CI: Chromium, Firefox e WebKit retornaram corretamente 32 itens no total e 7 na última página (offset 25); o teste esperava incorretamente 5. Ajustada a expectativa para validar o contrato dinâmico e as cinco linhas de volume restantes.
 - Limitação operacional: o Desktop depende da API FastAPI hospedada e do PostgreSQL Neon; ainda não há deploy da API nem URL pública configurada. O aplicativo não contém credenciais e nunca acessa o banco diretamente.
 - A validação do instalador Windows ainda depende do workflow Desktop. Nenhuma release assinada, deploy ou alteração em produção foi feita.

@@ -148,8 +148,8 @@ O CI atual comprova testes automatizados da branch; não comprova recuperação 
 
 ## Novas verificações adicionadas nesta revisão
 
-- API: valor Decimal máximo permitido, rejeição de escala acima de duas casas, mesma chave de idempotência isolada por usuário e rejeição de timestamp sem timezone.
-- E2E: browser selecionável por `SFI_E2E_BROWSER`; verificação inicial de landmark main, heading principal e entrada de foco por teclado.
+- API: valor Decimal máximo permitido, rejeição de escala acima de duas casas, mesma chave de idempotência isolada por usuário, rejeição de timestamp sem timezone e resumo com moedas mantidas separadas.
+- E2E: browser selecionável por `SFI_E2E_BROWSER`; verificação inicial de landmark main, heading principal, entrada de foco por teclado e viewports móvel (390×844) e desktop (1365×900).
 - CI: matriz de jornada completa Chromium, Firefox e WebKit; logs de API/Web publicados como artefato em falha.
 - UI: estilo global de foco visível para links, botões e campos.
 - Limitação: essas verificações foram adicionadas ao código; ainda precisam passar na CI após este commit. Elas não substituem auditoria axe/WCAG, leitores de tela ou testes manuais.

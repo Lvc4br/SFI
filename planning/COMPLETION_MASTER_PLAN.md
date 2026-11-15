@@ -38,7 +38,7 @@ Atualizado em 15/11/2026. Este documento é o controle operacional das seis prio
 | Entrega | Status | Critério de aceite |
 |---|---|---|
 | Sessão, refresh rotation, logout global, CSRF, rate limit e eventos de autenticação | Implementado na fatia atual; requer revisão | Testes negativos, concorrência, isolamento e expiração aprovados |
-| Análise estática de segurança e dependências no CI | Em implementação nesta PR | Workflow de CodeQL e revisão de dependências executado em PR |
+| Análise estática de segurança e dependências no CI | Parcial; correção de dependência aplicada, rerun pendente | CodeQL Python/TypeScript passou na primeira execução; auditoria identificou pytest 8.4.2 vulnerável (PYSEC-2026-1845), então o mínimo foi elevado para 9.0.3 e o pacote local editável foi excluído do audit. A nova execução precisa confirmar correção e analisar dependências Web |
 | Verificação de e-mail | Pendente | Token aleatório de uso único, armazenado como hash, expiração, rate limit, reenvio limitado e provedor transacional |
 | Recuperação de senha | Pendente | Resposta neutra anti-enumeração, token de uso único/hash/expiração, revogação de sessões após troca e auditoria |
 | MFA TOTP e códigos de recuperação | Pendente | Segredo criptografado por chave externa ao banco, confirmação de posse, códigos de recuperação com hash e uso único, fluxo de recuperação e testes |

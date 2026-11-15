@@ -1,4 +1,8 @@
 const DEFAULT_API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+declare global {
+  interface Window { __SFI_API_BASE_URL__?: string }
+}
+
 const DESKTOP = typeof window !== "undefined" && (
   window.location.protocol === "tauri:"
   || window.location.hostname === "tauri.localhost"
@@ -9,6 +13,7 @@ let desktopRefreshToken: string | null = null;
 
 export const isDesktopApp = DESKTOP;
 export function getApiBaseUrl(): string {
+  if (DESKTOP) return window.__SFI_API_BASE_URL__ ?? DEFAULT_API_URL;
   if (typeof localStorage === "undefined") return DEFAULT_API_URL;
   return (localStorage.getItem("sfi.api-url") || DEFAULT_API_URL).replace(/\/$/, "");
 }

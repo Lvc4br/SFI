@@ -42,7 +42,7 @@ def ensure_local_secret(data_dir: Path) -> str:
 
 def runtime_root() -> Path:
     if getattr(sys, "frozen", False):
-        return Path(getattr(sys, "_MEIPASS"))
+        return Path(sys._MEIPASS)
     return Path(__file__).resolve().parents[2]
 
 
@@ -72,8 +72,8 @@ def run() -> None:
     migration_config.set_main_option("script_location", str(root / "migrations"))
     command.upgrade(migration_config, "head")
 
-    from sfi_api.main import app
     import uvicorn
+    from sfi_api.main import app
 
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):

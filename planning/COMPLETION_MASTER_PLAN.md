@@ -221,3 +221,19 @@ Cartões/faturas, conciliação, OFX/XLSX, dívidas, financiamentos, metas, inve
 
 ### Regra de status
 Nenhum módulo é concluído apenas por documentação, rota, tabela, botão ou scaffold. Aceite exige jornada funcional, persistência, integração, tratamento de erros, testes e documentação. Recursos externos (assinatura, IA, cotações e sync) são opcionais e não podem bloquear operação offline.
+
+
+## Atualização de implementação — compras e estoque doméstico — 15/11/2026
+
+- [x] Confirmação de compra: despesa única associada à lista, validação de conta BRL/categoria/propriedade, preços obrigatórios e itens marcados como comprados.
+- [x] Operação transacional: movimentação financeira, observações de preço, entradas no estoque, marcação dos itens e arquivamento são persistidos na mesma transação.
+- [x] Proteção de repetição: chave de idempotência determinística por lista; reenvio não cria uma segunda despesa.
+- [x] Livro-razão de estoque: migration 0017_stock_movement_ledger; saldo derivado de movimentos imutáveis; entradas, consumo, ajustes e perdas; bloqueio de saídas acima do saldo.
+- [x] Isolamento de usuário: FK composta produto/usuário e filtros de propriedade nas consultas e mutações.
+- [x] Interface: confirmação de compra, seleção de conta, saldo do estoque e formulário de movimentações manuais.
+- [x] Testes adicionados: entrada/consumo/saldo, saída insuficiente, isolamento, entrada automática pela compra e incompatibilidade de unidade.
+- [x] Documentação: docs/SHOPPING_PURCHASE_CONFIRMATION.md, docs/HOUSEHOLD_STOCK.md e docs/SHOPPING_LISTS.md.
+- [ ] Validação CI do head ca67c2c: aguardando execução completa de API, Web, E2E Chromium/Firefox/WebKit, Security e Desktop.
+- [ ] Ainda fora deste módulo: lotes/validade, múltiplos locais de armazenamento, conversão de unidades, estorno/reabertura de compra e importação de notas fiscais.
+
+O estoque é local-first conforme o banco configurado pelo runtime. Nenhuma escrita ou migração foi executada contra Neon de produção.

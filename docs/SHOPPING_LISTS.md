@@ -28,6 +28,9 @@ Organizar listas pessoais de mercado, farmácia e outras compras. A lista é pla
 ## Catálogo e histórico de preços
 Consulte [Catálogo pessoal de produtos e histórico de preços](PRODUCT_CATALOG_PRICE_HISTORY.md). A primeira etapa permite cadastrar, pesquisar e arquivar produtos e registrar/consultar observações de preço por moeda.
 
+## Compras confirmadas e estoque
+A confirmação de compra gera despesa, observações de preço e entradas no estoque em uma transação idempotente. O estoque é mantido como livro-razão de movimentações e permite entradas, consumo, ajustes e perdas, rejeitando saídas superiores ao saldo. Consulte [Confirmação de compras](SHOPPING_PURCHASE_CONFIRMATION.md) e [Estoque doméstico](HOUSEHOLD_STOCK.md).
+
 ## Integridade e segurança
 - Toda consulta/mutação de lista, item, produto e observação verifica o usuário autenticado.
 - Relações compostas impedem associar itens/observações a recursos de outro usuário.
@@ -40,5 +43,5 @@ Consulte [Catálogo pessoal de produtos e histórico de preços](PRODUCT_CATALOG
 1. Associar itens de listas a produtos reutilizáveis.
 2. Listas-modelo e duplicação de listas.
 3. Comparação normalizada por unidade, com conversões explícitas e compatíveis.
-4. Leitura de nota fiscal e correspondência assistida dos itens.
-5. Confirmação explícita de compra para gerar despesa, preço observado e movimentação de estoque em operação idempotente.
+4. Estorno/reabertura de compra, locais de armazenamento e controle de validade/lotes.
+5. Leitura de nota fiscal e correspondência assistida dos itens.

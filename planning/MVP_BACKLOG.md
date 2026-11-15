@@ -145,3 +145,32 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [ ] Completar testes de abuso, concorrência, sessão, CSRF, rate limit, isolamento e recuperação de desastre.
 
 **Nota de segurança:** esta branch ainda não é um release seguro para produção. O rate limit de login usa estado no banco compartilhado, mas não substitui proteção de borda/WAF nem testes de concorrência e limpeza de registros. Verificação de e-mail, recuperação de senha e MFA ainda dependem de provedor de e-mail, armazenamento de segredos, telas e testes próprios.
+
+## Estado consolidado após hardening — 15/11/2026
+
+Esta seção substitui o status inicial da tabela de progresso acima para os itens efetivamente alterados pela branch `feature/financial-core-security-hardening`.
+
+| Item | Estado atual | Evidência / limite |
+|---|---|---|
+| MVP-01 — Inspeção e contratos | Parcial | Rotas e schemas consumidos estão tipados manualmente; geração automática de cliente OpenAPI continua pendente. |
+| MVP-02 — Base Web | Implementado na fatia atual | Sessão Web com refresh cookie HttpOnly + CSRF, access token em memória, restauração após reload e navegação protegida; recuperação de senha e verificação de e-mail ainda pendentes. |
+| MVP-03 — Contas e categorias | Implementado na fatia atual | Criar, listar, renomear e arquivar logicamente; histórico preservado e restrições de arquivamento cobertas. |
+| MVP-04 — Movimentações | Implementado na fatia atual | Receitas/despesas, transferências pareadas, histórico paginado, filtros, CSV e estorno compensatório; concorrência e reconciliação ampliada continuam no hardening. |
+| MVP-05 — Orçamento | Implementado na fatia atual | Criar/listar orçamento mensal e cálculo de realizado/limite; despesas estornadas deixam de contar como consumo. |
+| MVP-06 — Dashboard | Implementado na fatia atual | Resumo, saldos e despesas por categoria; períodos calculados no timezone IANA do usuário e valores separados por moeda. |
+| MVP-07 — Educação contextual | Parcial | Conteúdo introdutório presente; glossário completo, revisão pedagógica e versionamento editorial pendentes. |
+| MVP-08 — Segurança e experiência | Parcial, hardening substancial | Cookies, CSRF, rate limit persistido, auditoria de eventos e headers API implementados; e-mail, MFA, CSP na hospedagem, WAF e auditoria WCAG ainda pendentes. |
+| MVP-09 — E2E e release candidate | Parcial | 54 testes API, typecheck/build, E2E local e 8 testes de backup aprovados pelo operador em 14/11; CI GitHub em andamento para a revisão mais recente; recuperação de dados com fixtures e RPO/RTO pendentes. |
+
+### Evidências e próximos critérios operacionais
+
+- [x] Validação integrada local executada pelo operador: API, Web, Chromium E2E, integridade de backup e leitura do schema Neon restaurado.
+- [x] Schema da branch isolada atualizado até Alembic `0013_security_events`.
+- [x] Script `scripts/verify-restored-db.ps1` adicionado para verificar, sem escrita, tabelas/colunas obrigatórias, Alembic head e constraints/FKs validadas.
+- [ ] Executar o novo verificador read-only no Windows contra a branch isolada.
+- [ ] Segunda rodada backup → restore com dados fictícios conhecidos e reconciliação de contagens/valores.
+- [ ] Executar readiness e leituras autenticadas da API contra a branch restaurada.
+- [ ] Definir e medir RPO/RTO, retenção, cópia externa e recuperação de chave.
+- [ ] Completar auditoria WCAG/axe/manual, recuperação de senha, verificação de e-mail e MFA.
+
+**Regra:** "implementado na fatia atual" não significa pronto para beta público ou produção. Itens de segurança operacional e recuperação permanecem bloqueadores para lançamento.

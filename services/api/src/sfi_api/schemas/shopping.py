@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class ShoppingListCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     is_favorite: bool = False
+    is_template: bool = False
 
     @field_validator("name")
     @classmethod
@@ -21,6 +22,7 @@ class ShoppingListCreate(BaseModel):
 class ShoppingListUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     is_favorite: bool | None = None
+    is_template: bool | None = None
 
 
 class ShoppingListResponse(BaseModel):
@@ -28,6 +30,7 @@ class ShoppingListResponse(BaseModel):
     id: uuid.UUID
     name: str
     is_favorite: bool
+    is_template: bool
     archived_at: datetime | None
     created_at: datetime
     updated_at: datetime
@@ -35,6 +38,7 @@ class ShoppingListResponse(BaseModel):
 
 class ShoppingItemCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    product_id: uuid.UUID | None = None
     quantity: Decimal = Field(default=Decimal("1.000"), gt=0, max_digits=12, decimal_places=3)
     unit: str = Field(default="un", min_length=1, max_length=20)
     unit_price: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=2)
@@ -52,6 +56,7 @@ class ShoppingItemCreate(BaseModel):
 
 class ShoppingItemUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
+    product_id: uuid.UUID | None = None
     quantity: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=3)
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     unit_price: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=2)
@@ -64,6 +69,7 @@ class ShoppingItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     list_id: uuid.UUID
+    product_id: uuid.UUID | None
     name: str
     quantity: Decimal
     unit: str

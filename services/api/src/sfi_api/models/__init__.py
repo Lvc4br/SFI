@@ -7,6 +7,7 @@ from sfi_api.models.refresh_token import RefreshToken
 from sfi_api.models.revoked_access_token import RevokedAccessToken
 from sfi_api.models.security_event import SecurityEvent
 from sfi_api.models.shopping import ShoppingList, ShoppingListItem
+from sfi_api.models.stock import StockMovement
 from sfi_api.models.transfer_reversal import TransferReversal
 from sfi_api.models.user import User
 
@@ -21,6 +22,7 @@ __all__ = [
     "RefreshToken",
     "RevokedAccessToken",
     "SecurityEvent",
+    "StockMovement",
     "ShoppingList",
     "ShoppingListItem",
     "ShoppingProduct",

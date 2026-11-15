@@ -5,11 +5,11 @@ from decimal import Decimal
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
-    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Numeric,
     String,
+    UniqueConstraint,
     Uuid,
     func,
 )
@@ -25,6 +25,7 @@ class ShoppingProduct(Base):
             ["user_id"], ["users.id"], name="fk_shopping_products_user", ondelete="RESTRICT"
         ),
         CheckConstraint("length(trim(name)) > 0", name="ck_shopping_products_name_nonempty"),
+        UniqueConstraint("id", "user_id", name="uq_shopping_products_id_user"),
         Index("ix_shopping_products_user_name", "user_id", "name"),
     )
 

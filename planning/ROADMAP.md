@@ -1,5 +1,7 @@
 # Roadmap do SFI
 
+O acompanhamento executável das seis prioridades, critérios de aceite, dependências externas e evidências está em [Plano mestre de conclusão](COMPLETION_MASTER_PLAN.md).
+
 Roadmap orientado a entregáveis e critérios de saída, sem datas artificiais.
 
 ## Entrega prioritária atual — MVP Web

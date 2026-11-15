@@ -39,6 +39,8 @@ export type ProductPrice = { id: string; product_id: string; price: string; curr
 export type ShoppingListDetail = ShoppingList & { items: ShoppingItem[] };
 export type PurchaseConfirmation = { transaction_id: string; list_id: string; amount: string; currency: string; description: string; occurred_at: string; items_count: number };
 export type StockBalance = { product_id: string; product_name: string; unit: string; balance: string };
+export type CreditCard = { id:string; account_id:string; name:string; brand:string|null; last_four:string|null; closing_day:number; due_day:number; credit_limit:string; created_at:string };
+export type CreditInvoice = { id:string; card_id:string; period:string; closing_date:string; due_date:string; status:"open"|"closed"|"paid"; total_amount:string; paid_amount:string; remaining_amount:string };
 export type StockMovement = { id: string; product_id: string; movement_type: "purchase" | "adjustment_in" | "adjustment_out" | "consumption" | "waste"; quantity: string; unit: string; reference: string | null; notes: string | null; occurred_at: string; created_at: string };
 export type Session = { access_token: string; refresh_token: string | null; expires_in: number; user: User };
 export type Account = { id: string; name: string; account_type: "checking" | "savings" | "cash" | "credit"; currency: string; opening_balance: string; archived_at: string | null; created_at: string };
@@ -173,6 +175,12 @@ export const api = {
   createBudget: (data: { category_id: string; period: string; currency: string; limit_amount: string }) =>
     request<Budget>("/api/v1/finance/budgets", { method: "POST", body: JSON.stringify(data) }),
   summary: (start: string, end: string) => request<Summary>(`/api/v1/finance/summary?start_date=${start}&end_date=${end}`),
+  creditCards: () => request<CreditCard[]>("/api/v1/credit/cards"),
+  createCreditCard: (data: { account_id:string; name:string; brand?:string|null; last_four?:string|null; closing_day:number; due_day:number; credit_limit:string }) => request<CreditCard>("/api/v1/credit/cards",{method:"POST",body:JSON.stringify(data)}),
+  creditInvoices: (cardId?:string) => request<CreditInvoice[]>(`/api/v1/credit/invoices${cardId ? "?card_id="+encodeURIComponent(cardId) : ""}`),
+  createCreditPurchase: (data:{card_id:string;description:string;amount:string;purchase_date:string;installments:number;idempotency_key:string}) => request<{purchase_id:string;installments_created:number;total_amount:string}>("/api/v1/credit/purchases",{method:"POST",body:JSON.stringify(data)}),
+  closeCreditInvoice: (id:string) => request<CreditInvoice>(`/api/v1/credit/invoices/${id}/close`,{method:"POST"}),
+  payCreditInvoice: (id:string,data:{source_account_id:string;amount:string;paid_at:string;idempotency_key:string}) => request<unknown>(`/api/v1/credit/invoices/${id}/payments`,{method:"POST",body:JSON.stringify(data)}),
   stockBalances: (includeZero = false) => request<StockBalance[]>(`/api/v1/shopping/stock${includeZero ? "?include_zero=true" : ""}`),
   createStockMovement: (productId: string, data: { movement_type: StockMovement["movement_type"]; quantity: string; notes?: string }) =>
     request<StockMovement>(`/api/v1/shopping/stock/${productId}/movements`, { method: "POST", body: JSON.stringify(data) }),

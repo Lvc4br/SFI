@@ -80,13 +80,17 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 ).fetchall()
             }
-        assert revision == "0017_stock_movement_ledger"
+        assert revision == "0018_credit_cards_invoices"
         assert {
             "shopping_lists",
             "shopping_list_items",
             "shopping_products",
             "product_price_observations",
             "stock_movements",
+            "credit_cards",
+            "credit_invoices",
+            "credit_purchase_installments",
+            "credit_invoice_payments",
         } <= tables
     finally:
         if process.poll() is None:

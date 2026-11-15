@@ -1,7 +1,7 @@
 import calendar
 import uuid
 from datetime import UTC, date, datetime
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -30,14 +30,23 @@ def _cycle_dates(card: CreditCard, purchase_date: date) -> tuple[str,date,date]:
     due=date(due_month.year,due_month.month,min(card.due_day,calendar.monthrange(due_month.year,due_month.month)[1]))
     return period_start.strftime("%Y-%m"),closing,due
 
-async def _invoice(session: AsyncSession, user_id: uuid.UUID, card: CreditCard, purchase_date: date) -> CreditInvoice:
-    period,closing,due=_cycle_dates(card,purchase_date)
-    invoice=await session.scalar(select(CreditInvoice).where(CreditInvoice.user_id==user_id,CreditInvoice.card_id==card.id,CreditInvoice.period==period))
+async def _invoice_for_period(session: AsyncSession, user_id: uuid.UUID, card: CreditCard, period_start: date) -> CreditInvoice:
+    year, month = period_start.year, period_start.month
+    period = period_start.strftime("%Y-%m")
+    closing = date(year, month, min(card.closing_day, calendar.monthrange(year, month)[1]))
+    due_month = period_start if card.due_day > card.closing_day else _month_shift(period_start, 1)
+    due = date(due_month.year, due_month.month, min(card.due_day, calendar.monthrange(due_month.year, due_month.month)[1]))
+    invoice = await session.scalar(select(CreditInvoice).where(CreditInvoice.user_id == user_id, CreditInvoice.card_id == card.id, CreditInvoice.period == period))
     if invoice is None:
-        invoice=CreditInvoice(user_id=user_id,card_id=card.id,period=period,closing_date=closing,due_date=due,status="open",paid_amount=Decimal("0.00"))
+        invoice = CreditInvoice(user_id=user_id, card_id=card.id, period=period, closing_date=closing, due_date=due, status="open", paid_amount=Decimal("0.00"))
         session.add(invoice)
         await session.flush()
     return invoice
+
+async def _invoice(session: AsyncSession, user_id: uuid.UUID, card: CreditCard, purchase_date: date) -> CreditInvoice:
+    period, _, _ = _cycle_dates(card, purchase_date)
+    year, month = (int(part) for part in period.split("-"))
+    return await _invoice_for_period(session, user_id, card, date(year, month, 1))
 
 async def _invoice_response(session: AsyncSession, invoice: CreditInvoice) -> CreditInvoiceResponse:
     total=await session.scalar(select(func.coalesce(func.sum(CreditPurchaseInstallment.amount),0)).where(CreditPurchaseInstallment.invoice_id==invoice.id))
@@ -69,8 +78,13 @@ async def create_purchase(payload:CreditPurchaseCreate,session:AsyncSession=Depe
     card=await session.scalar(select(CreditCard).where(CreditCard.id==payload.card_id,CreditCard.user_id==user.id))
     if card is None: raise HTTPException(404,"Cartão não encontrado.")
     account=await session.scalar(select(Account).where(Account.id==card.account_id,Account.user_id==user.id,Account.archived_at.is_(None)))
-    existing=await session.scalar(select(CreditPurchaseInstallment.id).where(CreditPurchaseInstallment.user_id==user.id,CreditPurchaseInstallment.purchase_id==uuid.uuid5(user.id,payload.idempotency_key)))
-    if existing: raise HTTPException(409,"Esta compra já foi registrada.")
+    existing = await session.scalar(select(CreditPurchaseInstallment.id).where(CreditPurchaseInstallment.user_id == user.id, CreditPurchaseInstallment.purchase_id == uuid.uuid5(user.id, payload.idempotency_key)))
+    if existing:
+        raise HTTPException(409, "Esta compra já foi registrada.")
+    used = await session.scalar(select(func.coalesce(func.sum(CreditPurchaseInstallment.amount), 0)).where(CreditPurchaseInstallment.user_id == user.id, CreditPurchaseInstallment.invoice_id.in_(select(CreditInvoice.id).where(CreditInvoice.card_id == card.id, CreditInvoice.user_id == user.id))))
+    paid = await session.scalar(select(func.coalesce(func.sum(CreditInvoice.paid_amount), 0)).where(CreditInvoice.card_id == card.id, CreditInvoice.user_id == user.id))
+    if Decimal(used or 0) - Decimal(paid or 0) + payload.amount > card.credit_limit:
+        raise HTTPException(422, "A compra excede o limite disponível do cartão.")
     purchase_id=uuid.uuid5(user.id,payload.idempotency_key)
     cents=int((payload.amount*100).to_integral_exact())
     base=Decimal(cents//payload.installments)/100
@@ -78,8 +92,10 @@ async def create_purchase(payload:CreditPurchaseCreate,session:AsyncSession=Depe
     created=[]
     for number in range(1,payload.installments+1):
         installment_amount=base+(Decimal("0.01") if number<=remainder else Decimal("0.00"))
-        cycle_date=_month_shift(payload.purchase_date,number-1)
-        invoice=await _invoice(session,user.id,card,cycle_date)
+        first_period, _, _ = _cycle_dates(card, payload.purchase_date)
+        first_year, first_month = (int(part) for part in first_period.split("-"))
+        cycle_date = _month_shift(date(first_year, first_month, 1), number - 1)
+        invoice = await _invoice_for_period(session, user.id, card, cycle_date)
         installment=CreditPurchaseInstallment(user_id=user.id,invoice_id=invoice.id,purchase_id=purchase_id,installment_number=number,installment_count=payload.installments,description=payload.description if payload.installments==1 else f"{payload.description} ({number}/{payload.installments})",amount=installment_amount,occurred_at=datetime.combine(cycle_date,datetime.min.time(),tzinfo=UTC))
         session.add(installment)
         transaction=Transaction(user_id=user.id,account_id=account.id,category_id=None,transaction_type="expense",amount=installment_amount,currency="BRL",description=installment.description,occurred_at=datetime.combine(cycle_date,datetime.min.time(),tzinfo=UTC),idempotency_key=f"card:{purchase_id}:{number}")

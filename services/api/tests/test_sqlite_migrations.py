@@ -81,12 +81,16 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
             "PRAGMA foreign_key_list(shopping_list_items)"
         ).fetchall()
 
-    assert revision == "0017_stock_movement_ledger"
+    assert revision == "0018_credit_cards_invoices"
     assert {
         "shopping_lists",
         "shopping_list_items",
         "shopping_products",
         "product_price_observations",
+        "credit_cards",
+        "credit_invoices",
+        "credit_purchase_installments",
+        "credit_invoice_payments",
     } <= tables
     assert "is_template" in list_columns
     assert "product_id" in item_columns

@@ -75,5 +75,9 @@ def test_alembic_bootstraps_empty_sqlite_from_current_domain_metadata(
         "shopping_products",
         "product_price_observations",
         "stock_movements",
+        "credit_cards",
+        "credit_invoices",
+        "credit_purchase_installments",
+        "credit_invoice_payments",
     }.issubset(tables)
-    assert revision == ("0017_stock_movement_ledger",)
+    assert revision == ("0018_credit_cards_invoices",)

@@ -12,4 +12,10 @@ from sfi_api.models.stock import StockMovement
 from sfi_api.models.transfer_reversal import TransferReversal
 from sfi_api.models.user import User
 
-__all__ = ["Account","Base","Budget","Category","CreditCard","CreditInvoice","CreditInvoicePayment","CreditPurchaseInstallment","LoginAttempt","ProductPriceObservation","Recurrence","RefreshToken","RevokedAccessToken","SecurityEvent","StockMovement","ShoppingList","ShoppingListItem","ShoppingProduct","Transaction","Transfer","TransferReversal","User"]
+__all__ = [
+    "Account", "Base", "Budget", "Category", "CreditCard", "CreditInvoice",
+    "CreditInvoicePayment", "CreditPurchaseInstallment", "LoginAttempt",
+    "ProductPriceObservation", "Recurrence", "RefreshToken", "RevokedAccessToken",
+    "SecurityEvent", "StockMovement", "ShoppingList", "ShoppingListItem",
+    "ShoppingProduct", "Transaction", "Transfer", "TransferReversal", "User",
+]

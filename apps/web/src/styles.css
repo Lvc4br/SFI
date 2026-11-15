@@ -119,3 +119,13 @@ html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:
 .security-event-list small {
   color: var(--muted);
 }
+
+
+/* Visible keyboard focus across interactive controls (WCAG 2.2 focus visibility). */
+:where(a,button,input,select,textarea,[tabindex]):focus-visible {
+  outline: 3px solid #1f6feb;
+  outline-offset: 3px;
+}
+:where(button,a):disabled {
+  cursor: not-allowed;
+}

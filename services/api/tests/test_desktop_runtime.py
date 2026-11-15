@@ -67,6 +67,22 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
         process.stdin.write("shutdown\n")
         process.stdin.flush()
         assert process.wait(timeout=10) == 0
+
+        import sqlite3
+
+        database_path = tmp_path / "private-data" / "database" / "sfi.sqlite3"
+        with sqlite3.connect(database_path) as connection:
+            revision = connection.execute(
+                "SELECT version_num FROM alembic_version"
+            ).fetchone()[0]
+            tables = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+        assert revision == "0014_shopping_lists"
+        assert {"shopping_lists", "shopping_list_items"} <= tables
     finally:
         if process.poll() is None:
             process.kill()

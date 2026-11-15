@@ -38,6 +38,8 @@ export type ShoppingProduct = { id: string; name: string; brand: string | null; 
 export type ProductPrice = { id: string; product_id: string; price: string; currency: string; merchant: string | null; source: string; notes: string | null; observed_at: string; created_at: string };
 export type ShoppingListDetail = ShoppingList & { items: ShoppingItem[] };
 export type PurchaseConfirmation = { transaction_id: string; list_id: string; amount: string; currency: string; description: string; occurred_at: string; items_count: number };
+export type StockBalance = { product_id: string; product_name: string; unit: string; balance: string };
+export type StockMovement = { id: string; product_id: string; movement_type: "purchase" | "adjustment_in" | "adjustment_out" | "consumption" | "waste"; quantity: string; unit: string; reference: string | null; notes: string | null; occurred_at: string; created_at: string };
 export type Session = { access_token: string; refresh_token: string | null; expires_in: number; user: User };
 export type Account = { id: string; name: string; account_type: "checking" | "savings" | "cash" | "credit"; currency: string; opening_balance: string; archived_at: string | null; created_at: string };
 export type Category = { id: string; name: string; category_type: "income" | "expense"; archived_at: string | null; created_at: string };
@@ -171,6 +173,10 @@ export const api = {
   createBudget: (data: { category_id: string; period: string; currency: string; limit_amount: string }) =>
     request<Budget>("/api/v1/finance/budgets", { method: "POST", body: JSON.stringify(data) }),
   summary: (start: string, end: string) => request<Summary>(`/api/v1/finance/summary?start_date=${start}&end_date=${end}`),
+  stockBalances: (includeZero = false) => request<StockBalance[]>(`/api/v1/shopping/stock${includeZero ? "?include_zero=true" : ""}`),
+  createStockMovement: (productId: string, data: { movement_type: StockMovement["movement_type"]; quantity: string; notes?: string }) =>
+    request<StockMovement>(`/api/v1/shopping/stock/${productId}/movements`, { method: "POST", body: JSON.stringify(data) }),
+  stockMovements: (productId: string) => request<StockMovement[]>(`/api/v1/shopping/stock/${productId}/movements`),
   confirmShoppingPurchase: (listId: string, accountId: string, merchant?: string) =>
     request<PurchaseConfirmation>(`/api/v1/shopping/purchases/${listId}/confirm`, { method: "POST", body: JSON.stringify({ account_id: accountId, merchant: merchant?.trim() || null }) }),
   shoppingLists: (favoritesOnly = false, templatesOnly = false) => { const query = new URLSearchParams(); if (favoritesOnly) query.set("favorites_only", "true"); if (templatesOnly) query.set("templates_only", "true"); return request<ShoppingList[]>(`/api/v1/shopping/lists${query.size ? "?" + query.toString() : ""}`); },

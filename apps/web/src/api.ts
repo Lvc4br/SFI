@@ -1,5 +1,29 @@
-const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+const DEFAULT_API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+const DESKTOP = typeof window !== "undefined" && (
+  window.location.protocol === "tauri:"
+  || window.location.hostname === "tauri.localhost"
+  || "__TAURI_INTERNALS__" in window
+);
 let accessToken: string | null = null;
+let desktopRefreshToken: string | null = null;
+
+export const isDesktopApp = DESKTOP;
+export function getApiBaseUrl(): string {
+  if (typeof localStorage === "undefined") return DEFAULT_API_URL;
+  return (localStorage.getItem("sfi.api-url") || DEFAULT_API_URL).replace(/\/$/, "");
+}
+export function setApiBaseUrl(value: string): void {
+  const parsed = new URL(value.trim());
+  const local = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  if (!["http:", "https:"].includes(parsed.protocol) || (!local && parsed.protocol !== "https:")) {
+    throw new Error("Use HTTPS para servidores remotos. HTTP só é permitido em localhost.");
+  }
+  if (parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== "/") {
+    throw new Error("Informe somente a origem da API, sem credenciais, caminho ou parâmetros.");
+  }
+  localStorage.setItem("sfi.api-url", parsed.origin);
+  clearSession();
+}
 let refreshInFlight: Promise<Session> | null = null;
 
 export type User = { id: string; email: string; is_active: boolean; timezone: string; created_at: string };
@@ -17,13 +41,24 @@ function readCookie(name: string) {
   const entry = document.cookie.split("; ").find(value => value.startsWith(name + "="));
   return entry ? decodeURIComponent(entry.slice(name.length + 1)) : null;
 }
-function saveSession(session: Session) { accessToken = session.access_token; }
-export function clearSession() { accessToken = null; }
+function saveSession(session: Session) {
+  accessToken = session.access_token;
+  if (DESKTOP) desktopRefreshToken = session.refresh_token;
+}
+export function clearSession() {
+  accessToken = null;
+  desktopRefreshToken = null;
+}
 
 async function renewSession(): Promise<Session> {
   if (!refreshInFlight) {
-    const rotate = () => request<Session>("/api/v1/auth/refresh", { method: "POST" }, false, false);
-    const coordinated: Promise<Session> = typeof navigator !== "undefined" && navigator.locks
+    const rotate = () => DESKTOP
+      ? request<Session>("/api/v1/auth/refresh", {
+          method: "POST",
+          body: JSON.stringify({ refresh_token: desktopRefreshToken }),
+        }, false, false)
+      : request<Session>("/api/v1/auth/refresh", { method: "POST" }, false, false);
+    const coordinated: Promise<Session> = !DESKTOP && typeof navigator !== "undefined" && navigator.locks
       ? navigator.locks.request("sfi-auth-refresh", async () => rotate()).then(session => session)
       : rotate();
     refreshInFlight = coordinated
@@ -35,8 +70,8 @@ async function renewSession(): Promise<Session> {
 
 async function request<T>(path: string, options: RequestInit = {}, authenticated = true, retry = true): Promise<T> {
   const headers = new Headers(options.headers);
-  headers.set("X-SFI-Client", "web");
-  if (path === "/api/v1/auth/refresh" || path === "/api/v1/auth/logout") {
+  headers.set("X-SFI-Client", DESKTOP ? "desktop" : "web");
+  if (!DESKTOP && (path === "/api/v1/auth/refresh" || path === "/api/v1/auth/logout")) {
     const csrfToken = readCookie("sfi_csrf");
     if (csrfToken) headers.set("X-CSRF-Token", csrfToken);
   }
@@ -45,7 +80,7 @@ async function request<T>(path: string, options: RequestInit = {}, authenticated
   if (token) headers.set("Authorization", `Bearer ${token}`);
   let response: Response;
   try {
-    response = await fetch(API_URL + path, { ...options, headers, credentials: "include" });
+    response = await fetch(getApiBaseUrl() + path, { ...options, headers, credentials: "include" });
   } catch {
     throw new Error("Não foi possível conectar à API. Verifique se o backend está em execução.");
   }
@@ -85,8 +120,12 @@ export const api = {
     request<User>("/api/v1/auth/me/timezone", { method: "PATCH", body: JSON.stringify({ timezone }) }),
   securityEvents: () => request<SecurityEvent[]>("/api/v1/auth/security-events"),
   logout: async () => {
-    try { await request<void>("/api/v1/auth/logout", { method: "POST" }); }
-    finally { clearSession(); }
+    try {
+      const body = DESKTOP && desktopRefreshToken
+        ? JSON.stringify({ refresh_token: desktopRefreshToken })
+        : undefined;
+      await request<void>("/api/v1/auth/logout", { method: "POST", body });
+    } finally { clearSession(); }
   },
   accounts: (includeArchived = false) => request<Account[]>(`/api/v1/finance/accounts${includeArchived ? "?include_archived=true" : ""}`),
   createAccount: (data: { name: string; account_type: Account["account_type"]; currency: string; opening_balance: string }) =>

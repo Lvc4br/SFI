@@ -18,10 +18,12 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
     api_root = Path(__file__).resolve().parents[1]
     database_path = tmp_path / "existing-sfi.sqlite3"
     engine = create_engine(f"sqlite:///{database_path}")
-    excluded = set() if shopping_tables_already_exist else {
-        "shopping_lists",
-        "shopping_list_items",
+    excluded = {
+        "shopping_products",
+        "product_price_observations",
     }
+    if not shopping_tables_already_exist:
+        excluded.update({"shopping_lists", "shopping_list_items"})
     with engine.begin() as connection:
         Base.metadata.create_all(
             connection,
@@ -73,5 +75,10 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
             ).fetchall()
         }
 
-    assert revision == "0014_shopping_lists"
-    assert {"shopping_lists", "shopping_list_items"} <= tables
+    assert revision == "0015_product_catalog"
+    assert {
+        "shopping_lists",
+        "shopping_list_items",
+        "shopping_products",
+        "product_price_observations",
+    } <= tables

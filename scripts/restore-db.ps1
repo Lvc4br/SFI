@@ -58,7 +58,7 @@ try {
     Write-Host "Restauração concluída no destino isolado informado."
 }
 finally {
-    Remove-Item Env:PGDATABASE -ErrorAction SilentlyContinue
+    Clear-SfiPostgresConnectionEnvironment
     if (Test-Path -LiteralPath $tempDump) {
         Remove-Item -LiteralPath $tempDump -Force
     }

@@ -33,6 +33,7 @@ class ShoppingList(Base):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_template: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -49,12 +50,17 @@ class ShoppingListItem(Base):
             ["list_id", "user_id"], ["shopping_lists.id", "shopping_lists.user_id"],
             name="fk_shopping_items_list_owner", ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["product_id", "user_id"], ["shopping_products.id", "shopping_products.user_id"],
+            name="fk_shopping_items_product_owner", ondelete="RESTRICT",
+        ),
         CheckConstraint("quantity > 0", name="ck_shopping_items_quantity_positive"),
         CheckConstraint(
             "unit_price IS NULL OR unit_price >= 0",
             name="ck_shopping_items_price_nonnegative",
         ),
         Index("ix_shopping_items_list_position", "list_id", "position"),
+        Index("ix_shopping_items_product", "product_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -62,6 +68,7 @@ class ShoppingListItem(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
+    product_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(
         Numeric(12, 3), default=Decimal("1.000"), nullable=False

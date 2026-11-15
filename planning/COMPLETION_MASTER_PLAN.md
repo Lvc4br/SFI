@@ -174,3 +174,11 @@ O teste do limite máximo `Numeric(18,2)` valida agora o schema Pydantic diretam
 - Correção Web no commit 99b4aee: sequência monotônica de requisições com useRef; somente a resposta da solicitação mais recente pode atualizar itens, total, offset, erro e estado de carregamento. A proteção cobre reload, alteração de filtros e mudança de página.
 - Correção E2E no commit 4a94a96: o teste aguarda individualmente as respostas de cada filtro antes de prosseguir, verifica o término do carregamento e só então navega para a página seguinte.
 - **Ainda não validado:** a correção precisa passar na validação local do operador e na CI Chromium/Firefox/WebKit. Não declarar a paginação resolvida até obter essas evidências.
+
+
+## Correção do fluxo de filtros e paginação — 15/11/2026
+
+- Investigação do log local após o commit `94c9935`: a API respondeu corretamente à consulta `offset=25` com cinco registros, mas a interface permaneceu em `offset=0`.
+- Causa identificada em `apps/web/src/App.tsx`: `changeTransactionFilters` disparava uma consulta manual e `setTransactionFilters` também acionava o efeito de `reload`, que fazia outra consulta. As duas requisições competiam pelo mesmo estado da tabela. A sequência monotônica descartava algumas respostas, mas a duplicidade permanecia.
+- Correção aplicada: a função de filtro agora apenas atualiza o estado; o efeito `reload` é o único responsável por carregar a página inicial dos filtros. Erros de uma resposta obsoleta também não podem sobrescrever o estado de erro da solicitação atual.
+- Ainda não validado: executar novamente a jornada local e aguardar CI Chromium/Firefox/WebKit. Não declarar a paginação resolvida até essas evidências.

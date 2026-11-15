@@ -28,8 +28,14 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "shortDescription": "Gestão financeira pessoal",
-    "longDescription": "Aplicativo Desktop do Sistema Financeiro Inteligente."
+    "longDescription": "Aplicativo Desktop do Sistema Financeiro Inteligente.",
+    "icon": [
+      "icons/icon.ico"
+    ]
   }
 }

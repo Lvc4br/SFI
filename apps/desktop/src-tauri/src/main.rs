@@ -1,8 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::{
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     process::{Child, Command, Stdio},
+    thread,
+    time::Duration,
     sync::Mutex,
 };
 
@@ -36,7 +38,7 @@ fn start_local_api(app: &tauri::App) -> Result<ApiRuntime, Box<dyn std::error::E
     let mut child = command
         .env("SFI_DATA_DIR", &data_dir)
         .env("SFI_ENVIRONMENT", "desktop")
-        .stdin(Stdio::null())
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()?;
@@ -92,6 +94,17 @@ fn main() {
             if let Some(runtime) = handle.try_state::<ApiRuntime>() {
                 if let Ok(mut child_guard) = runtime.child.lock() {
                     if let Some(mut child) = child_guard.take() {
+                        if let Some(stdin) = child.stdin.as_mut() {
+                            let _ = stdin.write_all(b"shutdown\n");
+                            let _ = stdin.flush();
+                        }
+                        for _ in 0..100 {
+                            match child.try_wait() {
+                                Ok(Some(_)) => return,
+                                Ok(None) => thread::sleep(Duration::from_millis(50)),
+                                Err(_) => break,
+                            }
+                        }
                         let _ = child.kill();
                         let _ = child.wait();
                     }

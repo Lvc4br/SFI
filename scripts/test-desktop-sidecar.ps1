@@ -21,11 +21,13 @@ $startInfo.EnvironmentVariables["SFI_ENVIRONMENT"] = "desktop"
 
 $process = New-Object System.Diagnostics.Process
 $process.StartInfo = $startInfo
+$started = $false
 
 try {
     if (-not $process.Start()) {
         throw "Não foi possível iniciar o executável local do SFI."
     }
+    $started = $true
 
     $stderrTask = $process.StandardError.ReadToEndAsync()
     $readyTask = $process.StandardOutput.ReadLineAsync()
@@ -58,7 +60,7 @@ try {
     Write-Host "Sidecar local validado: SQLite pronto em 127.0.0.1:$port e encerramento gracioso confirmado." -ForegroundColor Green
 }
 finally {
-    if ($null -ne $process -and -not $process.HasExited) {
+    if ($started -and $null -ne $process -and -not $process.HasExited) {
         $process.Kill()
         $process.WaitForExit(5000) | Out-Null
     }

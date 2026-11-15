@@ -274,6 +274,9 @@ def test_confirm_purchase_creates_one_expense_and_price_history(client):
     assert len(prices.json()) == 1
     assert prices.json()[0]["price"] == "7.50"
     assert prices.json()[0]["merchant"] == "Mercado Central"
+    stock = client.get("/api/v1/shopping/stock", headers=headers)
+    assert stock.status_code == 200
+    assert stock.json()[0]["balance"] == "2.000"
 
     replay = client.post(
         f"/api/v1/shopping/purchases/{list_id}/confirm",
@@ -338,3 +341,126 @@ def test_confirm_purchase_rejects_another_users_account(client):
         json={"account_id": foreign_account["id"]},
     )
     assert response.status_code == 404
+
+
+def test_stock_ledger_balances_consumption_and_user_isolation(client):
+    owner = register(client, "stock-owner@example.com")
+    other = register(client, "stock-other@example.com")
+    product = client.post(
+        "/api/v1/shopping/products",
+        headers=owner,
+        json={"name": "Leite", "unit": "un"},
+    ).json()
+    product_id = product["id"]
+
+    inbound = client.post(
+        f"/api/v1/shopping/stock/{product_id}/movements",
+        headers=owner,
+        json={"movement_type": "adjustment_in", "quantity": "5.000", "notes": "Saldo inicial"},
+    )
+    assert inbound.status_code == 201, inbound.text
+
+    consumption = client.post(
+        f"/api/v1/shopping/stock/{product_id}/movements",
+        headers=owner,
+        json={"movement_type": "consumption", "quantity": "2.000"},
+    )
+    assert consumption.status_code == 201, consumption.text
+
+    balance = client.get("/api/v1/shopping/stock", headers=owner)
+    assert balance.status_code == 200, balance.text
+    assert len(balance.json()) == 1
+    assert balance.json()[0]["balance"] == "3.000"
+
+    insufficient = client.post(
+        f"/api/v1/shopping/stock/{product_id}/movements",
+        headers=owner,
+        json={"movement_type": "waste", "quantity": "4.000"},
+    )
+    assert insufficient.status_code == 409
+
+    assert client.get("/api/v1/shopping/stock", headers=other).json() == []
+    assert client.get(
+        f"/api/v1/shopping/stock/{product_id}/movements",
+        headers=other,
+    ).status_code == 404
+    history = client.get(
+        f"/api/v1/shopping/stock/{product_id}/movements",
+        headers=owner,
+    )
+    assert history.status_code == 200
+    assert len(history.json()) == 2
+
+
+def test_confirmed_purchase_adds_stock_for_catalog_products(client):
+    headers = register(client, "stock-purchase@example.com")
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta corrente", "account_type": "checking", "currency": "BRL"},
+    ).json()
+    product = client.post(
+        "/api/v1/shopping/products",
+        headers=headers,
+        json={"name": "Feijão", "unit": "kg"},
+    ).json()
+    shopping_list = client.post(
+        "/api/v1/shopping/lists",
+        headers=headers,
+        json={"name": "Abastecimento"},
+    ).json()
+    item = client.post(
+        f"/api/v1/shopping/lists/{shopping_list['id']}/items",
+        headers=headers,
+        json={
+            "name": "Feijão",
+            "product_id": product["id"],
+            "quantity": "3.000",
+            "unit": "kg",
+            "unit_price": "8.00",
+        },
+    ).json()
+    client.patch(
+        f"/api/v1/shopping/lists/{shopping_list['id']}/items/{item['id']}",
+        headers=headers,
+        json={"is_checked": True},
+    )
+    confirmed = client.post(
+        f"/api/v1/shopping/purchases/{shopping_list['id']}/confirm",
+        headers=headers,
+        json={"account_id": account["id"]},
+    )
+    assert confirmed.status_code == 201, confirmed.text
+
+    stock = client.get("/api/v1/shopping/stock", headers=headers)
+    assert stock.status_code == 200, stock.text
+    assert stock.json()[0]["product_id"] == product["id"]
+    assert stock.json()[0]["balance"] == "3.000"
+
+    mismatch_list = client.post(
+        "/api/v1/shopping/lists",
+        headers=headers,
+        json={"name": "Unidade inválida"},
+    ).json()
+    mismatch_item = client.post(
+        f"/api/v1/shopping/lists/{mismatch_list['id']}/items",
+        headers=headers,
+        json={
+            "name": "Feijão em pacote",
+            "product_id": product["id"],
+            "quantity": "1.000",
+            "unit": "pacote",
+            "unit_price": "8.00",
+        },
+    ).json()
+    client.patch(
+        f"/api/v1/shopping/lists/{mismatch_list['id']}/items/{mismatch_item['id']}",
+        headers=headers,
+        json={"is_checked": True},
+    )
+    rejected = client.post(
+        f"/api/v1/shopping/purchases/{mismatch_list['id']}/confirm",
+        headers=headers,
+        json={"account_id": account["id"]},
+    )
+    assert rejected.status_code == 422

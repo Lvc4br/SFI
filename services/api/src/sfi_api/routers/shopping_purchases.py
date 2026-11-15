@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
 from sfi_api.models.finance import Account, Category, Transaction
-from sfi_api.models.product import ProductPriceObservation
+from sfi_api.models.product import ProductPriceObservation, ShoppingProduct
+from sfi_api.models.stock import StockMovement
 from sfi_api.models.shopping import ShoppingList, ShoppingListItem
 from sfi_api.models.user import User
 
@@ -96,6 +97,25 @@ async def confirm_purchase(
             detail="Marque todos os itens como comprados antes de confirmar a compra.",
         )
 
+    linked_products: dict[uuid.UUID, ShoppingProduct] = {}
+    for item in items:
+        if item.product_id is None:
+            continue
+        product = await session.scalar(
+            select(ShoppingProduct).where(
+                ShoppingProduct.id == item.product_id,
+                ShoppingProduct.user_id == user.id,
+            )
+        )
+        if product is None:
+            raise HTTPException(status_code=404, detail="Produto vinculado não encontrado.")
+        if product.unit != item.unit:
+            raise HTTPException(
+                status_code=422,
+                detail=f"A unidade do item {item.name} ({item.unit}) difere da unidade do catálogo ({product.unit}).",
+            )
+        linked_products[item.id] = product
+
     account = await session.scalar(
         select(Account).where(
             Account.id == payload.account_id,
@@ -152,17 +172,28 @@ async def confirm_purchase(
         await session.flush()
         for item in items:
             item.is_checked = True
-            if item.product_id is not None and item.unit_price is not None:
-                session.add(ProductPriceObservation(
-                    product_id=item.product_id,
+            if item.product_id is not None:
+                session.add(StockMovement(
                     user_id=user.id,
-                    price=item.unit_price,
-                    currency=account.currency,
-                    merchant=merchant,
-                    source="manual",
-                    notes=f"Compra confirmada pela lista {shopping_list.name}"[:300],
-                    observed_at=payload.occurred_at,
+                    product_id=item.product_id,
+                    movement_type="purchase",
+                    quantity=item.quantity,
+                    unit=linked_products[item.id].unit,
+                    reference=f"shopping-list:{shopping_list.id}",
+                    notes=f"Entrada automática da compra {shopping_list.name}"[:300],
+                    occurred_at=payload.occurred_at,
                 ))
+                if item.unit_price is not None:
+                    session.add(ProductPriceObservation(
+                        product_id=item.product_id,
+                        user_id=user.id,
+                        price=item.unit_price,
+                        currency=account.currency,
+                        merchant=merchant,
+                        source="manual",
+                        notes=f"Compra confirmada pela lista {shopping_list.name}"[:300],
+                        observed_at=payload.occurred_at,
+                    ))
         shopping_list.archived_at = datetime.now(UTC)
         await session.commit()
         await session.refresh(transaction)

@@ -91,6 +91,7 @@ def run() -> None:
             log_level="critical",
             access_log=False,
             workers=1,
+            timeout_graceful_shutdown=4,
         )
     )
     server_thread = threading.Thread(
@@ -100,8 +101,12 @@ def run() -> None:
         daemon=True,
     )
     server_thread.start()
+    def watch_shutdown() -> None:
+        sys.stdin.readline()
+        server.should_exit = True
+
     shutdown_thread = threading.Thread(
-        target=lambda: setattr(server, "should_exit", True) if sys.stdin.readline() else None,
+        target=watch_shutdown,
         name="sfi-shutdown-listener",
         daemon=True,
     )

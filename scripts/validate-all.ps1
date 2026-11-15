@@ -49,12 +49,17 @@ Write-Host "`n========== VERIFICACAO DO BANCO RESTAURADO ==========" -Foreground
 if ([string]::IsNullOrWhiteSpace($env:SFI_RESTORE_DATABASE_URL)) {
     throw "SFI_RESTORE_DATABASE_URL nao esta configurada."
 }
-if ([string]::IsNullOrWhiteSpace($env:SFI_RESTORE_EXPECTED_HOST)) {
-    throw "SFI_RESTORE_EXPECTED_HOST nao esta configurada. Informe o host exato da branch Neon isolada."
+$expectedRestoreHost = $env:SFI_RESTORE_EXPECTED_HOST
+if ([string]::IsNullOrWhiteSpace($expectedRestoreHost)) {
+    # Backward-compatible with the isolated test setup used by backup-db.ps1.
+    $expectedRestoreHost = $env:SFI_BACKUP_EXPECTED_HOST
+}
+if ([string]::IsNullOrWhiteSpace($expectedRestoreHost)) {
+    throw "Defina SFI_RESTORE_EXPECTED_HOST ou SFI_BACKUP_EXPECTED_HOST com o host exato da branch Neon isolada."
 }
 
 . (Join-Path $PSScriptRoot "backup-integrity.ps1")
-$null = Assert-SfiDatabaseHost -DatabaseUrl $env:SFI_RESTORE_DATABASE_URL -ExpectedHost $env:SFI_RESTORE_EXPECTED_HOST
+$null = Assert-SfiDatabaseHost -DatabaseUrl $env:SFI_RESTORE_DATABASE_URL -ExpectedHost $expectedRestoreHost
 $null = Get-Command psql -ErrorAction Stop
 
 try {

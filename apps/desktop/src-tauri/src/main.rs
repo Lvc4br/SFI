@@ -10,6 +10,9 @@ use std::{
 
 use tauri::{path::BaseDirectory, Manager, RunEvent};
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 struct ApiRuntime {
     child: Mutex<Option<Child>>,
     base_url: String,
@@ -34,6 +37,9 @@ fn start_local_api(app: &tauri::App) -> Result<ApiRuntime, Box<dyn std::error::E
             .env("PYTHONPATH", api_root.join("src"));
         command
     };
+
+    #[cfg(windows)]
+    command.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
     let mut child = command
         .env("SFI_DATA_DIR", &data_dir)

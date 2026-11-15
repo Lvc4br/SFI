@@ -277,7 +277,7 @@ def test_confirm_purchase_creates_one_expense_and_price_history(client):
     assert replay.status_code == 409
 
 
-def test_confirm_purchase_requires_prices_and_rejects_other_users_account(client):
+def test_confirm_purchase_requires_prices(client):
     owner = register(client, "shopping-confirm-owner@example.com")
     other = register(client, "shopping-confirm-other@example.com")
     account = client.post(

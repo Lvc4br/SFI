@@ -18,6 +18,7 @@ Atualizado em 15/11/2026. Este documento é o controle operacional das seis prio
 | CI API/Web/E2E/backup | Concluído nesta revisão | GitHub Actions run 43663837397: quatro jobs concluídos com sucesso no SHA 7936ce001a39507cccf6b146fbfe9996f46ba317 |
 | Verificador read-only do banco restaurado | Implementado; execução local pendente | `scripts/verify-restored-db.ps1` confirma Alembic 0013, 13 tabelas, 4 colunas e constraints/FKs validadas |
 | Segunda rodada backup → restore com fixtures | Pendente externo | Criar registros fictícios conhecidos em branch de origem; backup, restaurar em outra branch isolada e comparar IDs/contagens/somas |
+| Smoke check read-only da API | Implementado; execução local pendente | `scripts/verify-restored-api.ps1` exige confirmação explícita de que a instância está apontada à branch restaurada e verifica `/api/v1/health/ready`; não comprova ainda leituras autenticadas ou reconciliação de fixtures |
 | API contra o banco restaurado | Pendente externo | Executar readiness e leituras autenticadas usando configuração apontada exclusivamente à branch restaurada |
 | Falhas e corrupção | Parcial | 8 testes de integridade cobrem checksum/host/formato; testes já rejeitam backup corrompido, vazio e checksum ausente/malformado; ensaios de interrupção real e restore abortado continuam pendentes |
 | RPO/RTO | Proposta a aprovar e medir | Meta inicial proposta: RPO <= 1 hora e RTO <= 4 horas; confirmar PITR, frequência, limites e tempos reais do plano Neon antes de declarar compromisso |

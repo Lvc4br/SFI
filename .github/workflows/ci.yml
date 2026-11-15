@@ -3,7 +3,17 @@ on:
   push:
     branches: [main, "feat/**", "feature/**"]
   pull_request:
-    branches: [main]
+    branches: [main, "feature/**"]
+  workflow_dispatch:
+
+# Avoid wasting runner minutes when several commits land on the same branch.
+concurrency:
+  group: sfi-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   api:
     runs-on: ubuntu-latest
@@ -30,7 +40,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sfi/web build
 
   backup-integrity:

@@ -12,6 +12,17 @@ let accessToken: string | null = null;
 let desktopRefreshToken: string | null = null;
 
 export const isDesktopApp = DESKTOP;
+
+export async function waitForApiReady(timeoutMs = 15000): Promise<void> {
+  if (!DESKTOP) return;
+  const deadline = Date.now() + timeoutMs;
+  while (!window.__SFI_API_BASE_URL__) {
+    if (Date.now() >= deadline) {
+      throw new Error("O mecanismo financeiro local não respondeu. Feche e abra o SFI novamente.");
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 50));
+  }
+}
 export function getApiBaseUrl(): string {
   if (DESKTOP) return window.__SFI_API_BASE_URL__ ?? DEFAULT_API_URL;
   if (typeof localStorage === "undefined") return DEFAULT_API_URL;

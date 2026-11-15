@@ -208,3 +208,96 @@ def test_template_creation_rejects_non_template_and_archived_product(client):
         json={"name": "Produto arquivado", "product_id": product["id"]},
     )
     assert rejected.status_code == 404
+
+
+
+def test_confirm_purchase_creates_one_expense_and_price_history(client):
+    headers = register(client, "shopping-confirm@example.com")
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Carteira", "account_type": "cash", "currency": "BRL"},
+    )
+    assert account.status_code == 201, account.text
+    product = client.post(
+        "/api/v1/shopping/products",
+        headers=headers,
+        json={"name": "Arroz", "unit": "kg"},
+    )
+    assert product.status_code == 201, product.text
+    shopping_list = client.post(
+        "/api/v1/shopping/lists",
+        headers=headers,
+        json={"name": "Mercado da semana"},
+    )
+    list_id = shopping_list.json()["id"]
+    item = client.post(
+        f"/api/v1/shopping/lists/{list_id}/items",
+        headers=headers,
+        json={
+            "name": "Arroz",
+            "product_id": product.json()["id"],
+            "quantity": "2.000",
+            "unit": "kg",
+            "unit_price": "7.50",
+        },
+    )
+    assert item.status_code == 201, item.text
+
+    confirmed = client.post(
+        f"/api/v1/shopping/purchases/{list_id}/confirm",
+        headers=headers,
+        json={"account_id": account.json()["id"], "merchant": "Mercado Central"},
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    assert confirmed.json()["amount"] == "15.00"
+    assert confirmed.json()["items_count"] == 1
+
+    transactions = client.get("/api/v1/finance/transactions?limit=100", headers=headers)
+    assert transactions.status_code == 200, transactions.text
+    purchases = [row for row in transactions.json() if row["description"].startswith("Compra:")]
+    assert len(purchases) == 1
+    assert purchases[0]["transaction_type"] == "expense"
+    assert purchases[0]["amount"] == "15.00"
+
+    prices = client.get(
+        f"/api/v1/shopping/products/{product.json()['id']}/prices",
+        headers=headers,
+    )
+    assert prices.status_code == 200, prices.text
+    assert len(prices.json()) == 1
+    assert prices.json()[0]["price"] == "7.50"
+    assert prices.json()[0]["merchant"] == "Mercado Central"
+
+    replay = client.post(
+        f"/api/v1/shopping/purchases/{list_id}/confirm",
+        headers=headers,
+        json={"account_id": account.json()["id"]},
+    )
+    assert replay.status_code == 404
+
+
+def test_confirm_purchase_requires_prices_and_rejects_other_users_account(client):
+    owner = register(client, "shopping-confirm-owner@example.com")
+    other = register(client, "shopping-confirm-other@example.com")
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=other,
+        json={"name": "Conta alheia", "account_type": "checking", "currency": "BRL"},
+    ).json()
+    shopping_list = client.post(
+        "/api/v1/shopping/lists",
+        headers=owner,
+        json={"name": "Compra sem preço"},
+    ).json()
+    client.post(
+        f"/api/v1/shopping/lists/{shopping_list['id']}/items",
+        headers=owner,
+        json={"name": "Produto sem preço"},
+    )
+    response = client.post(
+        f"/api/v1/shopping/purchases/{shopping_list['id']}/confirm",
+        headers=owner,
+        json={"account_id": account["id"]},
+    )
+    assert response.status_code == 422

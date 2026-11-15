@@ -45,50 +45,10 @@ if (-not $?) {
 }
 
 # 3. Verify the restored isolated database without changing it.
-Write-Host "`n========== VERIFICACAO DO BANCO RESTAURADO ==========" -ForegroundColor Cyan
-if ([string]::IsNullOrWhiteSpace($env:SFI_RESTORE_DATABASE_URL)) {
-    throw "SFI_RESTORE_DATABASE_URL nao esta configurada."
-}
-$expectedRestoreHost = $env:SFI_RESTORE_EXPECTED_HOST
-if ([string]::IsNullOrWhiteSpace($expectedRestoreHost)) {
-    # Backward-compatible with the isolated test setup used by backup-db.ps1.
-    $expectedRestoreHost = $env:SFI_BACKUP_EXPECTED_HOST
-}
-if ([string]::IsNullOrWhiteSpace($expectedRestoreHost)) {
-    throw "Defina SFI_RESTORE_EXPECTED_HOST ou SFI_BACKUP_EXPECTED_HOST com o host exato da branch Neon isolada."
-}
-
-. (Join-Path $PSScriptRoot "backup-integrity.ps1")
-$null = Assert-SfiDatabaseHost -DatabaseUrl $env:SFI_RESTORE_DATABASE_URL -ExpectedHost $expectedRestoreHost
-$null = Get-Command psql -ErrorAction Stop
-
-try {
-    Set-SfiPostgresConnectionEnvironment -DatabaseUrl $env:SFI_RESTORE_DATABASE_URL
-
-    $sql = @"
-SELECT
-    COALESCE((SELECT version_num FROM alembic_version LIMIT 1), '') || '|' ||
-    COALESCE(to_regclass('public.security_events')::text, '') || '|' ||
-    COALESCE(to_regclass('public.login_attempts')::text, '') || '|' ||
-    (SELECT COUNT(*)::text FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name='timezone') || '|' ||
-    (SELECT COUNT(*)::text FROM information_schema.columns WHERE table_schema='public' AND table_name='accounts' AND column_name='archived_at') || '|' ||
-    (SELECT COUNT(*)::text FROM information_schema.columns WHERE table_schema='public' AND table_name='categories' AND column_name='archived_at');
-"@
-
-    $actual = (& psql -X -v ON_ERROR_STOP=1 -A -t -c $sql 2>&1 | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0) {
-        throw "Consulta de verificacao no banco restaurado falhou: $actual"
-    }
-
-    $expected = "0013_security_events|security_events|login_attempts|1|1|1"
-    if ($actual -ne $expected) {
-        throw "Schema restaurado divergente. Esperado '$expected'; recebido '$actual'."
-    }
-
-    Write-Host "Banco isolado validado: migrations 0013 e tabelas/colunas de seguranca presentes." -ForegroundColor Green
-}
-finally {
-    Clear-SfiPostgresConnectionEnvironment
+Write-Host "`n========== VERIFICACAO DE INTEGRIDADE DO BANCO RESTAURADO ==========" -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "verify-restored-db.ps1")
+if (-not $?) {
+    throw "Falha na verificacao read-only do banco restaurado."
 }
 
 Write-Host "`nSFI VALIDACAO INTEGRADA APROVADA." -ForegroundColor Green

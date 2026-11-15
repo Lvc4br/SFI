@@ -4,11 +4,11 @@ O acompanhamento executável das seis prioridades, critérios de aceite, depend�
 
 Roadmap orientado a entregáveis e critérios de saída, sem datas artificiais.
 
-## Entrega prioritária atual — MVP Web
+## Entrega prioritária atual — aplicativo Desktop instalável
 
 O recorte executável da primeira versão está detalhado em [Escopo do MVP](../docs/MVP_SCOPE.md), [Backlog priorizado](MVP_BACKLOG.md), [Plano de entrega](MVP_DELIVERY_PLAN.md), [Critérios de aceite](../docs/MVP_ACCEPTANCE_CRITERIA.md) e [Plano de testes](MVP_TEST_PLAN.md).
 
-A sequência de implementação é: baseline/contratos → fundação Web autenticada → contas e categorias → movimentações e transferências → orçamento e dashboard → educação contextual → estabilização. Essa sequência aproveita o backend já integrado e não elimina os módulos posteriores.
+A interface React existente é reutilizada dentro do Tauri; a entrega principal é um instalador nativo, não um site público permanente. Sequência: estabilizar núcleo e segurança → empacotar Desktop → configurar API HTTPS e PostgreSQL → validar instalador e atualização → completar módulos funcionais → offline/mobile quando o núcleo estiver estável.
 
 ## Fase 0 — Descoberta e validação
 Requisitos priorizados, jornadas, protótipos, provas de conceito Neon/Tauri/Expo, avaliação OCR/XML e estimativa de custos. **Saída:** riscos críticos identificados e arquitetura aprovada.
@@ -38,7 +38,7 @@ Indicadores oficiais, fontes/datas, carteira informativa, rendimentos e rentabil
 Gateway, RAG educacional, ferramentas tipadas, simulações, revisão e avaliação de segurança. **Saída:** testes de alucinação, privacidade e cálculo aprovados.
 
 ## Fase 9 — Multiplataforma e offline
-Web PWA, Desktop Tauri, Mobile Expo, armazenamento local, fila, conflitos e notificações. **Saída:** sincronização idempotente sem perda silenciosa.
+Desktop Tauri é o cliente principal e instalável; Web permanece como interface compartilhada/de desenvolvimento, sem obrigação de publicação como produto permanente. Mobile Expo, armazenamento local, fila, conflitos e notificações entram depois. **Saída:** sincronização idempotente sem perda silenciosa.
 
 ## Fase 10 — Beta e lançamento
 Carga, revisão de segurança, backup/restauração, acessibilidade, documentação, instaladores assinados, publicação e suporte. **Saída:** critérios globais cumpridos.

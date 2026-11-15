@@ -5,7 +5,7 @@ use std::{
     process::{Child, Command, Stdio},
     thread,
     time::Duration,
-    sync::Mutex,
+    sync::{mpsc, Mutex},
 };
 
 use tauri::{path::BaseDirectory, Manager, RunEvent};
@@ -44,13 +44,27 @@ fn start_local_api(app: &tauri::App) -> Result<ApiRuntime, Box<dyn std::error::E
         .spawn()?;
 
     let stdout = child.stdout.take().ok_or("stdout do backend não foi iniciado")?;
-    let mut reader = BufReader::new(stdout);
-    let mut startup_line = String::new();
-    if reader.read_line(&mut startup_line)? == 0 {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err("O backend local encerrou antes de informar a porta.".into());
-    }
+    let (startup_sender, startup_receiver) = mpsc::channel();
+    thread::spawn(move || {
+        let mut reader = BufReader::new(stdout);
+        let mut line = String::new();
+        let _ = reader.read_line(&mut line);
+        let _ = startup_sender.send(line);
+    });
+
+    let startup_line = match startup_receiver.recv_timeout(Duration::from_secs(45)) {
+        Ok(line) if !line.is_empty() => line,
+        Ok(_) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("O backend local encerrou antes de informar a porta.".into());
+        }
+        Err(_) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("Tempo limite ao iniciar o mecanismo financeiro local.".into());
+        }
+    };
 
     let port = startup_line
         .trim()

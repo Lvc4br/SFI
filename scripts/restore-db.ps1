@@ -10,6 +10,11 @@ $ErrorActionPreference = "Stop"
 if (-not $env:SFI_RESTORE_DATABASE_URL) {
     throw "Defina SFI_RESTORE_DATABASE_URL apontando para uma branch Neon isolada."
 }
+if (-not $env:SFI_RESTORE_EXPECTED_HOST) {
+    throw "Defina SFI_RESTORE_EXPECTED_HOST com o host exato da branch isolada."
+}
+
+$null = Assert-SfiDatabaseHost -DatabaseUrl $env:SFI_RESTORE_DATABASE_URL -ExpectedHost $env:SFI_RESTORE_EXPECTED_HOST
 if ($env:SFI_RESTORE_TARGET_ISOLATED -ne "YES") {
     throw "Defina SFI_RESTORE_TARGET_ISOLATED=YES somente após confirmar que o destino é descartável/isolado."
 }

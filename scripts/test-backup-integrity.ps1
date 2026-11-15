@@ -45,6 +45,23 @@ try {
     if (-not $emptyRejected) { throw "Empty backup was not rejected." }
     Write-Host "[PASS] empty backup rejected"
 
+    $testDatabaseUrl = "postgresql://test:test@db-test.example.com:5432/sfi?sslmode=require"
+    $matchedHost = Assert-SfiDatabaseHost -DatabaseUrl $testDatabaseUrl -ExpectedHost "db-test.example.com"
+    if ($matchedHost -ne "db-test.example.com") { throw "Expected database host was not returned." }
+    Write-Host "[PASS] explicitly allowed database host accepted"
+
+    $wrongHostRejected = $false
+    try { Assert-SfiDatabaseHost -DatabaseUrl $testDatabaseUrl -ExpectedHost "production.example.com" | Out-Null }
+    catch { $wrongHostRejected = $true }
+    if (-not $wrongHostRejected) { throw "Mismatched database host was not rejected." }
+    Write-Host "[PASS] mismatched database host rejected"
+
+    $invalidUrlRejected = $false
+    try { Assert-SfiDatabaseHost -DatabaseUrl "https://db-test.example.com/" -ExpectedHost "db-test.example.com" | Out-Null }
+    catch { $invalidUrlRejected = $true }
+    if (-not $invalidUrlRejected) { throw "Non-PostgreSQL URL was not rejected." }
+    Write-Host "[PASS] non-PostgreSQL database URL rejected"
+
     Write-Host "BACKUP INTEGRITY TESTS PASSED"
 }
 finally {

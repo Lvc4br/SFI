@@ -71,3 +71,10 @@ Os testes E2E devem usar banco isolado, credenciais efêmeras e limpeza segura; 
 
 ## 7. Bloqueadores
 Qualquer acesso cruzado, perda/duplicação de dinheiro, divergência de cálculo, sessão que permita acesso após revogação, segredo exposto ou migração destrutiva bloqueia release.
+
+
+## 8. Segurança da cadeia de dependências
+
+- O CI executa auditoria de dependências Python e Web; não ignorar findings sem justificativa documentada.
+- Pytest deve permanecer em versão corrigida (>= 9.0.3) após finding PYSEC-2026-1845 em 8.4.2.
+- CodeQL analisa Python e JavaScript/TypeScript em PRs e execução semanal.

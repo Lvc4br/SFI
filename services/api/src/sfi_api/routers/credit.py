@@ -1,0 +1,139 @@
+import calendar
+import uuid
+from datetime import UTC, date, datetime
+from decimal import Decimal, ROUND_DOWN
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sfi_api.database import get_session
+from sfi_api.dependencies import get_current_user
+from sfi_api.models.credit import CreditCard, CreditInvoice, CreditInvoicePayment, CreditPurchaseInstallment
+from sfi_api.models.finance import Account, Transaction
+from sfi_api.models.user import User
+from sfi_api.schemas.credit import CreditCardCreate, CreditCardResponse, CreditInvoicePaymentCreate, CreditInvoicePaymentResponse, CreditInvoiceResponse, CreditPurchaseCreate
+
+router=APIRouter(prefix="/credit", tags=["credit-cards"])
+
+def _month_shift(value: date, months: int) -> date:
+    index=value.year*12+value.month-1+months
+    year,month=divmod(index,12)
+    return date(year,month+1,1)
+
+def _cycle_dates(card: CreditCard, purchase_date: date) -> tuple[str,date,date]:
+    period_start=date(purchase_date.year,purchase_date.month,1)
+    if purchase_date.day > card.closing_day:
+        period_start=_month_shift(period_start,1)
+    year,month=period_start.year,period_start.month
+    closing=date(year,month,min(card.closing_day,calendar.monthrange(year,month)[1]))
+    due_month=period_start if card.due_day > card.closing_day else _month_shift(period_start,1)
+    due=date(due_month.year,due_month.month,min(card.due_day,calendar.monthrange(due_month.year,due_month.month)[1]))
+    return period_start.strftime("%Y-%m"),closing,due
+
+async def _invoice(session: AsyncSession, user_id: uuid.UUID, card: CreditCard, purchase_date: date) -> CreditInvoice:
+    period,closing,due=_cycle_dates(card,purchase_date)
+    invoice=await session.scalar(select(CreditInvoice).where(CreditInvoice.user_id==user_id,CreditInvoice.card_id==card.id,CreditInvoice.period==period))
+    if invoice is None:
+        invoice=CreditInvoice(user_id=user_id,card_id=card.id,period=period,closing_date=closing,due_date=due,status="open",paid_amount=Decimal("0.00"))
+        session.add(invoice)
+        await session.flush()
+    return invoice
+
+async def _invoice_response(session: AsyncSession, invoice: CreditInvoice) -> CreditInvoiceResponse:
+    total=await session.scalar(select(func.coalesce(func.sum(CreditPurchaseInstallment.amount),0)).where(CreditPurchaseInstallment.invoice_id==invoice.id))
+    total=Decimal(total or 0).quantize(Decimal("0.01"))
+    return CreditInvoiceResponse(id=invoice.id,card_id=invoice.card_id,period=invoice.period,closing_date=invoice.closing_date,due_date=invoice.due_date,status=invoice.status,total_amount=total,paid_amount=invoice.paid_amount,remaining_amount=max(Decimal("0.00"),total-invoice.paid_amount))
+
+@router.post("/cards",response_model=CreditCardResponse,status_code=status.HTTP_201_CREATED)
+async def create_card(payload: CreditCardCreate,session:AsyncSession=Depends(get_session),user:User=Depends(get_current_user)):
+    account=await session.scalar(select(Account).where(Account.id==payload.account_id,Account.user_id==user.id,Account.archived_at.is_(None)))
+    if account is None: raise HTTPException(404,"Conta não encontrada.")
+    if account.account_type!="credit": raise HTTPException(422,"O cartão precisa estar vinculado a uma conta do tipo crédito.")
+    if account.currency!="BRL": raise HTTPException(422,"Cartões só aceitam conta em BRL nesta versão.")
+    card=CreditCard(user_id=user.id,**payload.model_dump())
+    session.add(card)
+    try:
+        await session.commit(); await session.refresh(card)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(409,"Esta conta já está vinculada a outro cartão.") from None
+    return card
+
+@router.get("/cards",response_model=list[CreditCardResponse])
+async def list_cards(session:AsyncSession=Depends(get_session),user:User=Depends(get_current_user)):
+    result=await session.scalars(select(CreditCard).where(CreditCard.user_id==user.id).order_by(CreditCard.created_at.desc()))
+    return list(result.all())
+
+@router.post("/purchases",status_code=status.HTTP_201_CREATED)
+async def create_purchase(payload:CreditPurchaseCreate,session:AsyncSession=Depends(get_session),user:User=Depends(get_current_user)):
+    card=await session.scalar(select(CreditCard).where(CreditCard.id==payload.card_id,CreditCard.user_id==user.id))
+    if card is None: raise HTTPException(404,"Cartão não encontrado.")
+    account=await session.scalar(select(Account).where(Account.id==card.account_id,Account.user_id==user.id,Account.archived_at.is_(None)))
+    existing=await session.scalar(select(CreditPurchaseInstallment.id).where(CreditPurchaseInstallment.user_id==user.id,CreditPurchaseInstallment.purchase_id==uuid.uuid5(user.id,payload.idempotency_key)))
+    if existing: raise HTTPException(409,"Esta compra já foi registrada.")
+    purchase_id=uuid.uuid5(user.id,payload.idempotency_key)
+    cents=int((payload.amount*100).to_integral_exact())
+    base=Decimal(cents//payload.installments)/100
+    remainder=cents-(cents//payload.installments)*payload.installments
+    created=[]
+    for number in range(1,payload.installments+1):
+        installment_amount=base+(Decimal("0.01") if number<=remainder else Decimal("0.00"))
+        cycle_date=_month_shift(payload.purchase_date,number-1)
+        invoice=await _invoice(session,user.id,card,cycle_date)
+        installment=CreditPurchaseInstallment(user_id=user.id,invoice_id=invoice.id,purchase_id=purchase_id,installment_number=number,installment_count=payload.installments,description=payload.description if payload.installments==1 else f"{payload.description} ({number}/{payload.installments})",amount=installment_amount,occurred_at=datetime.combine(cycle_date,datetime.min.time(),tzinfo=UTC))
+        session.add(installment)
+        transaction=Transaction(user_id=user.id,account_id=account.id,category_id=None,transaction_type="expense",amount=installment_amount,currency="BRL",description=installment.description,occurred_at=datetime.combine(cycle_date,datetime.min.time(),tzinfo=UTC),idempotency_key=f"card:{purchase_id}:{number}")
+        session.add(transaction)
+        created.append(installment)
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(409,"Conflito ao registrar compra ou parcelas.") from None
+    return {"purchase_id":str(purchase_id),"installments_created":len(created),"total_amount":payload.amount}
+
+@router.get("/invoices",response_model=list[CreditInvoiceResponse])
+async def list_invoices(card_id:uuid.UUID|None=None,session:AsyncSession=Depends(get_session),user:User=Depends(get_current_user)):
+    query=select(CreditInvoice).where(CreditInvoice.user_id==user.id)
+    if card_id is not None: query=query.where(CreditInvoice.card_id==card_id)
+    invoices=await session.scalars(query.order_by(CreditInvoice.due_date.desc()))
+    return [await _invoice_response(session,item) for item in invoices.all()]
+
+@router.post("/invoices/{invoice_id}/close",response_model=CreditInvoiceResponse)
+async def close_invoice(invoice_id:uuid.UUID,session:AsyncSession=Depends(get_session),user:User=Depends(get_current_user)):
+    invoice=await session.scalar(select(CreditInvoice).where(CreditInvoice.id==invoice_id,CreditInvoice.user_id==user.id))
+    if invoice is None: raise HTTPException(404,"Fatura não encontrada.")
+    if invoice.status=="paid": raise HTTPException(409,"Fatura já está paga.")
+    invoice.status="closed"
+    await session.commit()
+    return await _invoice_response(session,invoice)
+
+@router.post("/invoices/{invoice_id}/payments",response_model=CreditInvoicePaymentResponse,status_code=status.HTTP_201_CREATED)
+async def pay_invoice(invoice_id:uuid.UUID,payload:CreditInvoicePaymentCreate,session:AsyncSession=Depends(get_session),user:User=Depends(get_current_user)):
+    existing=await session.scalar(select(CreditInvoicePayment).where(CreditInvoicePayment.user_id==user.id,CreditInvoicePayment.idempotency_key==payload.idempotency_key))
+    if existing: raise HTTPException(409,"Esta chave de pagamento já foi utilizada.")
+    invoice=await session.scalar(select(CreditInvoice).where(CreditInvoice.id==invoice_id,CreditInvoice.user_id==user.id))
+    if invoice is None: raise HTTPException(404,"Fatura não encontrada.")
+    card=await session.scalar(select(CreditCard).where(CreditCard.id==invoice.card_id,CreditCard.user_id==user.id))
+    source=await session.scalar(select(Account).where(Account.id==payload.source_account_id,Account.user_id==user.id,Account.archived_at.is_(None)))
+    if source is None: raise HTTPException(404,"Conta de pagamento não encontrada.")
+    credit=await session.scalar(select(Account).where(Account.id==card.account_id,Account.user_id==user.id))
+    if source.account_type=="credit" or source.currency!="BRL" or credit.currency!="BRL": raise HTTPException(422,"O pagamento deve sair de uma conta não crédito em BRL.")
+    total=await session.scalar(select(func.coalesce(func.sum(CreditPurchaseInstallment.amount),0)).where(CreditPurchaseInstallment.invoice_id==invoice.id))
+    remaining=Decimal(total or 0)-invoice.paid_amount
+    if payload.amount>remaining: raise HTTPException(422,"O pagamento excede o saldo da fatura.")
+    payment=CreditInvoicePayment(user_id=user.id,invoice_id=invoice.id,source_account_id=source.id,amount=payload.amount,idempotency_key=payload.idempotency_key,paid_at=payload.paid_at)
+    session.add(payment)
+    session.add_all([
+        Transaction(user_id=user.id,account_id=source.id,category_id=None,transaction_type="expense",amount=payload.amount,currency="BRL",description=f"Pagamento de fatura {invoice.period}",occurred_at=payload.paid_at,idempotency_key=f"invoice-payment:{payment.id}:debit"),
+        Transaction(user_id=user.id,account_id=credit.id,category_id=None,transaction_type="income",amount=payload.amount,currency="BRL",description=f"Pagamento recebido da fatura {invoice.period}",occurred_at=payload.paid_at,idempotency_key=f"invoice-payment:{payment.id}:credit"),
+    ])
+    invoice.paid_amount+=payload.amount
+    if invoice.paid_amount==Decimal(total or 0): invoice.status="paid"
+    else: invoice.status="closed"
+    try:
+        await session.commit(); await session.refresh(payment)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(409,"Conflito ao registrar pagamento.") from None
+    return payment

@@ -28,8 +28,8 @@ $encryptedPath = "$plainPath.age"
 $checksumPath = "$encryptedPath.sha256"
 
 try {
-    # Libpq recebe a connection string pelo ambiente, evitando expô-la nos argumentos do processo.
-    $env:PGDATABASE = $env:SFI_BACKUP_DATABASE_URL
+    # Libpq recebe os campos da conexão pelo ambiente, sem expor credenciais nos argumentos do processo.
+    Set-SfiPostgresConnectionEnvironment -DatabaseUrl $env:SFI_BACKUP_DATABASE_URL
     & pg_dump --format=custom --no-owner --no-acl --file $plainPath
     if ($LASTEXITCODE -ne 0) {
         throw "pg_dump falhou com código $LASTEXITCODE."

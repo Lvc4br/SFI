@@ -534,35 +534,39 @@ async def create_transfer(
         idempotency_key=payload.idempotency_key,
         occurred_at=payload.occurred_at,
     )
-    session.add(transfer)
-    await session.flush()
-    session.add_all([
-        Transaction(
-            user_id=user.id,
-            account_id=source.id,
-            category_id=None,
-            transfer_id=transfer.id,
-            transaction_type="expense",
-            amount=payload.amount,
-            currency=source.currency,
-            description=f"Transferência enviada: {payload.description.strip()}",
-            idempotency_key=f"transfer:{transfer.id}:out",
-            occurred_at=payload.occurred_at,
-        ),
-        Transaction(
-            user_id=user.id,
-            account_id=destination.id,
-            category_id=None,
-            transfer_id=transfer.id,
-            transaction_type="income",
-            amount=payload.amount,
-            currency=destination.currency,
-            description=f"Transferência recebida: {payload.description.strip()}",
-            idempotency_key=f"transfer:{transfer.id}:in",
-            occurred_at=payload.occurred_at,
-        ),
-    ])
     try:
+        # Keep the initial INSERT/flush inside the IntegrityError boundary.
+        # Concurrent requests can both pass the preflight idempotency SELECT;
+        # the database unique constraint is the final arbiter and may fail here,
+        # before commit. Returning a controlled 409 avoids an accidental 500.
+        session.add(transfer)
+        await session.flush()
+        session.add_all([
+            Transaction(
+                user_id=user.id,
+                account_id=source.id,
+                category_id=None,
+                transfer_id=transfer.id,
+                transaction_type="expense",
+                amount=payload.amount,
+                currency=source.currency,
+                description=f"Transferência enviada: {payload.description.strip()}",
+                idempotency_key=f"transfer:{transfer.id}:out",
+                occurred_at=payload.occurred_at,
+            ),
+            Transaction(
+                user_id=user.id,
+                account_id=destination.id,
+                category_id=None,
+                transfer_id=transfer.id,
+                transaction_type="income",
+                amount=payload.amount,
+                currency=destination.currency,
+                description=f"Transferência recebida: {payload.description.strip()}",
+                idempotency_key=f"transfer:{transfer.id}:in",
+                occurred_at=payload.occurred_at,
+            ),
+        ])
         await session.commit()
         await session.refresh(transfer)
     except IntegrityError:

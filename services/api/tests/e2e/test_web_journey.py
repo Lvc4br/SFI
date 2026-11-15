@@ -168,8 +168,15 @@ def test_complete_web_financial_journey() -> None:
             assert response.ok, f"Next-page request failed: {response.status} {response.url}"
             page_payload = response.json()
             assert page_payload["offset"] == 25, page_payload
-            assert page_payload["total"] == 30, page_payload
+            # The two setup expenses may or may not fall inside the UTC/local
+            # calendar-day filter depending on the runner timezone. The 30
+            # generated volume rows must still span exactly one final page.
+            assert page_payload["total"] >= 30, page_payload
             assert len(page_payload["items"]) == 5, page_payload
+            assert all(
+                item["description"].startswith("Volume E2E ")
+                for item in page_payload["items"]
+            ), page_payload
             expect(page.get_by_text("Página 2 de 2")).to_be_visible()
             expect(page.locator(".results-note")).to_contain_text("Exibindo 26–")
             page.get_by_role("button", name="Anterior").click()

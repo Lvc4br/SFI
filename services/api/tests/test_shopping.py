@@ -122,3 +122,89 @@ def test_shopping_rejects_null_required_item_fields(client):
             json={field: None},
         )
         assert response.status_code == 422, (field, response.text)
+
+
+def test_catalog_products_can_be_reused_in_templates_and_copied_lists(client):
+    owner = register(client, "shopping-template-owner@example.com")
+    other = register(client, "shopping-template-other@example.com")
+
+    product = client.post(
+        "/api/v1/shopping/products",
+        headers=owner,
+        json={"name": "Café em pó", "unit": "pacote"},
+    )
+    assert product.status_code == 201, product.text
+    product_id = product.json()["id"]
+
+    template = client.post(
+        "/api/v1/shopping/lists",
+        headers=owner,
+        json={"name": "Compra mensal", "is_favorite": True, "is_template": True},
+    )
+    assert template.status_code == 201, template.text
+    template_id = template.json()["id"]
+    assert template.json()["is_template"] is True
+
+    item = client.post(
+        f"/api/v1/shopping/lists/{template_id}/items",
+        headers=owner,
+        json={
+            "name": "Café em pó",
+            "product_id": product_id,
+            "quantity": "2.000",
+            "unit": "pacote",
+            "unit_price": "18.90",
+        },
+    )
+    assert item.status_code == 201, item.text
+    assert item.json()["product_id"] == product_id
+
+    copied = client.post(
+        f"/api/v1/shopping/lists/from-template/{template_id}",
+        headers=owner,
+    )
+    assert copied.status_code == 201, copied.text
+    assert copied.json()["is_template"] is False
+    assert copied.json()["name"] == "Compra mensal"
+    assert len(copied.json()["items"]) == 1
+    copied_item = copied.json()["items"][0]
+    assert copied_item["product_id"] == product_id
+    assert copied_item["is_checked"] is False
+    assert copied_item["quantity"] == "2.000"
+
+    assert client.post(
+        f"/api/v1/shopping/lists/{template_id}/items",
+        headers=other,
+        json={"name": "Produto de outro usuário", "product_id": product_id},
+    ).status_code == 404
+
+
+def test_template_creation_rejects_non_template_and_archived_product(client):
+    headers = register(client, "shopping-template-validation@example.com")
+    ordinary = client.post(
+        "/api/v1/shopping/lists", headers=headers, json={"name": "Lista normal"}
+    ).json()
+    response = client.post(
+        f"/api/v1/shopping/lists/from-template/{ordinary['id']}", headers=headers
+    )
+    assert response.status_code == 409
+
+    product = client.post(
+        "/api/v1/shopping/products", headers=headers, json={"name": "Produto arquivado"}
+    ).json()
+    archived = client.post(
+        f"/api/v1/shopping/products/{product['id']}/archive", headers=headers
+    )
+    assert archived.status_code == 200
+
+    template = client.post(
+        "/api/v1/shopping/lists",
+        headers=headers,
+        json={"name": "Modelo", "is_template": True},
+    ).json()
+    rejected = client.post(
+        f"/api/v1/shopping/lists/{template['id']}/items",
+        headers=headers,
+        json={"name": "Produto arquivado", "product_id": product["id"]},
+    )
+    assert rejected.status_code == 404

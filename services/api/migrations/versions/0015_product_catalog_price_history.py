@@ -28,6 +28,7 @@ def upgrade() -> None:
         sa.CheckConstraint("length(trim(name)) > 0", name="ck_shopping_products_name_nonempty"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_shopping_products_user", ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id", "user_id", name="uq_shopping_products_id_user"),
     )
     op.create_index("ix_shopping_products_user_name", "shopping_products", ["user_id", "name"])
     op.create_table(
@@ -52,9 +53,6 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_unique_constraint(
-        "uq_shopping_products_id_user", "shopping_products", ["id", "user_id"]
-    )
     op.create_index(
         "ix_price_observations_product_date",
         "product_price_observations",
@@ -65,6 +63,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_price_observations_product_date", table_name="product_price_observations")
     op.drop_table("product_price_observations")
-    op.drop_constraint("uq_shopping_products_id_user", "shopping_products", type_="unique")
     op.drop_index("ix_shopping_products_user_name", table_name="shopping_products")
     op.drop_table("shopping_products")

@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "Sistema Financeiro Inteligente"
     environment: str = "development"
     api_prefix: str = "/api/v1"
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "http://localhost:5173,tauri://localhost,http://tauri.localhost"
     database_url: str | None = None
     jwt_secret_key: str | None = None
     jwt_algorithm: str = "HS256"

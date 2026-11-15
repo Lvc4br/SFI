@@ -195,7 +195,8 @@ export default function ShoppingPage() {
                 <select aria-label="Conta para registrar a compra" value={purchaseAccountId} onChange={e => setPurchaseAccountId(e.target.value)} disabled={busy || !accounts.length}>
                   <option value="">Selecione a conta</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}
                 </select>
-                <button className="button primary" type="button" disabled={busy || !purchaseAccountId || !detail.items.length} onClick={() => void confirmPurchase()}>Confirmar compra</button>
+                <button className="button primary" type="button" disabled={busy || !purchaseAccountId || !detail.items.length || pending > 0} onClick={() => void confirmPurchase()}>Confirmar compra</button>
+                {pending > 0 && <small>Marque os {pending} item(ns) comprados antes de confirmar.</small>}
               </div>}
               <button className="button secondary" type="button" disabled={busy} onClick={archiveList}>Arquivar</button>
             </div>

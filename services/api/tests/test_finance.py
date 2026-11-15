@@ -1,5 +1,6 @@
 import asyncio
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,7 @@ from sfi_api.config import Settings
 from sfi_api.database import get_session
 from sfi_api.main import app
 from sfi_api.models import Base
+from sfi_api.schemas.finance import TransactionCreate
 
 
 @pytest.fixture
@@ -744,6 +746,30 @@ def test_summary_and_monthly_budget_use_user_timezone_boundaries(client):
 
 
 def test_transaction_amount_preserves_decimal_precision_and_rejects_excess_scale(client):
+    # Validate the full Numeric(18, 2) boundary without SQLite persistence:
+    # SQLite NUMERIC affinity uses binary floating point for large values,
+    # unlike PostgreSQL NUMERIC, and cannot represent every cent at this magnitude.
+    boundary_payload = TransactionCreate.model_validate(
+        {
+            "account_id": "00000000-0000-0000-0000-000000000001",
+            "transaction_type": "income",
+            "amount": "9999999999999999.99",
+            "description": "Limite decimal",
+            "idempotency_key": "decimal-limit-accepted-001",
+        }
+    )
+    assert boundary_payload.amount == Decimal("9999999999999999.99")
+    with pytest.raises(ValueError):
+        TransactionCreate.model_validate(
+            {
+                "account_id": "00000000-0000-0000-0000-000000000001",
+                "transaction_type": "income",
+                "amount": "0.001",
+                "description": "Escala excedente",
+                "idempotency_key": "decimal-excess-scale-001",
+            }
+        )
+
     token = register(client, "decimal-boundary@example.com")
     headers = {"Authorization": f"Bearer {token}"}
     account = client.post(
@@ -751,34 +777,21 @@ def test_transaction_amount_preserves_decimal_precision_and_rejects_excess_scale
         headers=headers,
         json={"name": "Conta decimal", "account_type": "checking"},
     )
-    account_id = account.json()["id"]
+    assert account.status_code == 201, account.text
 
-    accepted = client.post(
+    persisted = client.post(
         "/api/v1/finance/transactions",
         headers=headers,
         json={
-            "account_id": account_id,
+            "account_id": account.json()["id"],
             "transaction_type": "income",
-            "amount": "9999999999999999.99",
-            "description": "Limite decimal aceito",
-            "idempotency_key": "decimal-limit-accepted-001",
+            "amount": "123456.78",
+            "description": "Persistência decimal",
+            "idempotency_key": "decimal-persistence-001",
         },
     )
-    assert accepted.status_code == 201, accepted.text
-    assert accepted.json()["amount"] == "9999999999999999.99"
-
-    rejected = client.post(
-        "/api/v1/finance/transactions",
-        headers=headers,
-        json={
-            "account_id": account_id,
-            "transaction_type": "income",
-            "amount": "0.001",
-            "description": "Escala excedente",
-            "idempotency_key": "decimal-excess-scale-001",
-        },
-    )
-    assert rejected.status_code == 422
+    assert persisted.status_code == 201, persisted.text
+    assert persisted.json()["amount"] == "123456.78"
 
 
 def test_idempotency_keys_are_scoped_to_each_user(client):

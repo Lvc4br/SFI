@@ -36,6 +36,9 @@
     "longDescription": "Aplicativo Desktop do Sistema Financeiro Inteligente.",
     "icon": [
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "binaries/sfi-api.exe": "sfi-api.exe"
+    }
   }
 }

@@ -1,9 +1,9 @@
 {
   "name": "sfi",
   "display_name": "Sistema Financeiro Inteligente",
-  "version": "2.0.0-plan",
-  "status": "planning",
-  "platforms": ["web", "desktop", "mobile"],
+  "version": "0.1.0-dev",
+  "status": "desktop-client-in-development",
+  "platforms": ["desktop-primary", "web-shared-ui", "mobile-planned"],
   "modules": 19,
   "stack": {
     "backend": "Python + FastAPI",

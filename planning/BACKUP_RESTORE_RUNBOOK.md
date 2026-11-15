@@ -36,8 +36,8 @@ O dump temporário sem criptografia é removido no bloco finally. Se a criptogra
 7. O script compara o host da URL com SFI_RESTORE_EXPECTED_HOST e bloqueia divergências antes da restauração. Também valida checksum antes de solicitar confirmação, descriptografar ou executar pg_restore.
 8. Digite a frase de confirmação exigida pelo script somente após revisar o destino isolado.
 9. Verifique tabelas, versão Alembic, integridade referencial, contagens agregadas e endpoints de health em uma API apontada exclusivamente para a branch de teste.
-10. Registre data, duração, SHA-256, branch destino, resultado e problemas encontrados.
-11. Descarte a branch isolada após concluir a revisão, conforme a política de retenção do ambiente de teste.
+10. Execute `scripts/verify-restored-db.ps1` para confirmar Alembic head, tabelas/colunas obrigatórias e constraints/FKs validadas. O script é somente leitura e exige hostname isolado explicitamente autorizado.\n11. Registre data, duração, SHA-256, branch destino, resultado e problemas encontrados.
+12. Descarte a branch isolada após concluir a revisão, conforme a política de retenção do ambiente de teste.
 
 O restore usa --clean e sobrescreve objetos no destino. A confirmação textual não substitui a allowlist de hostname: SFI_RESTORE_EXPECTED_HOST precisa ser conferido visualmente com o host da branch isolada antes de executar o restore. SHA-256 detecta corrupção acidental, enquanto age fornece criptografia autenticada; o arquivo de checksum deve ser armazenado e transportado junto com o backup.
 
@@ -47,7 +47,7 @@ Execute `./scripts/test-backup-integrity.ps1` no Windows PowerShell 5.1 ou Power
 
 ## Validação integrada
 
-Execute `./scripts/validate-all.ps1` após atualizar a branch. O script coordena lint, testes da API em SQLite descartável, typecheck, build Web, jornada E2E e testes de integridade de backup; a verificação do banco restaurado é somente leitura e exige URL/hostname explicitamente configurados.
+Execute `./scripts/validate-all.ps1` após atualizar a branch. O script coordena lint, testes da API em SQLite descartável, typecheck, build Web, jornada E2E, testes de integridade de backup e `scripts/verify-restored-db.ps1`. A verificação PostgreSQL usa apenas consultas read-only e exige URL de restauração e hostname isolado explicitamente autorizados.
 
 A jornada E2E local e os testes de API usam SQLite descartável. Eles não devem ser descritos como execução da jornada da aplicação contra o Neon restaurado.
 

@@ -15,12 +15,16 @@ export default function ShoppingPage() {
   const [unit, setUnit] = useState("un");
   const [price, setPrice] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [templatesOnly, setTemplatesOnly] = useState(false);
+  const [isTemplate, setIsTemplate] = useState(false);
+  const [products, setProducts] = useState<Awaited<ReturnType<typeof api.shoppingProducts>>>([]);
+  const [productId, setProductId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   const refreshLists = useCallback(async (preferredId?: string) => {
-    const data = await api.shoppingLists(favoritesOnly);
+    const data = await api.shoppingLists(favoritesOnly, templatesOnly);
     setLists(data);
     const nextId = preferredId && data.some(list => list.id === preferredId)
       ? preferredId
@@ -28,7 +32,7 @@ export default function ShoppingPage() {
     setSelected(nextId);
     if (!nextId) setDetail(null);
     return nextId;
-  }, [favoritesOnly, selected]);
+  }, [favoritesOnly, templatesOnly, selected]);
 
   const refreshDetail = useCallback(async (id: string) => {
     if (!id) { setDetail(null); return; }
@@ -37,13 +41,13 @@ export default function ShoppingPage() {
 
   useEffect(() => {
     let active = true;
-    void api.shoppingLists(favoritesOnly).then(data => {
+    void api.shoppingLists(favoritesOnly, templatesOnly).then(data => {
       if (!active) return;
       setLists(data);
       setSelected(current => data.some(list => list.id === current) ? current : data[0]?.id ?? "");
     }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar listas."); });
     return () => { active = false; };
-  }, [favoritesOnly]);
+  }, [favoritesOnly, templatesOnly]);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +56,8 @@ export default function ShoppingPage() {
       .catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao abrir lista."); });
     return () => { active = false; };
   }, [selected]);
+
+  useEffect(() => { let active = true; void api.shoppingProducts().then(data => { if (active) setProducts(data); }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar catálogo."); }); return () => { active = false; }; }, []);
 
   const total = useMemo(() => detail?.items.reduce((sum, item) =>
     sum + (item.unit_price === null ? 0 : Number(item.unit_price) * Number(item.quantity)), 0) ?? 0, [detail]);
@@ -73,8 +79,8 @@ export default function ShoppingPage() {
     if (!name.trim()) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const created = await api.createShoppingList(name.trim());
-      setName("");
+      const created = await api.createShoppingList(name.trim(), false, isTemplate);
+      setName(""); setIsTemplate(false);
       await refreshLists(created.id);
       setNotice("Lista criada.");
     } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível criar a lista."); }
@@ -90,12 +96,28 @@ export default function ShoppingPage() {
     if (parsedPrice !== null && (!Number.isFinite(parsedPrice) || parsedPrice < 0)) { setError("Informe um preço válido ou deixe o campo vazio."); return; }
     await run(async () => {
       await api.createShoppingItem(detail.id, {
-        name: itemName.trim(), quantity: parsedQuantity.toFixed(3), unit: unit.trim() || "un",
+        name: itemName.trim(), product_id: productId || null, quantity: parsedQuantity.toFixed(3), unit: unit.trim() || "un",
         unit_price: parsedPrice === null ? null : parsedPrice.toFixed(2),
         position: detail.items.length,
       });
-      setItemName(""); setQuantity("1"); setUnit("un"); setPrice("");
+      setItemName(""); setQuantity("1"); setUnit("un"); setPrice(""); setProductId("");
     }, "Item adicionado.");
+  }
+
+  async function useTemplate() {
+    if (!detail?.is_template) return;
+    setBusy(true); setError(""); setNotice("");
+    try { const created = await api.createShoppingListFromTemplate(detail.id); await refreshLists(created.id); setNotice("Nova lista criada a partir do modelo."); }
+    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível usar o modelo."); }
+    finally { setBusy(false); }
+  }
+
+  async function saveCurrentItemToCatalog() {
+    if (!itemName.trim()) return;
+    setBusy(true); setError(""); setNotice("");
+    try { const product = await api.createShoppingProduct({ name: itemName.trim(), unit: unit.trim() || "un" }); setProducts(current => [...current.filter(item => item.id !== product.id), product]); setProductId(product.id); setNotice("Produto salvo no catálogo pessoal."); }
+    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível salvar o produto."); }
+    finally { setBusy(false); }
   }
 
   async function toggleItem(item: ShoppingItem) {
@@ -133,12 +155,14 @@ export default function ShoppingPage() {
         <div className="panel-heading"><div><h3>Suas listas</h3><p className="muted">Mercado, farmácia e outras compras</p></div></div>
         <form className="shopping-create-list" onSubmit={createList}>
           <input aria-label="Nome da nova lista" placeholder="Nome da lista" value={name} onChange={e => setName(e.target.value)} maxLength={100} required />
+          <label><input type="checkbox" checked={isTemplate} onChange={e => setIsTemplate(e.target.checked)} /> Criar como modelo</label>
           <button className="button primary" disabled={busy || !name.trim()}>Criar lista</button>
         </form>
         <label className="shopping-favorites-filter"><input type="checkbox" checked={favoritesOnly} onChange={e => setFavoritesOnly(e.target.checked)} /> Mostrar apenas favoritas</label>
+        <label className="shopping-favorites-filter"><input type="checkbox" checked={templatesOnly} onChange={e => setTemplatesOnly(e.target.checked)} /> Mostrar apenas modelos</label>
         <div className="shopping-list-options">
           {lists.map(list => <button type="button" key={list.id} className={selected === list.id ? "shopping-list-option active" : "shopping-list-option"} onClick={() => setSelected(list.id)}>
-            <span className="shopping-list-icon">☷</span><span className="shopping-list-name">{list.name}<small>{list.is_favorite ? "Favorita" : "Lista pessoal"}</small></span><span className="shopping-fav-mark">{list.is_favorite ? "★" : ""}</span>
+            <span className="shopping-list-icon">☷</span><span className="shopping-list-name">{list.name}<small>{list.is_template ? "Modelo reutilizável" : list.is_favorite ? "Favorita" : "Lista pessoal"}</small></span><span className="shopping-fav-mark">{list.is_favorite ? "★" : ""}</span>
           </button>)}
           {!lists.length && <p className="muted shopping-empty">Nenhuma lista encontrada. Crie sua primeira lista.</p>}
         </div>
@@ -149,16 +173,19 @@ export default function ShoppingPage() {
             <div><span className="eyebrow">LISTA DE COMPRAS</span><h2>{detail.name}</h2><p className="muted">{pending} pendentes · {checked} comprados</p></div>
             <div className="shopping-actions">
               <button className="button secondary" type="button" disabled={busy} onClick={() => void run(async () => { await api.updateShoppingList(detail.id, { is_favorite: !detail.is_favorite }); await refreshLists(detail.id); }, detail.is_favorite ? "Removida das favoritas." : "Adicionada às favoritas.")}>{detail.is_favorite ? "★ Favorita" : "☆ Favoritar"}</button>
+              {detail.is_template && <button className="button primary" type="button" disabled={busy} onClick={() => void useTemplate()}>Usar modelo</button>}
               <button className="button secondary" type="button" disabled={busy} onClick={renameList}>Renomear</button>
               <button className="button secondary" type="button" disabled={busy} onClick={archiveList}>Arquivar</button>
             </div>
           </div>
           <form className="shopping-add-item" onSubmit={addItem}>
+            <select aria-label="Produto do catálogo" value={productId} onChange={e => { const id = e.target.value; setProductId(id); const product = products.find(item => item.id === id); if (product) { setItemName(product.name); setUnit(product.unit); } }}><option value="">Item avulso / sem produto</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}{product.brand ? " · " + product.brand : ""}</option>)}</select>
             <input className="shopping-item-name" aria-label="Nome do item" placeholder="O que você precisa comprar?" value={itemName} onChange={e => setItemName(e.target.value)} maxLength={120} required />
             <input aria-label="Quantidade" type="number" min="0.001" step="0.001" value={quantity} onChange={e => setQuantity(e.target.value)} required />
             <input aria-label="Unidade" value={unit} onChange={e => setUnit(e.target.value)} maxLength={20} required />
             <input aria-label="Preço unitário estimado" inputMode="decimal" placeholder="Preço (R$)" value={price} onChange={e => setPrice(e.target.value)} />
             <button className="button primary" disabled={busy || !itemName.trim()}>Adicionar</button>
+            <button className="button secondary" type="button" disabled={busy || !itemName.trim() || !!productId} onClick={() => void saveCurrentItemToCatalog()}>Salvar no catálogo</button>
           </form>
           <div className="shopping-items-heading"><strong>Itens</strong><span>Estimativa dos itens com preço informado</span></div>
           {detail.items.length ? <div className="shopping-items">

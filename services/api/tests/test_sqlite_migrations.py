@@ -18,7 +18,7 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
     api_root = Path(__file__).resolve().parents[1]
     database_path = tmp_path / "existing-sfi.sqlite3"
     engine = create_engine(f"sqlite:///{database_path}")
-    excluded = {"shopping_products", "product_price_observations", "stock_movements"}
+    excluded = {"shopping_products", "product_price_observations", "stock_movements", "credit_cards", "credit_invoices", "credit_purchase_installments", "credit_invoice_payments"}
     if not shopping_tables_already_exist:
         excluded.update({"shopping_lists", "shopping_list_items"})
     with engine.begin() as connection:

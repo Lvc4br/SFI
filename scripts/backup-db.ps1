@@ -60,7 +60,7 @@ catch {
     throw
 }
 finally {
-    Remove-Item Env:PGDATABASE -ErrorAction SilentlyContinue
+    Clear-SfiPostgresConnectionEnvironment
     if (Test-Path -LiteralPath $plainPath) {
         Remove-Item -LiteralPath $plainPath -Force
     }

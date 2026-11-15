@@ -91,6 +91,12 @@ def run() -> None:
         daemon=True,
     )
     server_thread.start()
+    shutdown_thread = threading.Thread(
+        target=lambda: setattr(server, "should_exit", True) if sys.stdin.readline() else None,
+        name="sfi-shutdown-listener",
+        daemon=True,
+    )
+    shutdown_thread.start()
     deadline = time.monotonic() + 15
     while not server.started and server_thread.is_alive() and time.monotonic() < deadline:
         time.sleep(0.025)

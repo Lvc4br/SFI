@@ -64,7 +64,7 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
             assert response.status == 200
             assert '"ready":true' in response.read().decode("utf-8")
 
-        process.stdin.write("shutdown\\n")
+        process.stdin.write("shutdown\n")
         process.stdin.flush()
         assert process.wait(timeout=10) == 0
     finally:

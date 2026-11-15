@@ -153,3 +153,8 @@ O CI atual comprova testes automatizados da branch; não comprova recuperação 
 - CI: matriz de jornada completa Chromium, Firefox e WebKit; logs de API/Web publicados como artefato em falha.
 - UI: estilo global de foco visível para links, botões e campos.
 - Limitação: essas verificações foram adicionadas ao código; ainda precisam passar na CI após este commit. Elas não substituem auditoria axe/WCAG, leitores de tela ou testes manuais.
+
+
+### Nota de precisão decimal — SQLite versus PostgreSQL
+
+O teste do limite máximo `Numeric(18,2)` valida agora o schema Pydantic diretamente com `Decimal`, sem persistir o valor extremo no SQLite. SQLite aplica afinidade NUMERIC com representação binária de ponto flutuante em valores grandes, podendo arredondar centavos; PostgreSQL `NUMERIC(18,2)` é o ambiente autoritativo para comprovar persistência financeira nesse limite. A rota continua coberta por um teste de persistência Decimal em magnitude compatível com SQLite. Ainda é necessário adicionar/rodar integração PostgreSQL para o round-trip extremo antes de declarar esse requisito totalmente comprovado.

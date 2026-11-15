@@ -13,9 +13,10 @@ Este runbook prepara backups lógicos criptografados e uma restauração destrut
 
 ## Backup
 
-1. Defina SFI_DATABASE_URL no ambiente local a partir do gerenciador de segredos.
-2. Defina SFI_BACKUP_AGE_RECIPIENT com a chave pública age.
-3. Execute scripts/backup-db.ps1.
+1. Defina SFI_BACKUP_DATABASE_URL no ambiente local com a URL exata do banco que será copiado.
+2. Defina SFI_BACKUP_EXPECTED_HOST com o hostname exato autorizado. O script compara o host da URL com esse valor e bloqueia divergências antes de executar pg_dump.
+3. Defina SFI_BACKUP_AGE_RECIPIENT com a chave pública age.
+4. Execute scripts/backup-db.ps1. O script não usa SFI_DATABASE_URL como fallback.
 4. Confirme a criação de dois arquivos: `.dump.age` (backup criptografado) e `.dump.age.sha256` (checksum SHA-256 em hexadecimal).
 5. Guarde os dois arquivos juntos, copie-os para armazenamento externo com versionamento, retenção e acesso restrito e registre o hash exibido.
 6. Não guarde arquivos de backup no Git nem no diretório público da aplicação.
@@ -26,17 +27,17 @@ O dump temporário sem criptografia é removido no bloco finally. Se a criptogra
 
 1. No Neon, crie uma branch de teste independente da production, sem tráfego de aplicação.
 2. Confirme visualmente projeto, branch e banco de destino. Não use a connection string de production.
-3. Defina SFI_RESTORE_DATABASE_URL com a connection string da branch isolada.
+3. Defina SFI_RESTORE_DATABASE_URL com a connection string da branch isolada e SFI_RESTORE_EXPECTED_HOST com o hostname exato dessa branch.
 4. Defina SFI_RESTORE_TARGET_ISOLATED=YES e SFI_BACKUP_AGE_IDENTITY com o caminho da identidade privada age.
 5. Mantenha o arquivo `.dump.age.sha256` ao lado do backup e com o nome exato `<arquivo.age>.sha256`.
 6. Execute scripts/restore-db.ps1 -BackupFile <arquivo.age>.
-7. O script valida a presença/formato do checksum e recalcula SHA-256 antes de solicitar confirmação, descriptografar ou executar pg_restore. Se o arquivo estiver ausente, vazio, alterado ou com checksum inválido, a restauração é interrompida.
+7. O script compara o host da URL com SFI_RESTORE_EXPECTED_HOST e bloqueia divergências antes da restauração. Também valida checksum antes de solicitar confirmação, descriptografar ou executar pg_restore.
 8. Digite a frase de confirmação exigida pelo script somente após revisar o destino isolado.
 9. Verifique tabelas, versão Alembic, integridade referencial, contagens agregadas e endpoints de health em uma API apontada exclusivamente para a branch de teste.
 10. Registre data, duração, SHA-256, branch destino, resultado e problemas encontrados.
 11. Descarte a branch isolada após concluir a revisão.
 
-O restore usa --clean e sobrescreve objetos no destino. A confirmação textual não detecta automaticamente uma branch de produção; a checagem de isolamento é responsabilidade do operador. SHA-256 detecta corrupção acidental, enquanto age fornece criptografia autenticada; o arquivo de checksum deve ser armazenado e transportado junto com o backup.
+O restore usa --clean e sobrescreve objetos no destino. A confirmação textual não substitui a allowlist de hostname: SFI_RESTORE_EXPECTED_HOST precisa ser conferido visualmente com o host da branch isolada antes de executar o restore. SHA-256 detecta corrupção acidental, enquanto age fornece criptografia autenticada; o arquivo de checksum deve ser armazenado e transportado junto com o backup.
 
 ## Testes automatizados de integridade
 
@@ -64,4 +65,4 @@ Antes do beta, definir formalmente:
 
 ## Estado atual
 
-Scripts, checksum obrigatório e testes automatizados de integridade adicionados. O ensaio real de backup/restore ainda está pendente e não deve ser marcado como concluído.
+Scripts, checksum obrigatório, validação explícita de hostname e testes automatizados de integridade adicionados. O ensaio real de backup/restore ainda está pendente e não deve ser marcado como concluído.

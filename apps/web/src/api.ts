@@ -28,18 +28,6 @@ export function getApiBaseUrl(): string {
   if (typeof localStorage === "undefined") return DEFAULT_API_URL;
   return (localStorage.getItem("sfi.api-url") || DEFAULT_API_URL).replace(/\/$/, "");
 }
-export function setApiBaseUrl(value: string): void {
-  const parsed = new URL(value.trim());
-  const local = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
-  if (!["http:", "https:"].includes(parsed.protocol) || (!local && parsed.protocol !== "https:")) {
-    throw new Error("Use HTTPS para servidores remotos. HTTP só é permitido em localhost.");
-  }
-  if (parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== "/") {
-    throw new Error("Informe somente a origem da API, sem credenciais, caminho ou parâmetros.");
-  }
-  localStorage.setItem("sfi.api-url", parsed.origin);
-  clearSession();
-}
 let refreshInFlight: Promise<Session> | null = null;
 
 export type User = { id: string; email: string; is_active: boolean; timezone: string; created_at: string };

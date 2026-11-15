@@ -39,7 +39,7 @@ Na raiz do repositório:
 pnpm install --frozen-lockfile
 python -m pip install -e .\services\api
 python -m pip install pyinstaller
-pyinstaller --noconfirm --clean --onefile --name sfi-api --paths services/api/src --add-data "services/api/alembic.ini;." --add-data "services/api/migrations;migrations" --collect-all alembic --collect-all sqlalchemy --collect-all sfi_api --collect-all uvicorn --collect-all fastapi --collect-all pydantic_settings --collect-all pydantic --collect-all aiosqlite --collect-all asyncpg --collect-all pwdlib --collect-all argon2 --collect-all jwt services/api/src/sfi_api/desktop_runtime.py
+pyinstaller --noconfirm --clean --onefile --name sfi-api --paths services/api/src --add-data "services/api/alembic.ini;." --add-data "services/api/migrations;migrations" --collect-all alembic --collect-all sqlalchemy --collect-all sfi_api --collect-all uvicorn --collect-all fastapi --collect-all pydantic_settings --collect-all pydantic --collect-all pydantic_core --collect-all aiosqlite --collect-all asyncpg --collect-all greenlet --collect-all tzdata --collect-all pwdlib --collect-all argon2 --collect-all jwt services/api/src/sfi_api/desktop_runtime.py
 New-Item -ItemType Directory -Force apps/desktop/src-tauri/binaries | Out-Null
 Copy-Item dist/sfi-api.exe apps/desktop/src-tauri/binaries/sfi-api.exe
 cd apps/desktop

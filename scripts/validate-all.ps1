@@ -8,36 +8,41 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$apiRoot = Join-Path $repoRoot "services/api"
-
-function Invoke-SfiScript {
-    param(
-        [Parameter(Mandatory = $true)][string]$Name,
-        [Parameter(Mandatory = $true)][string]$Path,
-        [string[]]$Arguments = @()
-    )
-
-    Write-Host "`n========== $Name ==========" -ForegroundColor Cyan
-    & $Path @Arguments
-    if (-not $?) {
-        throw "Etapa '$Name' falhou."
-    }
-}
+$validatePath = Join-Path $PSScriptRoot "validate.ps1"
+$backupTestsPath = Join-Path $PSScriptRoot "test-backup-integrity.ps1"
 
 Write-Host "SFI - VALIDACAO INTEGRADA" -ForegroundColor Green
 Write-Host "Raiz: $repoRoot"
 Write-Host "Os testes automatizados usam SQLite descartavel."
 Write-Host "A verificacao Neon e somente leitura; nenhum restore ou migration sera executado."
 
-# 1. Full local validation (lint, API tests, typecheck, build, browser E2E).
-$validationArgs = @()
-if ($InstallDependencies) { $validationArgs += "-InstallDependencies" }
-$validationArgs += "-E2E"
-if ($InstallBrowser) { $validationArgs += "-InstallBrowser" }
-Invoke-SfiScript -Name "VALIDACAO DE CODIGO, TESTES E E2E" -Path (Join-Path $PSScriptRoot "validate.ps1") -Arguments $validationArgs
+# 1. Full local validation. Invoke the script directly so PowerShell preserves
+# named switches such as -E2E instead of expanding them through an argument array.
+Write-Host "`n========== VALIDACAO DE CODIGO, TESTES E E2E ==========" -ForegroundColor Cyan
+if ($InstallDependencies) {
+    if ($InstallBrowser) {
+        & $validatePath -InstallDependencies -E2E -InstallBrowser
+    }
+    else {
+        & $validatePath -InstallDependencies -E2E
+    }
+}
+elseif ($InstallBrowser) {
+    & $validatePath -E2E -InstallBrowser
+}
+else {
+    & $validatePath -E2E
+}
+if (-not $?) {
+    throw "Falha na validacao de codigo, testes ou E2E."
+}
 
 # 2. Backup artifact integrity tests (temporary local files only).
-Invoke-SfiScript -Name "TESTES DE INTEGRIDADE DE BACKUP" -Path (Join-Path $PSScriptRoot "test-backup-integrity.ps1")
+Write-Host "`n========== TESTES DE INTEGRIDADE DE BACKUP ==========" -ForegroundColor Cyan
+& $backupTestsPath
+if (-not $?) {
+    throw "Falha nos testes de integridade do backup."
+}
 
 # 3. Verify the restored isolated database without changing it.
 Write-Host "`n========== VERIFICACAO DO BANCO RESTAURADO ==========" -ForegroundColor Cyan

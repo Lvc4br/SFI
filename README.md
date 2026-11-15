@@ -10,9 +10,9 @@ O SFI ajuda pessoas — inclusive iniciantes absolutos — a aprender sobre dinh
 
 ## Plataformas e tecnologias
 
-- **Web:** React + TypeScript.
-- **Desktop:** Tauri + React + TypeScript.
-- **Mobile:** React Native + Expo.
+- **Desktop (produto principal):** Tauri 2 + React + TypeScript, distribuído como instalador nativo para Windows.
+- **Interface compartilhada:** React + TypeScript é empacotado dentro do aplicativo Desktop; o usuário não precisa abrir um navegador nem acessar um site hospedado.
+- **Mobile:** planejado para uma fase posterior, não faz parte do primeiro instalador.
 - **Backend:** Python + FastAPI.
 - **Banco central:** Neon PostgreSQL.
 - **Arquivos:** armazenamento privado compatível com S3.
@@ -129,6 +129,10 @@ O script confirma o host de destino e pede que você digite `APLICAR`; depois ex
 
 ## Status do projeto
 
-**Fundação e núcleo financeiro de backend implementados; MVP Web ainda em desenvolvimento.** O repositório contém autenticação com rotação e revogação de sessões, contas, categorias, movimentações, saldos, resumo financeiro, orçamentos mensais, transferências, histórico paginado, estornos auditáveis, recorrências e projeções de fluxo de caixa. As migrations até a revisão atual foram aplicadas no ambiente Neon de desenvolvimento. A suíte local reportada nesta etapa passou com 36 testes.
+**Direção de entrega: aplicativo Desktop instalável.** A interface React é incorporada à janela nativa Tauri; ela não deve ser tratada como um site permanente ou como o produto final. O backend FastAPI e o PostgreSQL Neon permanecem serviços centrais, sem acesso direto do cliente ao banco.
 
-A Web já possui uma primeira jornada integrada com autenticação, contas, categorias, movimentações, transferências, orçamento, dashboard e educação contextual; a implementação e suas limitações estão descritas em [WEB_MVP_IMPLEMENTATION.md](docs/WEB_MVP_IMPLEMENTATION.md). Permanecem pendentes filtros/paginação visual, edição/arquivamento, estornos na interface, conciliação, cartões/faturas, recuperação de senha/verificação de e-mail, hardening de sessão e segurança para beta público, clientes Desktop/Mobile e demais módulos do roadmap. **O SFI ainda não está pronto para produção.**
+A fundação financeira já implementa autenticação, contas, categorias, movimentações, transferências, estornos, recorrências, orçamento, dashboard, filtros, paginação e exportação. A validação local reportada em 15/11/2026 passou: 58 testes da API, typecheck, build Web, jornada E2E Chromium, 8 testes de integridade de backup e verificação read-only do banco restaurado.
+
+O scaffold Desktop Tauri 2, a configuração da janela nativa, permissões mínimas, configuração de endpoint HTTPS na tela inicial e pipeline de instaladores Windows NSIS/MSI foram adicionados à branch de desenvolvimento. **Ainda não há instalador aprovado nem release assinada**: o build do Windows está sendo validado pela CI. A API precisa ser implantada em HTTPS e configurada com as origens Tauri antes de o aplicativo ser usado fora do ambiente local.
+
+Não considerar o produto pronto para produção até concluir os testes multiplataforma, a validação PostgreSQL concorrente, a recuperação com fixtures, o hardening de segurança/LGPD, a assinatura do instalador, a operação do backend e o beta controlado. Não executar migrations, restores ou deploy em produção sem autorização explícita.

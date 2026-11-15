@@ -15,11 +15,20 @@ def test_complete_web_financial_journey() -> None:
     password = "E2e-SFI-Strong-Password-2026"
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
+        browser_name = os.environ.get("SFI_E2E_BROWSER", "chromium").lower()
+        browser_type = getattr(playwright, browser_name, None)
+        if browser_type is None:
+            raise ValueError(f"Unsupported SFI_E2E_BROWSER: {browser_name}")
+        browser = browser_type.launch()
         page: Page = browser.new_page(accept_downloads=True)
         try:
             page.goto(base_url, wait_until="networkidle")
             expect(page.get_by_role("heading", name="Acesse sua conta")).to_be_visible()
+            assert page.get_by_role("main").count() == 1, "The page must expose one main landmark"
+            assert page.get_by_role("heading", level=1).count() >= 1, "A primary heading is required"
+            page.keyboard.press("Tab")
+            assert page.evaluate("document.activeElement !== document.body"), "Keyboard focus must enter the page"
+            page.keyboard.press("Shift+Tab")
             page.get_by_role("button", name="Criar conta", exact=True).click()
             expect(page.get_by_role("heading", name="Crie sua conta")).to_be_visible()
 

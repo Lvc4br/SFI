@@ -22,3 +22,8 @@ coverage/
 /backups/
 *.dump
 *.dump.age
+
+# Native desktop build outputs
+target/
+*.spec
+apps/desktop/src-tauri/binaries/sfi-api.exe

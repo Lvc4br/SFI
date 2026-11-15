@@ -14,6 +14,7 @@ Tauri incorpora React, inicia backend local empacotado, cria/abre SQLite no dire
 - Recorrências/projeções identificadas.
 - Orçamento, dashboard, filtros e histórico.
 - Importação/exportação financeira inicial e backup/restore local.
+- Listas de compras pessoais e favoritas, itens com quantidade/unidade/preço estimado, marcação de compra, arquivamento e interface responsiva.
 - Temas e estados de interface.
 
 ## Requisitos Desktop
@@ -29,7 +30,7 @@ Tauri incorpora React, inicia backend local empacotado, cria/abre SQLite no dire
 Decimal/Numeric; moeda explícita; transferências neutras no resultado; transações idempotentes; lançamentos confirmados corrigidos por estorno; exclusão/arquivamento preservam integridade.
 
 ## Fora da primeira fatia, mas obrigatório no produto completo
-Cartões/faturas; conciliação/OFX; dívidas/amortizações; metas; investimentos; calculadoras; indicadores; listas/compras; estoque; XML/PDF/OCR; patrimônio; documentos; importação/exportação universal; relatórios; diagramas; IA; sync opcional; hardening e acessibilidade.
+Cartões/faturas; conciliação/OFX; dívidas/amortizações; metas; investimentos; calculadoras; indicadores; compras confirmadas e histórico de preços; estoque; XML/PDF/OCR; patrimônio; documentos; importação/exportação universal; relatórios; diagramas; IA; sync opcional; hardening e acessibilidade.
 
 ## Aceite
 Instalação limpa sem ambiente de desenvolvimento, criação SQLite, jornada financeira offline, dados preservados após reinício, backup/restore, migration versionada, desinstalação sem perda silenciosa e E2E no aplicativo instalado.

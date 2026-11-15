@@ -29,8 +29,10 @@ Dashboard; contas e cartões; movimentações e recorrências; orçamento e flux
 - Backup/exportação em formatos abertos.
 
 ## Estado real
-A fundação atual contém autenticação, contas, categorias, movimentações, transferências, estornos, recorrências, orçamento, dashboard, filtros, paginação, CSV, trilha de segurança e scripts de backup PostgreSQL. O scaffold Tauri e o pipeline inicial de build Windows existem.
+A fundação inclui autenticação, contas, categorias, movimentações, transferências, estornos, recorrências, orçamento, dashboard, filtros, paginação, CSV e trilha de segurança. O runtime Desktop local foi implementado com Tauri + sidecar FastAPI, SQLite em AppLocalData, chave JWT por instalação, API em loopback e encerramento supervisionado. O pipeline Windows já gerou instaladores NSIS/MSI e aprovou o smoke test do sidecar.
 
-**Ainda não é um aplicativo local-first concluído.** O Desktop atual ainda depende de endpoint de API; o sidecar FastAPI, SQLite local como banco padrão, lifecycle do processo e operação offline precisam ser implementados. Compras, OCR, investimentos, patrimônio, exportação universal, diagramas avançados e IA também estão pendentes. Não há instalador aprovado nesta revisão.
+O módulo inicial de compras também está implementado no branch de desenvolvimento: listas pessoais, favoritas, itens com quantidade/unidade/preço, marcação de itens comprados, arquivamento e interface responsiva. O total mostrado é uma estimativa e não cria despesas automaticamente.
+
+**O produto completo ainda não está concluído nem liberado.** A PR #17 permanece Draft e os testes do último commit ainda precisam terminar. O smoke test cobre o sidecar empacotado, mas não substitui testes de instalação limpa/atualização/desinstalação em Windows de destino. Histórico de preços, compras confirmadas, OCR fiscal, estoque, cartões/faturas, investimentos, patrimônio, importação/exportação universal, diagramas avançados, sync opcional e IA permanecem pendentes.
 
 Consulte [o plano de conclusão](planning/COMPLETION_MASTER_PLAN.md) e [o runtime Desktop](architecture/DESKTOP_RUNTIME.md). Nenhuma migration, restauração ou escrita em banco remoto de produção deve ser executada sem autorização explícita.

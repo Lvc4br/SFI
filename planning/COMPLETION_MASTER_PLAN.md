@@ -165,3 +165,12 @@ O teste do limite máximo `Numeric(18,2)` valida agora o schema Pydantic diretam
 - O smoke test HTTP da API restaurada **não foi executado**: faltou configurar `SFI_RESTORE_API_BASE_URL`. Não registrar a etapa como aprovada.
 - A execução CI do commit anterior `a95b19d` encontrou uma suposição incorreta no teste E2E: o total filtrado foi 32, não 30, porque duas movimentações de preparação também podem cair no dia filtrado conforme o timezone do runner. A API retornou corretamente `offset=25` e cinco itens na página final. O teste foi ajustado para não fixar o total global e verificar que os cinco itens da última página são os registros de volume criados pelo próprio teste.
 - A correção acima está no commit `968d3f7`; aguardar CI e Security desse commit antes de marcar a matriz cross-browser como aprovada.
+
+
+## Investigação da falha de paginação E2E — 15/11/2026
+
+- O log do operador mostrou que a requisição offset=25 retornou HTTP de sucesso, com cinco itens, mas a interface permaneceu em offset=0 (Página 1 de 2).
+- A causa plausível no código era concorrência entre requisições disparadas por alterações sucessivas dos filtros: respostas antigas podiam chegar depois da requisição mais recente e sobrescrever o estado de paginação. O teste também alterava três filtros sem aguardar cada resposta, tornando a sequência não determinística.
+- Correção Web no commit 99b4aee: sequência monotônica de requisições com useRef; somente a resposta da solicitação mais recente pode atualizar itens, total, offset, erro e estado de carregamento. A proteção cobre reload, alteração de filtros e mudança de página.
+- Correção E2E no commit 4a94a96: o teste aguarda individualmente as respostas de cada filtro antes de prosseguir, verifica o término do carregamento e só então navega para a página seguinte.
+- **Ainda não validado:** a correção precisa passar na validação local do operador e na CI Chromium/Firefox/WebKit. Não declarar a paginação resolvida até obter essas evidências.

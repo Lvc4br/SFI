@@ -29,7 +29,7 @@ Os instaladores são gerados em `src-tauri/target/release/bundle/`.
 
 ## Backend
 
-O Desktop é um cliente nativo; não é um site hospedado. A API FastAPI e o PostgreSQL continuam sendo serviços de backend e precisam estar acessíveis para autenticação e sincronização entre dispositivos. A URL da API é definida no build por `VITE_API_URL`; sem configuração, a interface usa `http://localhost:8000`, adequado somente a um backend local de desenvolvimento.
+O Desktop é um cliente nativo; não é um site hospedado. A API FastAPI e o PostgreSQL continuam sendo serviços de backend e precisam estar acessíveis para autenticação e sincronização entre dispositivos. A URL da API pode ser configurada na tela inicial do aplicativo e é armazenada localmente sem credenciais. Sem configuração, a interface usa `http://localhost:8000`, adequado somente a um backend local de desenvolvimento. O cliente Desktop usa refresh token rotativo em memória, sem depender de cookies de terceiros; ao fechar completamente o aplicativo, o usuário precisará autenticar novamente. O servidor deve permitir as origens Tauri (`tauri://localhost` e `http://tauri.localhost`) em `SFI_CORS_ORIGINS`.
 
 Não inclua credenciais, connection strings ou segredos no bundle do aplicativo. O cliente nunca conecta diretamente ao PostgreSQL.
 

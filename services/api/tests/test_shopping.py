@@ -274,7 +274,7 @@ def test_confirm_purchase_creates_one_expense_and_price_history(client):
         headers=headers,
         json={"account_id": account.json()["id"]},
     )
-    assert replay.status_code == 404
+    assert replay.status_code == 409
 
 
 def test_confirm_purchase_requires_prices_and_rejects_other_users_account(client):

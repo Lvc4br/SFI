@@ -1,37 +1,60 @@
 # SFI Desktop
 
-Aplicativo instalável para Windows, construído com Tauri 2 e a interface React/TypeScript existente.
+Aplicativo financeiro pessoal para Windows 10/11 x64, construído com Tauri 2, React/TypeScript e FastAPI empacotado. O Desktop executa a API no próprio computador e usa SQLite como banco local; não exige servidor PostgreSQL ou conexão com a internet para a jornada financeira já implementada.
+
+## Runtime Desktop
+
+Ao abrir o SFI, o processo nativo:
+
+1. Resolve o diretório privado do aplicativo pelo Tauri AppLocalData.
+2. Inicia o executável FastAPI incluído no instalador (PyInstaller).
+3. Cria ou valida uma chave JWT local persistente em `secrets/jwt.key`; uma chave existente inválida interrompe a inicialização sem sobrescrever os dados.
+4. Executa o bootstrap/migrations do SQLite em `database/sfi.sqlite3`.
+5. Vincula a API somente a `127.0.0.1`, em uma porta efêmera, e comunica a origem à interface por handshake de inicialização.
+6. Encerra a API graciosamente quando o aplicativo fecha, com timeout e encerramento de contingência.
+
+A interface Desktop não solicita endpoint remoto e não conecta diretamente ao banco. Tokens de sessão ficam em memória; ao fechar o SFI, será necessário autenticar novamente. O SQLite e a chave permanecem no diretório privado do aplicativo.
 
 ## Desenvolvimento
 
-Pré-requisitos: Node.js, pnpm, Rust stable e as dependências nativas do Tauri para o sistema operacional.
+Pré-requisitos: Node.js, pnpm, Rust stable, Python 3.12 e dependências nativas do Tauri para o sistema operacional.
 
 Na raiz do repositório:
 
 ```powershell
 pnpm install --frozen-lockfile
+python -m pip install -e ".\services\api[dev]"
+$env:PYTHONPATH = (Resolve-Path .\services\api\src).Path
 cd apps/desktop
 pnpm dlx @tauri-apps/cli@^2 dev
 ```
 
-## Gerar instaladores Windows
+No modo de desenvolvimento, o Tauri usa o Python local para executar `sfi_api.desktop_runtime`. Configure `SFI_PYTHON` se o executável Python não estiver no PATH.
 
-Na raiz, instale as dependências JavaScript e o Tauri CLI:
+## Build local Windows
+
+Na raiz do repositório:
 
 ```powershell
 pnpm install --frozen-lockfile
+python -m pip install -e .\services\api
+python -m pip install pyinstaller
+pyinstaller --noconfirm --clean --onefile --name sfi-api --paths services/api/src --add-data "services/api/alembic.ini;." --add-data "services/api/migrations;migrations" --collect-all alembic --collect-all sqlalchemy --collect-all sfi_api --collect-all uvicorn --collect-all fastapi --collect-all pydantic_settings --collect-all pydantic --collect-all aiosqlite --collect-all asyncpg --collect-all pwdlib --collect-all argon2 --collect-all jwt services/api/src/sfi_api/desktop_runtime.py
+New-Item -ItemType Directory -Force apps/desktop/src-tauri/binaries | Out-Null
+Copy-Item dist/sfi-api.exe apps/desktop/src-tauri/binaries/sfi-api.exe
 cd apps/desktop
 pnpm dlx @tauri-apps/cli@^2 build --bundles nsis,msi
 ```
 
-Os instaladores são gerados em `src-tauri/target/release/bundle/`.
+Os instaladores são gerados em `src-tauri/target/release/bundle/`. O workflow GitHub Actions executa esse empacotamento e publica artefatos de CI temporários.
 
-## Backend
+## Dados e limites atuais
 
-O Desktop é um cliente nativo; não é um site hospedado. A API FastAPI e o PostgreSQL continuam sendo serviços de backend e precisam estar acessíveis para autenticação e sincronização entre dispositivos. A URL da API pode ser configurada na tela inicial do aplicativo e é armazenada localmente sem credenciais. Sem configuração, a interface usa `http://localhost:8000`, adequado somente a um backend local de desenvolvimento. O cliente Desktop usa refresh token rotativo em memória, sem depender de cookies de terceiros; ao fechar completamente o aplicativo, o usuário precisará autenticar novamente. O servidor deve permitir as origens Tauri (`tauri://localhost` e `http://tauri.localhost`) em `SFI_CORS_ORIGINS`.
+- Banco: `%LOCALAPPDATA%\\com.sfi.desktop\\database\\sfi.sqlite3`.
+- Chave local: `%LOCALAPPDATA%\\com.sfi.desktop\\secrets\\jwt.key`.
+- Os dados não são colocados em Program Files nem dentro do bundle.
+- Não há sincronização Neon implementada nesta etapa.
+- O runtime e a jornada financeira já existente são locais; os módulos de compras/listas, OCR fiscal, estoque, investimentos, patrimônio, importação/exportação universal, relatórios avançados e IA ainda estão em desenvolvimento.
+- O build do instalador não substitui os testes de instalação limpa, atualização, desinstalação preservando dados e recuperação de backup no Windows de destino.
 
-Não inclua credenciais, connection strings ou segredos no bundle do aplicativo. O cliente nunca conecta diretamente ao PostgreSQL.
-
-## Estado
-
-Este scaffold estabelece a aplicação Tauri, a janela nativa, permissões mínimas e o pipeline de empacotamento Windows. Ainda não representa um instalador validado nem uma release assinada. A distribuição exige configurar a URL HTTPS da API, assinar o instalador e executar testes no Windows de destino.
+Não inclua credenciais, connection strings ou segredos externos no bundle do aplicativo.

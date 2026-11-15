@@ -10,6 +10,8 @@ import threading
 import time
 from pathlib import Path
 
+from sqlalchemy.engine import URL
+
 
 def ensure_local_secret(data_dir: Path) -> str:
     """Create a persistent per-install JWT key without overwriting an existing key."""
@@ -54,8 +56,6 @@ def run() -> None:
     os.environ["SFI_DATA_DIR"] = str(data_dir)
     os.environ["SFI_ENVIRONMENT"] = "desktop"
     os.environ["SFI_JWT_SECRET_KEY"] = ensure_local_secret(data_dir)
-    from sqlalchemy.engine import URL
-
     local_database = data_dir / "database" / "sfi.sqlite3"
     local_database.parent.mkdir(parents=True, exist_ok=True)
     os.environ["SFI_DATABASE_URL"] = URL.create(

@@ -6,7 +6,6 @@ from pathlib import Path
 
 from sfi_api.config import Settings
 
-
 API_ROOT = Path(__file__).resolve().parents[1]
 
 

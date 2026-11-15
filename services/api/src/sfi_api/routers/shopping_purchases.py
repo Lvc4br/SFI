@@ -90,6 +90,11 @@ async def confirm_purchase(
             status_code=422,
             detail="Informe o preço unitário de todos os itens antes de confirmar a compra.",
         )
+    if any(not item.is_checked for item in items):
+        raise HTTPException(
+            status_code=422,
+            detail="Marque todos os itens como comprados antes de confirmar a compra.",
+        )
 
     account = await session.scalar(
         select(Account).where(

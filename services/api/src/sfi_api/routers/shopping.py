@@ -10,8 +10,13 @@ from sfi_api.dependencies import get_current_user
 from sfi_api.models.shopping import ShoppingList, ShoppingListItem
 from sfi_api.models.user import User
 from sfi_api.schemas.shopping import (
-    ShoppingItemCreate, ShoppingItemResponse, ShoppingItemUpdate,
-    ShoppingListCreate, ShoppingListDetail, ShoppingListResponse, ShoppingListUpdate,
+    ShoppingItemCreate,
+    ShoppingItemResponse,
+    ShoppingItemUpdate,
+    ShoppingListCreate,
+    ShoppingListDetail,
+    ShoppingListResponse,
+    ShoppingListUpdate,
 )
 
 router = APIRouter(prefix="/shopping", tags=["shopping"])

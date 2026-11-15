@@ -32,6 +32,9 @@ let refreshInFlight: Promise<Session> | null = null;
 
 export type User = { id: string; email: string; is_active: boolean; timezone: string; created_at: string };
 export type SecurityEvent = { id: string; event_type: string; created_at: string };
+export type ShoppingList = { id: string; name: string; is_favorite: boolean; archived_at: string | null; created_at: string; updated_at: string };
+export type ShoppingItem = { id: string; list_id: string; name: string; quantity: string; unit: string; unit_price: string | null; is_checked: boolean; position: number; notes: string | null; created_at: string };
+export type ShoppingListDetail = ShoppingList & { items: ShoppingItem[] };
 export type Session = { access_token: string; refresh_token: string | null; expires_in: number; user: User };
 export type Account = { id: string; name: string; account_type: "checking" | "savings" | "cash" | "credit"; currency: string; opening_balance: string; archived_at: string | null; created_at: string };
 export type Category = { id: string; name: string; category_type: "income" | "expense"; archived_at: string | null; created_at: string };
@@ -165,4 +168,12 @@ export const api = {
   createBudget: (data: { category_id: string; period: string; currency: string; limit_amount: string }) =>
     request<Budget>("/api/v1/finance/budgets", { method: "POST", body: JSON.stringify(data) }),
   summary: (start: string, end: string) => request<Summary>(`/api/v1/finance/summary?start_date=${start}&end_date=${end}`),
+  shoppingLists: (favoritesOnly = false) => request<ShoppingList[]>(`/api/v1/shopping/lists${favoritesOnly ? "?favorites_only=true" : ""}`),
+  shoppingList: (id: string) => request<ShoppingListDetail>(`/api/v1/shopping/lists/${id}`),
+  createShoppingList: (name: string, is_favorite = false) => request<ShoppingList>("/api/v1/shopping/lists", { method: "POST", body: JSON.stringify({ name, is_favorite }) }),
+  updateShoppingList: (id: string, data: { name?: string; is_favorite?: boolean }) => request<ShoppingList>(`/api/v1/shopping/lists/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  archiveShoppingList: (id: string) => request<ShoppingList>(`/api/v1/shopping/lists/${id}/archive`, { method: "POST" }),
+  createShoppingItem: (listId: string, data: { name: string; quantity: string; unit: string; unit_price?: string | null; notes?: string | null; position: number }) => request<ShoppingItem>(`/api/v1/shopping/lists/${listId}/items`, { method: "POST", body: JSON.stringify(data) }),
+  updateShoppingItem: (listId: string, itemId: string, data: Partial<Pick<ShoppingItem, "name" | "quantity" | "unit" | "unit_price" | "is_checked" | "notes" | "position">>) => request<ShoppingItem>(`/api/v1/shopping/lists/${listId}/items/${itemId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteShoppingItem: (listId: string, itemId: string) => request<void>(`/api/v1/shopping/lists/${listId}/items/${itemId}`, { method: "DELETE" }),
 };

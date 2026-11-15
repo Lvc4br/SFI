@@ -129,3 +129,45 @@ html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:
 :where(button,a):disabled {
   cursor: not-allowed;
 }
+
+
+/* Shopping lists */
+.shopping-layout{display:grid;grid-template-columns:minmax(250px,.75fr) minmax(0,2fr);gap:18px;align-items:start}
+.shopping-sidebar,.shopping-detail{min-width:0}
+.shopping-create-list{display:grid;grid-template-columns:1fr auto;gap:8px;margin:14px 0}
+.shopping-create-list input,.shopping-add-item input{min-width:0;min-height:42px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:12px}
+.shopping-favorites-filter{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;margin:12px 0}
+.shopping-list-options{display:grid;gap:6px;margin-top:12px}
+.shopping-list-option{display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:1px solid transparent;border-radius:11px;background:transparent;color:var(--ink);text-align:left;cursor:pointer}
+.shopping-list-option:hover,.shopping-list-option.active{background:var(--soft);border-color:var(--line)}
+.shopping-list-icon{font-size:20px;color:var(--green)}
+.shopping-list-name{display:grid;gap:4px;min-width:0;flex:1;font-size:12px;font-weight:700;overflow-wrap:anywhere}
+.shopping-list-name small{font-size:10px;color:var(--muted);font-weight:500}
+.shopping-fav-mark{color:#b48b37}
+.shopping-empty{font-size:11px;line-height:1.6}
+.shopping-detail-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:18px}
+.shopping-detail-heading h2{font-size:22px;margin:6px 0}
+.shopping-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.shopping-actions .button{font-size:10px;padding:9px 11px}
+.shopping-add-item{display:grid;grid-template-columns:minmax(160px,2fr) minmax(65px,.55fr) minmax(65px,.55fr) minmax(90px,.8fr) auto;gap:8px;padding:14px;background:var(--soft);border-radius:12px}
+.shopping-items-heading{display:flex;justify-content:space-between;gap:12px;margin:22px 0 10px;font-size:12px}
+.shopping-items-heading span{font-size:10px;color:var(--muted)}
+.shopping-items{display:grid;gap:7px}
+.shopping-item{display:grid;grid-template-columns:20px minmax(0,1fr) auto 28px;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:11px}
+.shopping-item>input{width:17px;height:17px;accent-color:var(--green)}
+.shopping-item-description{display:grid;gap:4px;min-width:0}
+.shopping-item-description strong{font-size:12px;overflow-wrap:anywhere}
+.shopping-item-description small{font-size:10px;color:var(--muted)}
+.shopping-item-total{font-size:12px;font-variant-numeric:tabular-nums}
+.shopping-item.checked .shopping-item-description strong{text-decoration:line-through;color:var(--muted)}
+.shopping-delete{width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:19px;cursor:pointer}
+.shopping-delete:hover{background:#fbe9e7;color:#a43f38}
+.shopping-total{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-top:18px;padding:15px;border-top:1px solid var(--line)}
+.shopping-total>div{display:grid;gap:5px}
+.shopping-total span{font-size:10px;color:var(--muted)}
+.shopping-total strong{font-size:20px;font-variant-numeric:tabular-nums}
+.shopping-total small{max-width:300px;text-align:right;color:var(--muted);font-size:10px;line-height:1.5}
+.shopping-no-selection{min-height:300px}
+.app-shell[data-theme="dark"] .shopping-create-list input,.app-shell[data-theme="dark"] .shopping-add-item input{background:#111c15;color:var(--ink);border-color:#3a4b40}
+@media(max-width:950px){.shopping-layout{grid-template-columns:1fr}.shopping-list-options{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.shopping-add-item{grid-template-columns:1fr 1fr}.shopping-add-item .shopping-item-name{grid-column:1/-1}}
+@media(max-width:600px){.shopping-detail-heading{flex-direction:column}.shopping-actions{justify-content:flex-start}.shopping-add-item{grid-template-columns:1fr 1fr}.shopping-add-item .shopping-item-name{grid-column:1/-1}.shopping-add-item button{grid-column:1/-1}.shopping-items-heading{flex-direction:column}.shopping-item{grid-template-columns:20px minmax(0,1fr) 25px}.shopping-item-total{grid-column:2;grid-row:2}.shopping-delete{grid-column:3;grid-row:1}.shopping-total{align-items:flex-start;flex-direction:column}.shopping-total small{text-align:left}}

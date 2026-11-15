@@ -73,6 +73,7 @@ def run() -> None:
     command.upgrade(migration_config, "head")
 
     import uvicorn
+
     from sfi_api.main import app
 
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

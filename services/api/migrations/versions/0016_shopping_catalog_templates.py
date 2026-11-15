@@ -13,20 +13,40 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "shopping_lists",
-        sa.Column("is_template", sa.Boolean(), server_default=sa.false(), nullable=False),
-    )
-    with op.batch_alter_table("shopping_list_items") as batch_op:
-        batch_op.add_column(sa.Column("product_id", sa.Uuid(), nullable=True))
-        batch_op.create_foreign_key(
-            "fk_shopping_items_product_owner",
-            "shopping_products",
-            ["product_id", "user_id"],
-            ["id", "user_id"],
-            ondelete="RESTRICT",
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+
+    if "is_template" not in {column["name"] for column in inspector.get_columns("shopping_lists")}:
+        op.add_column(
+            "shopping_lists",
+            sa.Column("is_template", sa.Boolean(), server_default=sa.false(), nullable=False),
         )
-    op.create_index("ix_shopping_items_product", "shopping_list_items", ["product_id"])
+
+    inspector = sa.inspect(bind)
+    item_columns = {column["name"] for column in inspector.get_columns("shopping_list_items")}
+    foreign_keys = inspector.get_foreign_keys("shopping_list_items")
+    has_product_fk = any(
+        fk.get("name") == "fk_shopping_items_product_owner" for fk in foreign_keys
+    )
+    if "product_id" not in item_columns or not has_product_fk:
+        with op.batch_alter_table("shopping_list_items") as batch_op:
+            if "product_id" not in item_columns:
+                batch_op.add_column(sa.Column("product_id", sa.Uuid(), nullable=True))
+            if not has_product_fk:
+                batch_op.create_foreign_key(
+                    "fk_shopping_items_product_owner",
+                    "shopping_products",
+                    ["product_id", "user_id"],
+                    ["id", "user_id"],
+                    ondelete="RESTRICT",
+                )
+
+    inspector = sa.inspect(bind)
+    if not any(
+        index["name"] == "ix_shopping_items_product"
+        for index in inspector.get_indexes("shopping_list_items")
+    ):
+        op.create_index("ix_shopping_items_product", "shopping_list_items", ["product_id"])
 
 
 def downgrade() -> None:

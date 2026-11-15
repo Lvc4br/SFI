@@ -50,7 +50,12 @@ try {
 
     # Libpq recebe os campos da conexão pelo ambiente, sem expor credenciais nos argumentos do processo.
     Set-SfiPostgresConnectionEnvironment -DatabaseUrl $env:SFI_RESTORE_DATABASE_URL
-    & pg_restore --clean --if-exists --no-owner --no-acl --exit-on-error --single-transaction $tempDump
+    $restoreDatabase = $env:PGDATABASE
+    if ([string]::IsNullOrWhiteSpace($restoreDatabase)) {
+        throw "O nome do banco de destino não foi definido pela URL PostgreSQL."
+    }
+
+    & pg_restore --dbname $restoreDatabase --clean --if-exists --no-owner --no-acl --exit-on-error --single-transaction $tempDump
     if ($LASTEXITCODE -ne 0) {
         throw "pg_restore falhou com código $LASTEXITCODE."
     }

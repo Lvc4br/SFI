@@ -92,3 +92,6 @@ Qualquer acesso cruzado, perda/duplicação de dinheiro, divergência de cálcul
 - Jornada completa executada em Chromium, Firefox e WebKit pela matriz CI.
 - Verificar landmark principal, heading primário, foco por teclado e nome acessível de controles.
 - Testes de viewport responsivo, axe-core, NVDA e VoiceOver permanecem necessários; verificações básicas não equivalem a certificação WCAG 2.2 AA.
+
+- Multi-moeda: resumo deve manter BRL e USD em totais separados, sem conversão implícita.
+- Viewports: jornada completa inicia em 390×844 e retorna a 1365×900; isso é cobertura básica, não substitui matriz de dispositivos.

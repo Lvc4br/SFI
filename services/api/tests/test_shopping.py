@@ -101,3 +101,24 @@ def test_shopping_rejects_invalid_item_values(client):
         json={"name": "Vitamina", "quantity": "0", "unit_price": "-1"},
     )
     assert response.status_code == 422
+
+
+
+def test_shopping_rejects_null_required_item_fields(client):
+    headers = register(client, "shopping-null@example.com")
+    shopping_list = client.post(
+        "/api/v1/shopping/lists", headers=headers, json={"name": "Mercado"}
+    ).json()
+    item = client.post(
+        f"/api/v1/shopping/lists/{shopping_list['id']}/items",
+        headers=headers,
+        json={"name": "Leite"},
+    ).json()
+
+    for field in ("name", "quantity", "unit", "is_checked", "position"):
+        response = client.patch(
+            f"/api/v1/shopping/lists/{shopping_list['id']}/items/{item['id']}",
+            headers=headers,
+            json={field: None},
+        )
+        assert response.status_code == 422, (field, response.text)

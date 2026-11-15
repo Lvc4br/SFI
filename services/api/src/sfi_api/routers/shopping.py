@@ -130,7 +130,8 @@ async def create_item(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    await _owned_list(session, user.id, list_id)
+    shopping_list = await _owned_list(session, user.id, list_id)
+    shopping_list.updated_at = datetime.now(UTC)
     item = ShoppingListItem(user_id=user.id, list_id=list_id, **payload.model_dump())
     session.add(item)
     await session.commit()
@@ -157,6 +158,8 @@ async def update_item(
     if item is None:
         raise HTTPException(status_code=404, detail="Item não encontrado.")
     for field, value in payload.model_dump(exclude_unset=True).items():
+        if field in {"name", "quantity", "unit", "is_checked", "position"} and value is None:
+            raise HTTPException(status_code=422, detail=f"O campo {field} não pode ser nulo.")
         if field == "name" and value is not None:
             value = value.strip()
             if not value:
@@ -166,6 +169,8 @@ async def update_item(
             if not value:
                 raise HTTPException(status_code=422, detail="A unidade não pode ficar vazia.")
         setattr(item, field, value)
+    shopping_list = await _owned_list(session, user.id, list_id)
+    shopping_list.updated_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(item)
     return ShoppingItemResponse.model_validate(item)
@@ -186,5 +191,7 @@ async def delete_item(
     ))
     if item is None:
         raise HTTPException(status_code=404, detail="Item não encontrado.")
+    shopping_list = await _owned_list(session, user.id, list_id)
+    shopping_list.updated_at = datetime.now(UTC)
     await session.delete(item)
     await session.commit()

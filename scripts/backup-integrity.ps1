@@ -55,3 +55,29 @@ function Assert-SfiBackupChecksum {
     }
     return $actual
 }
+
+
+function Assert-SfiDatabaseHost {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$DatabaseUrl,
+        [Parameter(Mandatory = $true)][string]$ExpectedHost
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedHost) -or $ExpectedHost -match '[/@:\s]') {
+        throw "Host esperado ausente ou inválido."
+    }
+
+    $databaseUri = $null
+    $parsed = [System.Uri]::TryCreate($DatabaseUrl, [System.UriKind]::Absolute, [ref]$databaseUri)
+    if (-not $parsed -or $databaseUri.Scheme -notin @("postgres", "postgresql") -or
+        [string]::IsNullOrWhiteSpace($databaseUri.DnsSafeHost)) {
+        throw "URL de banco inválida; informe uma URL PostgreSQL válida."
+    }
+
+    if (-not [System.StringComparer]::OrdinalIgnoreCase.Equals($databaseUri.DnsSafeHost, $ExpectedHost.Trim())) {
+        throw "Host do banco não corresponde ao host explicitamente autorizado. Operação bloqueada."
+    }
+
+    return $databaseUri.DnsSafeHost
+}

@@ -95,6 +95,7 @@ async def run_migrations_online() -> None:
     async with connectable.connect() as connection:
         if connection.dialect.name == "sqlite":
             await connection.run_sync(bootstrap_empty_sqlite_database)
+            await connection.commit()
         else:
             await connection.run_sync(do_run_migrations)
     await connectable.dispose()

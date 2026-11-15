@@ -8,7 +8,7 @@ def test_liveness_endpoint() -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
-    assert response.json()["app"] == "Sistema Financeiro Inteligente"
+    assert response.json()["app"] == "Sistema Financeiro Integrado"
 
 
 def test_root_endpoint() -> None:

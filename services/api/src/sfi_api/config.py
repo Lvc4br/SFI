@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     app_name: str = "Sistema Financeiro Integrado"
     environment: str = "development"
     api_prefix: str = "/api/v1"
-    cors_origins: str = "tauri://localhost,http://tauri.localhost"
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,tauri://localhost,http://tauri.localhost"
     database_url: str | None = None
     data_dir: Path | None = None
     jwt_secret_key: str | None = None

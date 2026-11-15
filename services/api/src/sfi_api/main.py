@@ -8,6 +8,7 @@ from sfi_api.database import check_database, dispose_database
 from sfi_api.routers.auth import router as auth_router
 from sfi_api.routers.dashboard import router as dashboard_router
 from sfi_api.routers.finance import router as finance_router
+from sfi_api.routers.products import router as products_router
 from sfi_api.routers.recurrence import router as recurrence_router
 from sfi_api.routers.shopping import router as shopping_router
 from sfi_api.routers.transaction_pages import router as transaction_pages_router
@@ -44,6 +45,7 @@ app.add_middleware(
     ],
 )
 
+
 @app.middleware("http")
 async def apply_security_headers(request, call_next):
     response = await call_next(request)
@@ -69,6 +71,7 @@ app.include_router(transaction_pages_router, prefix=settings.api_prefix)
 app.include_router(transfer_history_router, prefix=settings.api_prefix)
 app.include_router(recurrence_router, prefix=settings.api_prefix)
 app.include_router(shopping_router, prefix=settings.api_prefix)
+app.include_router(products_router, prefix=settings.api_prefix)
 app.include_router(dashboard_router, prefix=settings.api_prefix)
 
 

@@ -12,8 +12,8 @@ from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
 from sfi_api.models.finance import Account, Category, Transaction
 from sfi_api.models.product import ProductPriceObservation, ShoppingProduct
-from sfi_api.models.stock import StockMovement
 from sfi_api.models.shopping import ShoppingList, ShoppingListItem
+from sfi_api.models.stock import StockMovement
 from sfi_api.models.user import User
 
 router = APIRouter(prefix="/shopping/purchases", tags=["shopping-purchases"])
@@ -112,7 +112,10 @@ async def confirm_purchase(
         if product.unit != item.unit:
             raise HTTPException(
                 status_code=422,
-                detail=f"A unidade do item {item.name} ({item.unit}) difere da unidade do catálogo ({product.unit}).",
+                detail=(
+                    f"A unidade do item {item.name} ({item.unit}) difere da unidade "
+                    f"do catálogo ({product.unit})."
+                ),
             )
         linked_products[item.id] = product
 
@@ -128,7 +131,10 @@ async def confirm_purchase(
     if account.currency != "BRL":
         raise HTTPException(
             status_code=422,
-            detail="A confirmação de compras exige uma conta em BRL; conversão cambial não é automática.",
+            detail=(
+                "A confirmação de compras exige uma conta em BRL; "
+                "conversão cambial não é automática."
+            ),
         )
 
     category = None

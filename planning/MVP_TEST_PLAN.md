@@ -1,3 +1,5 @@
+> **Documento histórico — não normativo (15/11/2026):** este plano descreve a antiga entrega MVP Web. A direção atual é o aplicativo Desktop pessoal local-first, conforme [PRODUCT_SPEC.md](../docs/PRODUCT_SPEC.md), [MVP_SCOPE.md](../docs/MVP_SCOPE.md) e [COMPLETION_MASTER_PLAN.md](../planning/COMPLETION_MASTER_PLAN.md). Use-o somente como registro histórico de implementação; não como escopo vigente.
+
 # Plano de Testes — MVP Web
 
 ## 1. Camadas

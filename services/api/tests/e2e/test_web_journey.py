@@ -152,9 +152,33 @@ def test_complete_web_financial_journey() -> None:
                     )
                     assert created.status_code == 201, created.text
 
-            page.get_by_label("Filtrar tipo").select_option("expense")
-            page.get_by_label("Data inicial").fill(today)
-            page.get_by_label("Data final").fill(today)
+            # Wait for each server-side filter request before applying the next one.
+            # This keeps the E2E deterministic and exercises the UI's stale-response guard.
+            with page.expect_response(
+                lambda response: (
+                    "/api/v1/finance/transactions/page?" in response.url
+                    and "offset=0" in response.url
+                    and "transaction_type=expense" in response.url
+                )
+            ):
+                page.get_by_label("Filtrar tipo").select_option("expense")
+            with page.expect_response(
+                lambda response: (
+                    "/api/v1/finance/transactions/page?" in response.url
+                    and "offset=0" in response.url
+                    and "start_date=" in response.url
+                )
+            ):
+                page.get_by_label("Data inicial").fill(today)
+            with page.expect_response(
+                lambda response: (
+                    "/api/v1/finance/transactions/page?" in response.url
+                    and "offset=0" in response.url
+                    and "end_date=" in response.url
+                )
+            ):
+                page.get_by_label("Data final").fill(today)
+            expect(page.locator(".loading-line")).to_have_count(0)
             expect(page.get_by_text("Página 1 de 2")).to_be_visible()
             expect(page.locator(".results-note")).to_contain_text("Exibindo 1–25 de")
             with page.expect_response(

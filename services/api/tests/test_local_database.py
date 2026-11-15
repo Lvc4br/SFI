@@ -4,7 +4,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from sqlalchemy.engine import make_url
 from sfi_api.config import Settings
 
 
@@ -12,6 +11,8 @@ API_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_data_directory_derives_a_private_sqlite_database(tmp_path: Path) -> None:
+    from sqlalchemy.engine import make_url
+
     settings = Settings(data_dir=tmp_path, _env_file=None)
 
     assert settings.database_url is not None

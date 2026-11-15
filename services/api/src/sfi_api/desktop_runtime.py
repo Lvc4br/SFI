@@ -6,6 +6,8 @@ import os
 import secrets
 import socket
 import sys
+import threading
+import time
 from pathlib import Path
 
 
@@ -72,8 +74,6 @@ def run() -> None:
     listener.listen(128)
 
     port = listener.getsockname()[1]
-    print(f"SFI_API_READY {port}", flush=True)
-
     server = uvicorn.Server(
         uvicorn.Config(
             app,
@@ -84,7 +84,21 @@ def run() -> None:
             workers=1,
         )
     )
-    server.run(sockets=[listener])
+    server_thread = threading.Thread(
+        target=server.run,
+        kwargs={"sockets": [listener]},
+        name="sfi-local-api",
+        daemon=True,
+    )
+    server_thread.start()
+    deadline = time.monotonic() + 15
+    while not server.started and server_thread.is_alive() and time.monotonic() < deadline:
+        time.sleep(0.025)
+    if not server.started:
+        raise RuntimeError("A API local não ficou pronta dentro do prazo de inicialização.")
+
+    print(f"SFI_API_READY {port}", flush=True)
+    server_thread.join()
 
 
 if __name__ == "__main__":

@@ -243,6 +243,12 @@ def test_confirm_purchase_creates_one_expense_and_price_history(client):
         },
     )
     assert item.status_code == 201, item.text
+    marked = client.patch(
+        f"/api/v1/shopping/lists/{list_id}/items/{item.json()['id']}",
+        headers=headers,
+        json={"is_checked": True},
+    )
+    assert marked.status_code == 200
 
     confirmed = client.post(
         f"/api/v1/shopping/purchases/{list_id}/confirm",
@@ -316,10 +322,15 @@ def test_confirm_purchase_rejects_another_users_account(client):
         headers=owner,
         json={"name": "Compra privada"},
     ).json()
-    client.post(
+    item = client.post(
         f"/api/v1/shopping/lists/{shopping_list['id']}/items",
         headers=owner,
         json={"name": "Item", "quantity": "1.000", "unit_price": "10.00"},
+    )
+    client.patch(
+        f"/api/v1/shopping/lists/{shopping_list['id']}/items/{item.json()['id']}",
+        headers=owner,
+        json={"is_checked": True},
     )
     response = client.post(
         f"/api/v1/shopping/purchases/{shopping_list['id']}/confirm",

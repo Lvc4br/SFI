@@ -3,8 +3,17 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint,
-    Index, Numeric, String, UniqueConstraint, Uuid, func,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Numeric,
+    String,
+    UniqueConstraint,
+    Uuid,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -41,7 +50,10 @@ class ShoppingListItem(Base):
             name="fk_shopping_items_list_owner", ondelete="CASCADE",
         ),
         CheckConstraint("quantity > 0", name="ck_shopping_items_quantity_positive"),
-        CheckConstraint("unit_price IS NULL OR unit_price >= 0", name="ck_shopping_items_price_nonnegative"),
+        CheckConstraint(
+            "unit_price IS NULL OR unit_price >= 0",
+            name="ck_shopping_items_price_nonnegative",
+        ),
         Index("ix_shopping_items_list_position", "list_id", "position"),
     )
 
@@ -51,7 +63,9 @@ class ShoppingListItem(Base):
         Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("1.000"), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(
+        Numeric(12, 3), default=Decimal("1.000"), nullable=False
+    )
     unit: Mapped[str] = mapped_column(String(20), default="un", nullable=False)
     unit_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     is_checked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

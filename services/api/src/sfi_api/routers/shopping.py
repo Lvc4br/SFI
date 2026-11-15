@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -106,8 +107,6 @@ async def archive_list(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    from datetime import UTC, datetime
-
     item = await _owned_list(session, user.id, list_id)
     item.archived_at = datetime.now(UTC)
     await session.commit()

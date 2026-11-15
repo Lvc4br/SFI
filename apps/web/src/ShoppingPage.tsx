@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "./api";
-import type { Account, ShoppingItem, ShoppingList, ShoppingListDetail } from "./api";
+import type { Account, ShoppingItem, ShoppingList, ShoppingListDetail, StockBalance, StockMovement } from "./api";
 
 const money = (value: string | null) => value === null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
 
@@ -20,6 +20,11 @@ export default function ShoppingPage() {
   const [products, setProducts] = useState<Awaited<ReturnType<typeof api.shoppingProducts>>>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [purchaseAccountId, setPurchaseAccountId] = useState("");
+  const [stock, setStock] = useState<StockBalance[]>([]);
+  const [stockProductId, setStockProductId] = useState("");
+  const [stockQuantity, setStockQuantity] = useState("1");
+  const [stockMovementType, setStockMovementType] = useState<StockMovement["movement_type"]>("adjustment_in");
+  const [stockNotes, setStockNotes] = useState("");
   const [productId, setProductId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -61,6 +66,8 @@ export default function ShoppingPage() {
 
   useEffect(() => { let active = true; void api.shoppingProducts().then(data => { if (active) setProducts(data); }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar catálogo."); }); return () => { active = false; }; }, []);
   useEffect(() => { let active = true; void api.accounts().then(data => { if (active) { setAccounts(data.filter(account => account.currency === "BRL")); setPurchaseAccountId(current => current || data.find(account => account.currency === "BRL")?.id || ""); } }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar contas."); }); return () => { active = false; }; }, []);
+  const refreshStock = useCallback(async () => { setStock(await api.stockBalances()); }, []);
+  useEffect(() => { let active = true; void api.stockBalances().then(data => { if (active) setStock(data); }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar estoque."); }); return () => { active = false; }; }, []);
 
   const total = useMemo(() => detail?.items.reduce((sum, item) =>
     sum + (item.unit_price === null ? 0 : Number(item.unit_price) * Number(item.quantity)), 0) ?? 0, [detail]);
@@ -113,11 +120,23 @@ export default function ShoppingPage() {
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await api.confirmShoppingPurchase(detail.id, purchaseAccountId);
+      await refreshStock();
       const next = await refreshLists();
       if (next) await refreshDetail(next);
       setNotice(`Compra registrada: ${money(result.amount)}. Uma despesa foi criada e a lista foi arquivada.`);
     } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível confirmar a compra."); }
     finally { setBusy(false); }
+  }
+
+  async function registerStockMovement(event: FormEvent) {
+    event.preventDefault();
+    const parsed = Number(stockQuantity.replace(",", "."));
+    if (!stockProductId || !Number.isFinite(parsed) || parsed <= 0) { setError("Selecione um produto e informe uma quantidade válida."); return; }
+    await run(async () => {
+      await api.createStockMovement(stockProductId, { movement_type: stockMovementType, quantity: parsed.toFixed(3), notes: stockNotes.trim() || undefined });
+      await refreshStock();
+      setStockNotes(""); setStockQuantity("1");
+    }, "Movimentação de estoque registrada.", false);
   }
 
   async function useTemplate() {
@@ -223,5 +242,23 @@ export default function ShoppingPage() {
         </> : <div className="empty-state shopping-no-selection"><span>🛒</span><p>Selecione uma lista ou crie uma nova para organizar suas compras.</p></div>}
       </section>
     </div>
+    <section className="panel shopping-stock-panel">
+      <div className="panel-heading"><div><h3>Estoque doméstico</h3><p className="muted">Saldo calculado pelo histórico de entradas e saídas. Compras confirmadas adicionam automaticamente os produtos do catálogo.</p></div></div>
+      <form className="shopping-add-item" onSubmit={registerStockMovement}>
+        <select aria-label="Produto do estoque" value={stockProductId} onChange={e => setStockProductId(e.target.value)} required>
+          <option value="">Selecione um produto</option>{products.map(product => <option key={product.id} value={product.id}>{product.name} ({product.unit})</option>)}
+        </select>
+        <select aria-label="Tipo de movimentação" value={stockMovementType} onChange={e => setStockMovementType(e.target.value as StockMovement["movement_type"])}>
+          <option value="adjustment_in">Entrada / saldo inicial</option><option value="consumption">Consumo</option><option value="adjustment_out">Retirada / ajuste</option><option value="waste">Perda / descarte</option>
+        </select>
+        <input aria-label="Quantidade da movimentação" type="number" min="0.001" step="0.001" value={stockQuantity} onChange={e => setStockQuantity(e.target.value)} required />
+        <input aria-label="Observação da movimentação" placeholder="Observação (opcional)" value={stockNotes} onChange={e => setStockNotes(e.target.value)} maxLength={300} />
+        <button className="button primary" disabled={busy || !stockProductId}>Registrar movimentação</button>
+      </form>
+      {stock.length ? <div className="shopping-items">{stock.map(item => <article className="shopping-item" key={item.product_id}>
+        <div className="shopping-item-description"><strong>{item.product_name}</strong><small>Saldo disponível</small></div>
+        <strong className="shopping-item-total">{Number(item.balance).toLocaleString("pt-BR")} {item.unit}</strong>
+      </article>)}</div> : <div className="empty-state"><span>▤</span><p>Sem saldo registrado. Adicione produtos ao catálogo e registre uma entrada ou confirme uma compra.</p></div>}
+    </section>
   </section>;
 }

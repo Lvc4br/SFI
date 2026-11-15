@@ -4,7 +4,7 @@
 
 Uma lista comum (não modelo) pode ser convertida em uma compra pela ação **Confirmar compra**. O usuário escolhe uma conta ativa em BRL. A API exige pelo menos um item e preço unitário preenchido em todos os itens.
 
-O total é calculado com aritmética decimal: soma de quantidade × preço unitário. A confirmação cria uma única movimentação do tipo despesa, marca os itens como comprados, arquiva a lista e registra uma observação de preço para cada item associado a um produto do catálogo.
+O total é calculado com aritmética decimal: soma de quantidade × preço unitário. A confirmação cria uma única movimentação do tipo despesa, marca os itens como comprados, arquiva a lista e registra observações de preço e entradas no estoque para cada item vinculado a um produto do catálogo.
 
 ## Integridade e segurança
 
@@ -20,5 +20,5 @@ O total é calculado com aritmética decimal: soma de quantidade × preço unit�
 
 - Todos os itens precisam ter preço informado; itens sem preço não são estimados silenciosamente.
 - O método de pagamento/cartão ainda não é tratado como fatura. A conta escolhida representa a conta financeira de saída.
-- Estoque doméstico, baixa de estoque e estorno/reabertura de uma compra serão implementados em etapas próprias.
+- O estoque doméstico usa um ledger próprio; veja [Estoque doméstico](HOUSEHOLD_STOCK.md). Baixa de estoque por consumo e ajustes já estão disponíveis; estorno/reabertura de compra ainda exige fluxo próprio.
 - A confirmação não importa notas fiscais automaticamente.

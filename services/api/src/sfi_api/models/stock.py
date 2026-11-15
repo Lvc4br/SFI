@@ -2,7 +2,16 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKeyConstraint, Index, Numeric, String, Uuid, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKeyConstraint,
+    Index,
+    Numeric,
+    String,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sfi_api.models.base import Base
@@ -21,7 +30,8 @@ class StockMovement(Base):
         ),
         CheckConstraint("quantity > 0", name="ck_stock_movements_quantity_positive"),
         CheckConstraint(
-            "movement_type IN ('purchase', 'adjustment_in', 'adjustment_out', 'consumption', 'waste')",
+            "movement_type IN ("
+            "'purchase', 'adjustment_in', 'adjustment_out', 'consumption', 'waste')",
             name="ck_stock_movements_type",
         ),
         Index("ix_stock_movements_user_product_date", "user_id", "product_id", "occurred_at"),

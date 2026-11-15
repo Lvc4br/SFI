@@ -301,3 +301,29 @@ def test_confirm_purchase_requires_prices(client):
         json={"account_id": account["id"]},
     )
     assert response.status_code == 422
+
+
+def test_confirm_purchase_rejects_another_users_account(client):
+    owner = register(client, "shopping-purchase-account-owner@example.com")
+    other = register(client, "shopping-purchase-account-other@example.com")
+    foreign_account = client.post(
+        "/api/v1/finance/accounts",
+        headers=other,
+        json={"name": "Conta privada", "account_type": "checking", "currency": "BRL"},
+    ).json()
+    shopping_list = client.post(
+        "/api/v1/shopping/lists",
+        headers=owner,
+        json={"name": "Compra privada"},
+    ).json()
+    client.post(
+        f"/api/v1/shopping/lists/{shopping_list['id']}/items",
+        headers=owner,
+        json={"name": "Item", "quantity": "1.000", "unit_price": "10.00"},
+    )
+    response = client.post(
+        f"/api/v1/shopping/purchases/{shopping_list['id']}/confirm",
+        headers=owner,
+        json={"account_id": foreign_account["id"]},
+    )
+    assert response.status_code == 404

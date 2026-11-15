@@ -158,3 +158,10 @@ O CI atual comprova testes automatizados da branch; não comprova recuperação 
 ### Nota de precisão decimal — SQLite versus PostgreSQL
 
 O teste do limite máximo `Numeric(18,2)` valida agora o schema Pydantic diretamente com `Decimal`, sem persistir o valor extremo no SQLite. SQLite aplica afinidade NUMERIC com representação binária de ponto flutuante em valores grandes, podendo arredondar centavos; PostgreSQL `NUMERIC(18,2)` é o ambiente autoritativo para comprovar persistência financeira nesse limite. A rota continua coberta por um teste de persistência Decimal em magnitude compatível com SQLite. Ainda é necessário adicionar/rodar integração PostgreSQL para o round-trip extremo antes de declarar esse requisito totalmente comprovado.
+
+## Evidências de validação local — 15/11/2026
+
+- Execução local do operador em Windows: Ruff aprovado; API `58 passed, 1 deselected`; Web typecheck e build de produção aprovados; jornada E2E Chromium `1 passed`; testes de integridade de backup `8/8`; verificador read-only do banco restaurado confirmou Alembic 0013, 13/13 tabelas, 4/4 colunas, 21 FKs e zero FKs/constraints não validadas.
+- O smoke test HTTP da API restaurada **não foi executado**: faltou configurar `SFI_RESTORE_API_BASE_URL`. Não registrar a etapa como aprovada.
+- A execução CI do commit anterior `a95b19d` encontrou uma suposição incorreta no teste E2E: o total filtrado foi 32, não 30, porque duas movimentações de preparação também podem cair no dia filtrado conforme o timezone do runner. A API retornou corretamente `offset=25` e cinco itens na página final. O teste foi ajustado para não fixar o total global e verificar que os cinco itens da última página são os registros de volume criados pelo próprio teste.
+- A correção acima está no commit `968d3f7`; aguardar CI e Security desse commit antes de marcar a matriz cross-browser como aprovada.

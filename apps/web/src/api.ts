@@ -37,6 +37,7 @@ export type ShoppingItem = { id: string; list_id: string; product_id: string | n
 export type ShoppingProduct = { id: string; name: string; brand: string | null; category: string | null; barcode: string | null; unit: string; archived_at: string | null; created_at: string; updated_at: string };
 export type ProductPrice = { id: string; product_id: string; price: string; currency: string; merchant: string | null; source: string; notes: string | null; observed_at: string; created_at: string };
 export type ShoppingListDetail = ShoppingList & { items: ShoppingItem[] };
+export type PurchaseConfirmation = { transaction_id: string; list_id: string; amount: string; currency: string; description: string; occurred_at: string; items_count: number };
 export type Session = { access_token: string; refresh_token: string | null; expires_in: number; user: User };
 export type Account = { id: string; name: string; account_type: "checking" | "savings" | "cash" | "credit"; currency: string; opening_balance: string; archived_at: string | null; created_at: string };
 export type Category = { id: string; name: string; category_type: "income" | "expense"; archived_at: string | null; created_at: string };
@@ -170,6 +171,8 @@ export const api = {
   createBudget: (data: { category_id: string; period: string; currency: string; limit_amount: string }) =>
     request<Budget>("/api/v1/finance/budgets", { method: "POST", body: JSON.stringify(data) }),
   summary: (start: string, end: string) => request<Summary>(`/api/v1/finance/summary?start_date=${start}&end_date=${end}`),
+  confirmShoppingPurchase: (listId: string, accountId: string, merchant?: string) =>
+    request<PurchaseConfirmation>(`/api/v1/shopping/purchases/${listId}/confirm`, { method: "POST", body: JSON.stringify({ account_id: accountId, merchant: merchant?.trim() || null }) }),
   shoppingLists: (favoritesOnly = false, templatesOnly = false) => { const query = new URLSearchParams(); if (favoritesOnly) query.set("favorites_only", "true"); if (templatesOnly) query.set("templates_only", "true"); return request<ShoppingList[]>(`/api/v1/shopping/lists${query.size ? "?" + query.toString() : ""}`); },
   shoppingList: (id: string) => request<ShoppingListDetail>(`/api/v1/shopping/lists/${id}`),
   createShoppingList: (name: string, is_favorite = false, is_template = false) => request<ShoppingList>("/api/v1/shopping/lists", { method: "POST", body: JSON.stringify({ name, is_favorite, is_template }) }),

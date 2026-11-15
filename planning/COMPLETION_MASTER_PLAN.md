@@ -208,6 +208,7 @@ A especificação atual substitui decisões anteriores incompatíveis. SFI é fe
 - [x] Educação removida da navegação e telas da interface.
 - [x] Arquitetura local-first documentada.
 - [x] SQLite definido como fonte local; Neon somente sync opt-in.
+- [x] Backend aceita SFI_DATA_DIR e deriva arquivo SQLite local; bootstrap inicial usa metadata atual e registra baseline 0013; teste automatizado adicionado.
 - [ ] FastAPI empacotado como sidecar Windows sem Python instalado.
 - [ ] Lifecycle do sidecar, loopback dinâmico e encerramento confiável.
 - [ ] Migrations compatíveis com SQLite e atualização segura.

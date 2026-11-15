@@ -9,7 +9,7 @@ Usar APIs Tauri AppLocalData/AppData. Separar database/sfi.sqlite3, documents/, 
 Compilar FastAPI para Windows x64 (por exemplo, PyInstaller) e incluir como sidecar Tauri. Iniciar com o app, receber diretório local, vincular somente em 127.0.0.1, escolher porta efêmera, comunicar endereço por canal privado, autenticar UI com token efêmero e encerrar graciosamente. Processo pai força encerramento após timeout. Nenhum segredo externo no bundle.
 
 ## SQLite
-URL local derivada do diretório Tauri. Habilitar FK, timeout e WAL quando adequado. Caminhos suportam espaços/Unicode. SQLAlchemy assíncrono e testes SQLite já existem, mas não comprovam compatibilidade de migrations, tipos, constraints, índices, locking e consultas. Criar cadeia SQLite dedicada ou adaptar migrations com branches explícitos. Migration destrutiva exige backup verificado.
+URL local derivada do diretório Tauri. Habilitar FK, timeout e WAL quando adequado. Caminhos suportam espaços/Unicode. SQLAlchemy assíncrono e testes SQLite já existem. A inicialização de um banco SQLite vazio usa o metadata atual do domínio como baseline e registra a revisão 0013; migrations PostgreSQL antigas não são executadas no SQLite. Qualquer migration posterior deve ser explicitamente compatível com SQLite. Banco existente sem revisão conhecida falha de forma segura em vez de receber um stamp presumido. Migration destrutiva exige backup verificado.
 
 Dinheiro usa decimal textual validado ou inteiro em unidade mínima com escala explícita; SQLite REAL é proibido.
 

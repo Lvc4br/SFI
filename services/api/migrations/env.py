@@ -52,19 +52,24 @@ def do_run_migrations(connection: Connection) -> None:
 def bootstrap_empty_sqlite_database(connection: Connection) -> None:
     table_names = set(inspect(connection).get_table_names())
     application_tables = table_names - {"alembic_version"}
-    if application_tables:
-        if "alembic_version" not in table_names:
-            raise RuntimeError(
-                "SQLite existente sem alembic_version. A migração automática foi interrompida "
-                "para evitar assumir uma versão de schema desconhecida."
-            )
-        version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
-        if version != SQLITE_BASELINE_REVISION:
-            raise RuntimeError(
-                f"Schema SQLite legado ({version!r}) não é migrável automaticamente. "
-                "Faça backup e use uma rotina de migração específica."
-            )
-        return
+    if application_tables and "alembic_version" not in table_names:
+        raise RuntimeError(
+            "SQLite existente sem alembic_version. A migração automática foi interrompida "
+            "para evitar assumir uma versão de schema desconhecida."
+        )
+
+    if "alembic_version" in table_names:
+        version = connection.execute(
+            text("SELECT version_num FROM alembic_version")
+        ).scalar_one_or_none()
+        if version:
+            if application_tables and version != SQLITE_BASELINE_REVISION:
+                raise RuntimeError(
+                    f"Schema SQLite legado ({version!r}) não é migrável automaticamente. "
+                    "Faça backup e use uma rotina de migração específica."
+                )
+            if version == SQLITE_BASELINE_REVISION:
+                return
 
     Base.metadata.create_all(connection)
     connection.execute(

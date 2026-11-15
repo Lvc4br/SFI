@@ -847,3 +847,50 @@ def test_transaction_requires_timezone_aware_timestamp(client):
         },
     )
     assert response.status_code == 422
+
+
+
+def test_financial_summary_keeps_currencies_separate_without_implicit_conversion(client):
+    token = register(client, "multi-currency@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    brl = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta BRL", "account_type": "checking", "currency": "BRL"},
+    )
+    usd = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta USD", "account_type": "checking", "currency": "USD"},
+    )
+    assert brl.status_code == 201
+    assert usd.status_code == 201
+
+    for account_id, amount, key in [
+        (brl.json()["id"], "100.00", "currency-brl-income-001"),
+        (usd.json()["id"], "25.50", "currency-usd-income-001"),
+    ]:
+        created = client.post(
+            "/api/v1/finance/transactions",
+            headers=headers,
+            json={
+                "account_id": account_id,
+                "transaction_type": "income",
+                "amount": amount,
+                "description": "Receita de teste",
+                "occurred_at": "2026-11-14T12:00:00+00:00",
+                "idempotency_key": key,
+            },
+        )
+        assert created.status_code == 201, created.text
+
+    summary = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-30",
+        headers=headers,
+    )
+    assert summary.status_code == 200
+    totals = {item["currency"]: item for item in summary.json()["totals_by_currency"]}
+    assert totals["BRL"]["income_total"] == "100.00"
+    assert totals["USD"]["income_total"] == "25.50"
+    assert totals["BRL"]["net_flow"] == "100.00"
+    assert totals["USD"]["net_flow"] == "25.50"

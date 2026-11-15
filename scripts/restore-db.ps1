@@ -48,8 +48,8 @@ try {
         throw "O backup descriptografado está vazio ou não foi criado."
     }
 
-    # O destino é fornecido por variável de ambiente e nunca impresso.
-    $env:PGDATABASE = $env:SFI_RESTORE_DATABASE_URL
+    # Libpq recebe os campos da conexão pelo ambiente, sem expor credenciais nos argumentos do processo.
+    Set-SfiPostgresConnectionEnvironment -DatabaseUrl $env:SFI_RESTORE_DATABASE_URL
     & pg_restore --clean --if-exists --no-owner --no-acl --exit-on-error --single-transaction $tempDump
     if ($LASTEXITCODE -ne 0) {
         throw "pg_restore falhou com código $LASTEXITCODE."

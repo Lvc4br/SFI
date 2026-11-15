@@ -78,3 +78,17 @@ Qualquer acesso cruzado, perda/duplicação de dinheiro, divergência de cálcul
 - O CI executa auditoria de dependências Python e Web; não ignorar findings sem justificativa documentada.
 - Pytest deve permanecer em versão corrigida (>= 9.0.3) após finding PYSEC-2026-1845 em 8.4.2.
 - CodeQL analisa Python e JavaScript/TypeScript em PRs e execução semanal.
+
+
+## 9. Matriz adicional de qualidade financeira e acessibilidade
+
+### API / integridade financeira
+- Limite superior de `Numeric(18,2)` e rejeição de escala maior que duas casas.
+- Mesma chave de idempotência pode existir em usuários diferentes, sem cruzamento de escopo.
+- Timestamp financeiro sem offset deve ser rejeitado.
+- Idempotência sob concorrência simultânea ainda requer ensaio PostgreSQL dedicado.
+
+### E2E / navegadores
+- Jornada completa executada em Chromium, Firefox e WebKit pela matriz CI.
+- Verificar landmark principal, heading primário, foco por teclado e nome acessível de controles.
+- Testes de viewport responsivo, axe-core, NVDA e VoiceOver permanecem necessários; verificações básicas não equivalem a certificação WCAG 2.2 AA.

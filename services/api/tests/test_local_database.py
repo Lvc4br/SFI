@@ -71,4 +71,4 @@ def test_alembic_bootstraps_empty_sqlite_from_current_domain_metadata(
         "recurrences",
         "security_events",
     }.issubset(tables)
-    assert revision == ("0013_security_events",)
+    assert revision == ("0014_shopping_lists",)

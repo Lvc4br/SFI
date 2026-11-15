@@ -81,7 +81,7 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
             "PRAGMA foreign_key_list(shopping_list_items)"
         ).fetchall()
 
-    assert revision == "0016_shopping_catalog_templates"
+    assert revision == "0017_stock_movement_ledger"
     assert {
         "shopping_lists",
         "shopping_list_items",

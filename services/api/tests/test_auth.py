@@ -459,3 +459,43 @@ def test_security_event_history_records_authentication_activity(client):
     assert "account_registered" in event_types
     assert "login_failed" in event_types
     assert "login_succeeded" in event_types
+
+
+
+def test_desktop_client_uses_rotating_bearer_refresh_without_cookies(client):
+    headers = {"X-SFI-Client": "desktop"}
+    registered = client.post(
+        "/api/v1/auth/register",
+        headers=headers,
+        json={"email": "desktop-client@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    body = registered.json()
+    assert body["refresh_token"]
+    assert not registered.headers.get_list("set-cookie")
+
+    rotated = client.post(
+        "/api/v1/auth/refresh",
+        headers=headers,
+        json={"refresh_token": body["refresh_token"]},
+    )
+    assert rotated.status_code == 200
+    replacement = rotated.json()["refresh_token"]
+    assert replacement and replacement != body["refresh_token"]
+    assert not rotated.headers.get_list("set-cookie")
+
+    logged_out = client.post(
+        "/api/v1/auth/logout",
+        headers={
+            **headers,
+            "Authorization": f"Bearer {rotated.json()['access_token']}",
+        },
+        json={"refresh_token": replacement},
+    )
+    assert logged_out.status_code == 204
+    reused = client.post(
+        "/api/v1/auth/refresh",
+        headers=headers,
+        json={"refresh_token": replacement},
+    )
+    assert reused.status_code == 401

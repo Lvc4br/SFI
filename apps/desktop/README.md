@@ -11,7 +11,7 @@ Na raiz do repositório:
 ```powershell
 pnpm install --frozen-lockfile
 cd apps/desktop
-cargo tauri dev
+pnpm dlx @tauri-apps/cli@^2 dev
 ```
 
 ## Gerar instaladores Windows
@@ -20,9 +20,8 @@ Na raiz, instale as dependências JavaScript e o Tauri CLI:
 
 ```powershell
 pnpm install --frozen-lockfile
-cargo install tauri-cli --version "^2" --locked
 cd apps/desktop
-cargo tauri build --bundles nsis,msi
+pnpm dlx @tauri-apps/cli@^2 build --bundles nsis,msi
 ```
 
 Os instaladores são gerados em `src-tauri/target/release/bundle/`.

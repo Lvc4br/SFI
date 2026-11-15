@@ -84,7 +84,7 @@ Atualizado em 15/11/2026. Este documento é o controle operacional das seis prio
 
 | Entrega | Status | Critério de aceite |
 |---|---|---|
-| E2E básico e controles com nomes acessíveis | Parcial; matriz Chromium/Firefox/WebKit adicionada, aguardando CI |
+| E2E básico e controles com nomes acessíveis | Parcial; CI confirmou falha comum nos três browsers por expectativa rígida do teste, corrigida nesta revisão |
 | Auditoria axe/WCAG 2.2 AA | Pendente | Sem violações críticas/serious não justificadas; relatório automatizado e revisão manual |
 | Teclado/foco | Parcial; foco visível global e primeira verificação de entrada por teclado adicionados, auditoria completa pendente | Todas as jornadas executáveis sem mouse; foco visível e ordem lógica |
 | Leitores de tela | Pendente | Testes manuais com NVDA e VoiceOver nas jornadas críticas |
@@ -113,7 +113,7 @@ As funcionalidades abaixo são projetos separados, cada qual com escopo, contrat
 | Entrega | Status | Critério de aceite |
 |---|---|---|
 | Web | MVP parcial | Release candidate Web com segurança, acessibilidade, testes e deploy |
-| Desktop Tauri | Planejado | Assinatura, atualização segura, armazenamento local protegido e build por SO |
+| Desktop Tauri | Scaffold implementado na branch #17; build Windows NSIS/MSI em validação | Tauri 2, janela nativa, permissões mínimas, endpoint HTTPS configurável, refresh bearer rotativo e workflow de instaladores. Ainda faltam build aprovado, teste de instalação/execução em Windows, assinatura, atualização segura e política de sessão persistente protegida |
 | Mobile Expo | Planejado | Secure storage, deep links, proteção de screenshots quando necessário e builds assinados |
 | Offline | Planejado | Outbox idempotente, sincronização, resolução explícita de conflitos financeiros e sem last-write-wins |
 | S3 privado | Planejado | Buckets privados, URLs temporárias, validação, antivírus, lifecycle e autorização |
@@ -182,3 +182,17 @@ O teste do limite máximo `Numeric(18,2)` valida agora o schema Pydantic diretam
 - Causa identificada em `apps/web/src/App.tsx`: `changeTransactionFilters` disparava uma consulta manual e `setTransactionFilters` também acionava o efeito de `reload`, que fazia outra consulta. As duas requisições competiam pelo mesmo estado da tabela. A sequência monotônica descartava algumas respostas, mas a duplicidade permanecia.
 - Correção aplicada: a função de filtro agora apenas atualiza o estado; o efeito `reload` é o único responsável por carregar a página inicial dos filtros. Erros de uma resposta obsoleta também não podem sobrescrever o estado de erro da solicitação atual.
 - Ainda não validado: executar novamente a jornada local e aguardar CI Chromium/Firefox/WebKit. Não declarar a paginação resolvida até essas evidências.
+
+
+## Revisão Desktop-first — 15/11/2026
+
+- Direção de produto atualizada: Desktop Tauri é o cliente principal instalável; React é a interface incorporada à janela nativa, não um site permanente.
+- Adicionado scaffold Tauri 2 em `apps/desktop/src-tauri`, com janela principal, CSP, capability mínima e bundle NSIS/MSI.
+- Adicionado workflow `.github/workflows/desktop.yml` para gerar instaladores Windows e publicar artefatos da CI.
+- Cliente API reconhece o runtime Tauri, usa refresh token rotativo no corpo HTTPS em vez de cookie de terceiros e mantém tokens somente em memória.
+- Tela inicial do Desktop permite configurar a origem HTTPS da API; URLs remotas sem HTTPS, credenciais, caminhos ou query strings são rejeitadas.
+- API permite as origens Tauri no CORS padrão. O ambiente hospedado deverá configurar `SFI_CORS_ORIGINS` com as origens Tauri reais.
+- Teste de backend adicionado para o fluxo Desktop de registro, rotação e logout.
+- Investigação CI: Chromium, Firefox e WebKit retornaram corretamente 32 itens no total e 7 na última página (offset 25); o teste esperava incorretamente 5. Ajustada a expectativa para validar o contrato dinâmico e as cinco linhas de volume restantes.
+- Limitação operacional: o Desktop depende da API FastAPI hospedada e do PostgreSQL Neon; ainda não há deploy da API nem URL pública configurada. O aplicativo não contém credenciais e nunca acessa o banco diretamente.
+- A validação do instalador Windows ainda depende do workflow Desktop. Nenhuma release assinada, deploy ou alteração em produção foi feita.

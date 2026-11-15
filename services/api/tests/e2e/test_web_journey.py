@@ -26,6 +26,9 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_role("heading", name="Acesse sua conta")).to_be_visible()
             assert page.get_by_role("main").count() == 1, "The page must expose one main landmark"
             assert page.get_by_role("heading", level=1).count() >= 1, "A primary heading is required"
+            page.set_viewport_size({"width": 390, "height": 844})
+            expect(page.get_by_role("button", name="Visão geral")).to_be_visible()
+            page.set_viewport_size({"width": 1365, "height": 900})
             page.keyboard.press("Tab")
             assert page.evaluate("document.activeElement !== document.body"), "Keyboard focus must enter the page"
             page.keyboard.press("Shift+Tab")

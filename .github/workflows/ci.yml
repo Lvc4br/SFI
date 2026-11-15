@@ -59,7 +59,6 @@ jobs:
         browser: [chromium, firefox, webkit]
     env:
       SFI_E2E_BROWSER: ${{ matrix.browser }}
-    env:
       SFI_DATABASE_URL: sqlite+aiosqlite:////tmp/sfi-e2e.db
       SFI_JWT_SECRET_KEY: sfi-e2e-only-secret-key-not-for-production-2026
       SFI_CORS_ORIGINS: http://127.0.0.1:5173

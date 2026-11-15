@@ -19,7 +19,7 @@ Atualizado em 15/11/2026. Este documento é o controle operacional das seis prio
 | Verificador read-only do banco restaurado | Implementado; execução local pendente | `scripts/verify-restored-db.ps1` confirma Alembic 0013, 13 tabelas, 4 colunas e constraints/FKs validadas |
 | Segunda rodada backup → restore com fixtures | Pendente externo | Criar registros fictícios conhecidos em branch de origem; backup, restaurar em outra branch isolada e comparar IDs/contagens/somas |
 | API contra o banco restaurado | Pendente externo | Executar readiness e leituras autenticadas usando configuração apontada exclusivamente à branch restaurada |
-| Falhas e corrupção | Parcial | 8 testes de integridade cobrem checksum/host/formato; acrescentar ensaios reais de interrupção/artefatos parciais e restore abortado |
+| Falhas e corrupção | Parcial | 8 testes de integridade cobrem checksum/host/formato; testes já rejeitam backup corrompido, vazio e checksum ausente/malformado; ensaios de interrupção real e restore abortado continuam pendentes |
 | RPO/RTO | Proposta a aprovar e medir | Meta inicial proposta: RPO <= 1 hora e RTO <= 4 horas; confirmar PITR, frequência, limites e tempos reais do plano Neon antes de declarar compromisso |
 | Retenção/cópia externa/chave | Pendente operacional | Política aprovada, cópia externa cifrada, acesso de emergência à chave testado e inventário de restauração atualizado |
 
@@ -61,7 +61,7 @@ Atualizado em 15/11/2026. Este documento é o controle operacional das seis prio
 | Entrega | Status | Critério de aceite |
 |---|---|---|
 | Precisão Decimal/Numeric e checks positivos | Implementado na fatia atual | Testes de limites e arredondamento com PostgreSQL e SQLite |
-| Idempotência sob concorrência | Parcial | Duas requisições simultâneas com mesma chave produzem exatamente um efeito e uma resposta de conflito/resultado idempotente |
+| Idempotência sob concorrência | Parcial; novos limites e escopo multiusuário cobertos, concorrência real pendente | Duas requisições simultâneas com mesma chave produzem exatamente um efeito e uma resposta de conflito/resultado idempotente |
 | Concorrência de saldo e estorno | Pendente | Testes concorrentes no PostgreSQL; nenhuma duplicação, saldo impossível ou estorno duplicado |
 | Isolamento horizontal | Parcial | Matriz de testes A/B para todos os recursos e IDs forjados |
 | Transferências/estornos pareados | Implementado na fatia atual; reforçar testes | Débito/crédito e estorno atômicos; moeda e contas compatíveis; auditoria completa |
@@ -83,12 +83,12 @@ Atualizado em 15/11/2026. Este documento é o controle operacional das seis prio
 
 | Entrega | Status | Critério de aceite |
 |---|---|---|
-| E2E básico e controles com nomes acessíveis | Implementado parcialmente | CI E2E atual aprovado |
+| E2E básico e controles com nomes acessíveis | Parcial; matriz Chromium/Firefox/WebKit adicionada, aguardando CI |
 | Auditoria axe/WCAG 2.2 AA | Pendente | Sem violações críticas/serious não justificadas; relatório automatizado e revisão manual |
-| Teclado/foco | Pendente | Todas as jornadas executáveis sem mouse; foco visível e ordem lógica |
+| Teclado/foco | Parcial; foco visível global e primeira verificação de entrada por teclado adicionados, auditoria completa pendente | Todas as jornadas executáveis sem mouse; foco visível e ordem lógica |
 | Leitores de tela | Pendente | Testes manuais com NVDA e VoiceOver nas jornadas críticas |
 | Contraste/gráficos | Pendente | Contraste conforme WCAG; gráficos com resumo/tabela textual equivalente |
-| Navegadores/resoluções | Pendente | Chromium, Firefox, WebKit e viewport móvel/desktop |
+| Navegadores/resoluções | Parcial; E2E expandido para Chromium, Firefox e WebKit; viewports e dispositivos reais ainda pendentes | Chromium, Firefox, WebKit e viewport móvel/desktop |
 | Onboarding e estados de erro | Parcial | Fluxos de primeiro uso, vazio, erro recuperável e sessão expirada documentados/testados |
 
 ## Prioridade 5 — Funcionalidades do produto
@@ -143,3 +143,12 @@ As funcionalidades abaixo são projetos separados, cada qual com escopo, contrat
 ## Estado honesto
 
 O CI atual comprova testes automatizados da branch; não comprova recuperação com dados, funcionamento da API contra Neon restaurado, auditoria externa, infraestrutura de produção ou prontidão legal. A PR #17 permanece draft, sem merge e sem deploy.
+
+
+## Novas verificações adicionadas nesta revisão
+
+- API: valor Decimal máximo permitido, rejeição de escala acima de duas casas, mesma chave de idempotência isolada por usuário e rejeição de timestamp sem timezone.
+- E2E: browser selecionável por `SFI_E2E_BROWSER`; verificação inicial de landmark main, heading principal e entrada de foco por teclado.
+- CI: matriz de jornada completa Chromium, Firefox e WebKit; logs de API/Web publicados como artefato em falha.
+- UI: estilo global de foco visível para links, botões e campos.
+- Limitação: essas verificações foram adicionadas ao código; ainda precisam passar na CI após este commit. Elas não substituem auditoria axe/WCAG, leitores de tela ou testes manuais.

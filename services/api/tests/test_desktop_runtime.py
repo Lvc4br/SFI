@@ -28,6 +28,7 @@ def test_invalid_existing_secret_fails_without_overwriting(tmp_path: Path):
 def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path):
     import os
     import queue
+    import sqlite3
     import subprocess
     import sys
     import threading
@@ -68,8 +69,6 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
         process.stdin.flush()
         assert process.wait(timeout=10) == 0
 
-        import sqlite3
-
         database_path = tmp_path / "private-data" / "database" / "sfi.sqlite3"
         with sqlite3.connect(database_path) as connection:
             revision = connection.execute(
@@ -81,8 +80,13 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 ).fetchall()
             }
-        assert revision == "0014_shopping_lists"
-        assert {"shopping_lists", "shopping_list_items"} <= tables
+        assert revision == "0015_product_catalog"
+        assert {
+            "shopping_lists",
+            "shopping_list_items",
+            "shopping_products",
+            "product_price_observations",
+        } <= tables
     finally:
         if process.poll() is None:
             process.kill()

@@ -1,0 +1,77 @@
+import os
+import sqlite3
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+from sqlalchemy import create_engine, text
+
+from sfi_api.models import Base
+
+
+@pytest.mark.parametrize("shopping_tables_already_exist", [False, True])
+def test_sqlite_upgrade_from_previous_desktop_baseline(
+    tmp_path: Path,
+    shopping_tables_already_exist: bool,
+):
+    api_root = Path(__file__).resolve().parents[1]
+    database_path = tmp_path / "existing-sfi.sqlite3"
+    engine = create_engine(f"sqlite:///{database_path}")
+    excluded = set() if shopping_tables_already_exist else {
+        "shopping_lists",
+        "shopping_list_items",
+    }
+    with engine.begin() as connection:
+        Base.metadata.create_all(
+            connection,
+            tables=[
+                table
+                for table in Base.metadata.sorted_tables
+                if table.name not in excluded
+            ],
+        )
+        connection.execute(
+            text(
+                "CREATE TABLE alembic_version "
+                "(version_num VARCHAR(32) NOT NULL PRIMARY KEY)"
+            )
+        )
+        connection.execute(
+            text("INSERT INTO alembic_version (version_num) VALUES ('0013_security_events')")
+        )
+    engine.dispose()
+
+    environment = os.environ.copy()
+    environment["SFI_DATABASE_URL"] = f"sqlite+aiosqlite:///{database_path}"
+    environment["PYTHONPATH"] = str(api_root / "src")
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "alembic",
+            "-c",
+            str(api_root / "alembic.ini"),
+            "upgrade",
+            "head",
+        ],
+        cwd=api_root,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    with sqlite3.connect(database_path) as connection:
+        revision = connection.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()[0]
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+
+    assert revision == "0014_shopping_lists"
+    assert {"shopping_lists", "shopping_list_items"} <= tables

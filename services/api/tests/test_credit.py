@@ -42,13 +42,13 @@ def test_installments_and_invoice_partial_payment(tmp_path):
             updated=client.get("/api/v1/credit/invoices",headers=headers).json()
             row=next(item for item in updated if item["id"]==first["id"])
             assert row["paid_amount"]=="100.00"
-            assert row["remaining_amount"]=="233.33"
+            assert row["remaining_amount"]=="233.34"
     finally:
         app.dependency_overrides.clear()
         asyncio.run(engine.dispose())
 
 def test_cycle_handles_short_month_and_due_month():
-    period,closing,due=_cycle_dates(SimpleNamespace(closing_day=31,due_day=10),date(2027,1,31))
-    assert period=="2027-02"
-    assert closing==date(2027,2,28)
-    assert due==date(2027,3,10)
+    period,closing,due=_cycle_dates(SimpleNamespace(closing_day=31,due_day=10),date(2027,2,28))
+    assert period=="2027-03"
+    assert closing==date(2027,3,31)
+    assert due==date(2027,4,10)

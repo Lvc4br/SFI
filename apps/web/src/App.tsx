@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { api, isDesktopApp } from "./api";
+import { api, isDesktopApp, waitForApiReady } from "./api";
 import type { Account, Budget, Category, SecurityEvent, Summary, Transaction, User } from "./api";
 
 type Page = "overview" | "transactions" | "accounts" | "budget" | "settings";
@@ -23,7 +23,7 @@ export default function App() {
  const [email,setEmail]=useState(""),[password,setPassword]=useState(""),[timezone,setTimezone]=useState("America/Sao_Paulo");
  const dates=useMemo(()=>bounds(period),[period]);
  const reload=useCallback(async()=>{const requestId=++transactionRequestSequence.current;setLoading(true);setError("");try{const [a,c,t,b,s,tp]=await Promise.all([api.accounts(true),api.categories(undefined,true),api.transactions(),api.budgets(period),api.summary(dates.start,dates.end),api.transactionPage({limit:25,offset:0,...transactionFilters})]);setAccounts(a);setCategories(c);setTransactions(t);if(requestId===transactionRequestSequence.current){setTransactionPageItems(tp.items);setTransactionTotal(tp.total);setTransactionOffset(0);}setBudgets(b);setSummary(s);}catch(e){if(requestId===transactionRequestSequence.current)setError(message(e));}finally{if(requestId===transactionRequestSequence.current)setLoading(false);}},[period,dates.start,dates.end,transactionFilters]);
- useEffect(()=>{api.me().then(setUser).catch(()=>setUser(null)).finally(()=>setAuthLoading(false));},[]);
+ useEffect(()=>{void waitForApiReady().then(()=>api.me()).then(setUser).catch(()=>setUser(null)).finally(()=>setAuthLoading(false));},[]);
  useEffect(()=>{if(user)void reload();},[user,reload]);
  useEffect(()=>{if(page==="settings"&&user)api.securityEvents().then(setSecurityEvents).catch(e=>setError(message(e)));},[page,user]);
  useEffect(()=>{if(user?.timezone)setTimezone(user.timezone);},[user?.timezone]);

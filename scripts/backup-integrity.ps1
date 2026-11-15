@@ -81,3 +81,39 @@ function Assert-SfiDatabaseHost {
 
     return $databaseUri.DnsSafeHost
 }
+
+function Set-SfiPostgresConnectionEnvironment {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)][string]$DatabaseUrl)
+
+    $uri = $null
+    if (-not [System.Uri]::TryCreate($DatabaseUrl, [System.UriKind]::Absolute, [ref]$uri) -or
+        $uri.Scheme -notin @("postgres", "postgresql") -or
+        [string]::IsNullOrWhiteSpace($uri.UserInfo) -or
+        [string]::IsNullOrWhiteSpace($uri.AbsolutePath.TrimStart('/'))) {
+        throw "URL PostgreSQL inválida para configurar a conexão."
+    }
+
+    $credentials = $uri.UserInfo.Split(':', 2)
+    if ($credentials.Count -ne 2) { throw "Credenciais ausentes ou inválidas na URL PostgreSQL." }
+
+    $env:PGHOST = $uri.DnsSafeHost
+    $env:PGPORT = if ($uri.IsDefaultPort) { "5432" } else { [string]$uri.Port }
+    $env:PGUSER = [System.Uri]::UnescapeDataString($credentials[0])
+    $env:PGPASSWORD = [System.Uri]::UnescapeDataString($credentials[1])
+    $env:PGDATABASE = [System.Uri]::UnescapeDataString($uri.AbsolutePath.TrimStart('/'))
+    $env:PGSSLMODE = "require"
+
+    foreach ($pair in $uri.Query.TrimStart('?').Split('&', [System.StringSplitOptions]::RemoveEmptyEntries)) {
+        $parts = $pair.Split('=', 2)
+        if ($parts.Count -eq 2 -and [System.Uri]::UnescapeDataString($parts[0]) -eq "sslmode") {
+            $env:PGSSLMODE = [System.Uri]::UnescapeDataString($parts[1])
+        }
+    }
+}
+
+function Clear-SfiPostgresConnectionEnvironment {
+    foreach ($name in @("PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE", "PGSSLMODE")) {
+        Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+    }
+}

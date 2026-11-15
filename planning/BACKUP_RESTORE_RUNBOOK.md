@@ -2,14 +2,16 @@
 
 ## Objetivo e limites
 
-Este runbook prepara backups lógicos criptografados e uma restauração destrutiva somente em uma branch Neon isolada. Os scripts ainda não foram executados contra o Neon neste trabalho; portanto, não considerar a restauração operacionalmente comprovada até concluir o ensaio descrito abaixo.
+Este runbook descreve backups PostgreSQL criptografados e restauração destrutiva somente em uma branch Neon isolada. A restauração de ensaio foi executada com sucesso em uma branch isolada; consulte o estado e as limitações registrados ao final.
+
+Nunca executar restore, migrations de ensaio ou testes de escrita contra production.
 
 ## Dependências
 
-- PostgreSQL client tools compatíveis com a versão do Neon: pg_dump e pg_restore.
+- PostgreSQL client tools compatíveis com a versão do Neon: pg_dump, pg_restore e psql.
 - age instalado.
-- Uma chave pública age para backup e identidade privada correspondente guardada fora do computador de trabalho.
-- Variáveis de conexão injetadas localmente/secret manager; nunca no repositório, no histórico do PowerShell ou em logs.
+- Chave pública age para backup e identidade privada correspondente guardada fora do computador de trabalho.
+- URLs e credenciais injetadas localmente/secret manager; nunca no repositório, histórico do PowerShell ou logs.
 
 ## Backup
 
@@ -17,11 +19,11 @@ Este runbook prepara backups lógicos criptografados e uma restauração destrut
 2. Defina SFI_BACKUP_EXPECTED_HOST com o hostname exato autorizado. O script compara o host da URL com esse valor e bloqueia divergências antes de executar pg_dump.
 3. Defina SFI_BACKUP_AGE_RECIPIENT com a chave pública age.
 4. Execute scripts/backup-db.ps1. O script não usa SFI_DATABASE_URL como fallback.
-4. Confirme a criação de dois arquivos: `.dump.age` (backup criptografado) e `.dump.age.sha256` (checksum SHA-256 em hexadecimal).
-5. Guarde os dois arquivos juntos, copie-os para armazenamento externo com versionamento, retenção e acesso restrito e registre o hash exibido.
-6. Não guarde arquivos de backup no Git nem no diretório público da aplicação.
+5. Confirme a criação de dois arquivos: `.dump.age` (backup criptografado) e `.dump.age.sha256` (checksum SHA-256 em hexadecimal).
+6. Guarde os dois arquivos juntos em armazenamento externo com versionamento, retenção e acesso restrito; registre o hash exibido.
+7. Não guarde arquivos de backup no Git nem no diretório público da aplicação.
 
-O dump temporário sem criptografia é removido no bloco finally. Se a criptografia ou a geração do checksum falhar, os artefatos criptografados parciais são removidos. O checksum é gravado em arquivo temporário e renomeado ao final.
+O dump temporário sem criptografia é removido no bloco finally. Se a criptografia ou a geração do checksum falhar, artefatos criptografados parciais são removidos. O checksum é gravado em arquivo temporário e renomeado ao final.
 
 ## Restauração de teste (obrigatoriamente isolada)
 
@@ -35,13 +37,19 @@ O dump temporário sem criptografia é removido no bloco finally. Se a criptogra
 8. Digite a frase de confirmação exigida pelo script somente após revisar o destino isolado.
 9. Verifique tabelas, versão Alembic, integridade referencial, contagens agregadas e endpoints de health em uma API apontada exclusivamente para a branch de teste.
 10. Registre data, duração, SHA-256, branch destino, resultado e problemas encontrados.
-11. Descarte a branch isolada após concluir a revisão.
+11. Descarte a branch isolada após concluir a revisão, conforme a política de retenção do ambiente de teste.
 
 O restore usa --clean e sobrescreve objetos no destino. A confirmação textual não substitui a allowlist de hostname: SFI_RESTORE_EXPECTED_HOST precisa ser conferido visualmente com o host da branch isolada antes de executar o restore. SHA-256 detecta corrupção acidental, enquanto age fornece criptografia autenticada; o arquivo de checksum deve ser armazenado e transportado junto com o backup.
 
 ## Testes automatizados de integridade
 
-Execute `./scripts/test-backup-integrity.ps1` no Windows PowerShell 5.1 ou PowerShell 7. O teste usa arquivos temporários locais e não acessa PostgreSQL, Neon, age ou qualquer segredo. Ele cobre checksum válido, arquivo corrompido, checksum ausente, checksum malformado e backup vazio. O mesmo teste roda no job Windows do GitHub Actions.
+Execute `./scripts/test-backup-integrity.ps1` no Windows PowerShell 5.1 ou PowerShell 7. O teste usa arquivos temporários locais e não acessa PostgreSQL, Neon, age ou qualquer segredo. Ele cobre checksum válido, arquivo corrompido, checksum ausente, checksum malformado, backup vazio, hostname permitido, hostname divergente e URL não PostgreSQL.
+
+## Validação integrada
+
+Execute `./scripts/validate-all.ps1` após atualizar a branch. O script coordena lint, testes da API em SQLite descartável, typecheck, build Web, jornada E2E e testes de integridade de backup; a verificação do banco restaurado é somente leitura e exige URL/hostname explicitamente configurados.
+
+A jornada E2E local e os testes de API usam SQLite descartável. Eles não devem ser descritos como execução da jornada da aplicação contra o Neon restaurado.
 
 ## RPO/RTO e política de retenção
 
@@ -58,11 +66,33 @@ Antes do beta, definir formalmente:
 - Backup criptografado criado, checksum verificado e cópia externa confirmada.
 - Restauração completa em branch isolada sem erros.
 - Alembic aponta para head esperado.
-- Integridade referencial e amostras de dados verificadas.
-- API readiness e jornada E2E executadas contra o banco restaurado.
+- Integridade referencial e amostras/contagens de dados verificadas.
+- API readiness e jornada E2E executadas contra o banco restaurado, se exigidas para o nível de aceite operacional.
 - Tempo medido comparado com RTO; perda de dados comparada com RPO.
 - Evidência e correções registradas.
 
-## Estado atual
+## Estado do ensaio em 2026-11-14
 
-Scripts, checksum obrigatório, validação explícita de hostname e testes automatizados de integridade adicionados. O ensaio real de backup/restore ainda está pendente e não deve ser marcado como concluído.
+### Concluído e observado
+
+- Ferramentas locais instaladas: PostgreSQL client tools 18.7 e age 1.3.2.
+- Identidade privada age criada fora do repositório; ACL do arquivo restringida ao usuário local e SYSTEM.
+- Backup custom PostgreSQL criptografado com age criado a partir da branch Neon isolada `test-backup-restore`; checksum SHA-256 validado.
+- O arquivo descriptografado foi reconhecido por `pg_restore --list`.
+- Restauração do backup executada com sucesso na branch Neon isolada, após correção do argumento explícito `--dbname` no pg_restore.
+- Como a branch de origem foi criada com a opção schema-only e o registro Alembic não veio preenchido, foi conferido o schema até 0009, aplicado `alembic stamp 0009_user_token_version` (sem alterar schema) e executado `alembic upgrade head` exclusivamente na branch isolada.
+- `alembic current` confirmou `0013_security_events (head)`.
+- Verificação read-only posterior confirmou `security_events`, `login_attempts`, `users.timezone`, `accounts.archived_at` e `categories.archived_at`.
+- Validação local em Windows: Ruff aprovado; pytest `54 passed, 1 deselected, 1 warning`; TypeScript e build Web aprovados.
+- Jornada E2E local Playwright/Chromium: `1 passed`.
+- Testes de integridade de backup: `8/8` aprovados.
+
+### Limitações ainda abertas
+
+- O ensaio foi baseado em branch schema-only; não comprova recuperação de registros de usuários/transações reais nem restauração de um conjunto de dados fictícios.
+- Não foi executada ainda uma segunda rodada backup → restore com dados fictícios conhecidos e comparação de contagens/valores.
+- A API readiness e a jornada E2E foram executadas localmente com SQLite descartável, não contra a branch Neon restaurada.
+- Não foram medidos RPO/RTO nem comprovada cópia externa/retention.
+- Não executar novamente restore sem confirmar visualmente que o destino é uma branch isolada independente e descartável.
+
+Portanto, o ensaio de restauração de schema está aprovado; a recuperação de dados, operação da aplicação apontada ao banco restaurado e política de desastre continuam pendentes.

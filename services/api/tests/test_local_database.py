@@ -4,8 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from sfi_api.config import Settings
 from sqlalchemy.engine import make_url
+from sfi_api.config import Settings
 
 
 API_ROOT = Path(__file__).resolve().parents[1]

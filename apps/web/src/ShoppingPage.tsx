@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "./api";
-import type { ShoppingItem, ShoppingList, ShoppingListDetail } from "./api";
+import type { Account, ShoppingItem, ShoppingList, ShoppingListDetail } from "./api";
 
 const money = (value: string | null) => value === null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
 
@@ -18,6 +18,8 @@ export default function ShoppingPage() {
   const [templatesOnly, setTemplatesOnly] = useState(false);
   const [isTemplate, setIsTemplate] = useState(false);
   const [products, setProducts] = useState<Awaited<ReturnType<typeof api.shoppingProducts>>>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [purchaseAccountId, setPurchaseAccountId] = useState("");
   const [productId, setProductId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -58,6 +60,7 @@ export default function ShoppingPage() {
   }, [selected]);
 
   useEffect(() => { let active = true; void api.shoppingProducts().then(data => { if (active) setProducts(data); }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar catálogo."); }); return () => { active = false; }; }, []);
+  useEffect(() => { let active = true; void api.accounts().then(data => { if (active) { setAccounts(data.filter(account => account.currency === "BRL")); setPurchaseAccountId(current => current || data.find(account => account.currency === "BRL")?.id || ""); } }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar contas."); }); return () => { active = false; }; }, []);
 
   const total = useMemo(() => detail?.items.reduce((sum, item) =>
     sum + (item.unit_price === null ? 0 : Number(item.unit_price) * Number(item.quantity)), 0) ?? 0, [detail]);
@@ -102,6 +105,19 @@ export default function ShoppingPage() {
       });
       setItemName(""); setQuantity("1"); setUnit("un"); setPrice(""); setProductId("");
     }, "Item adicionado.");
+  }
+
+  async function confirmPurchase() {
+    if (!detail || !purchaseAccountId || detail.is_template) return;
+    if (!window.confirm("Confirmar esta compra? Será criada uma despesa real na conta selecionada e a lista será arquivada.")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await api.confirmShoppingPurchase(detail.id, purchaseAccountId);
+      const next = await refreshLists();
+      if (next) await refreshDetail(next);
+      setNotice(`Compra registrada: ${money(result.amount)}. Uma despesa foi criada e a lista foi arquivada.`);
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível confirmar a compra."); }
+    finally { setBusy(false); }
   }
 
   async function useTemplate() {
@@ -175,6 +191,12 @@ export default function ShoppingPage() {
               <button className="button secondary" type="button" disabled={busy} onClick={() => void run(async () => { await api.updateShoppingList(detail.id, { is_favorite: !detail.is_favorite }); await refreshLists(detail.id); }, detail.is_favorite ? "Removida das favoritas." : "Adicionada às favoritas.")}>{detail.is_favorite ? "★ Favorita" : "☆ Favoritar"}</button>
               {detail.is_template && <button className="button primary" type="button" disabled={busy} onClick={() => void useTemplate()}>Usar modelo</button>}
               <button className="button secondary" type="button" disabled={busy} onClick={renameList}>Renomear</button>
+              {!detail.is_template && <div className="shopping-confirm-purchase">
+                <select aria-label="Conta para registrar a compra" value={purchaseAccountId} onChange={e => setPurchaseAccountId(e.target.value)} disabled={busy || !accounts.length}>
+                  <option value="">Selecione a conta</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}
+                </select>
+                <button className="button primary" type="button" disabled={busy || !purchaseAccountId || !detail.items.length} onClick={() => void confirmPurchase()}>Confirmar compra</button>
+              </div>}
               <button className="button secondary" type="button" disabled={busy} onClick={archiveList}>Arquivar</button>
             </div>
           </div>

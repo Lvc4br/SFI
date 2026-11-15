@@ -27,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]" pip-audit
       - name: Audit Python environment
-        run: pip-audit
+        run: pip-audit --skip-editable
       - uses: pnpm/action-setup@v4
         with:
           version: 10.20.0

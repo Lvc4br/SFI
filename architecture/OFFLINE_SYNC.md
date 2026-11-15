@@ -1,32 +1,16 @@
-# Sincronização Offline — SFI
+# Persistência Local e Sincronização Opcional — SFI
 
 ## Objetivo
+O SFI funciona offline nas funcionalidades essenciais. Persistência local é a fonte de verdade; sincronização remota é uma opção ativada conscientemente.
 
-Permitir consulta e registros offline limitados, sincronizando com o backend sem duplicar ou perder operações.
+## Armazenamento
+SQLite no diretório privado do aplicativo; originais/anexos em armazenamento local gerenciado; FK, transações, WAL/busy_timeout quando adequados e migrations versionadas. Dados financeiros não dependem de IndexedDB ou API hospedada.
 
-## Armazenamento local
+## Operação offline
+Dashboard, contas, categorias, movimentações, transferências, estornos, orçamentos, listas, documentos importados, patrimônio, relatórios e exportações locais devem continuar disponíveis sem internet. Cotação, IA externa e sync mostram indisponibilidade e data do último cache sem bloquear o restante.
 
-- Web/Desktop: IndexedDB.
-- Mobile: persistência local transacional apropriada à plataforma.
-- Dados locais devem ser minimizados, protegidos e removíveis no logout/revogação do dispositivo.
+## Sync futuro
+Sync desligado por padrão. Cada instalação tem device_id/cursor. Alterações geram IDs estáveis e outbox idempotente. Servidor valida schema/autorização/integridade. Conflitos são explícitos; não usar last-write-wins em dados financeiros. Operações rejeitadas permanecem auditáveis. Revogação impede novos envios.
 
-## Protocolo
-
-1. Cada dispositivo possui device_id e cursor de sincronização.
-2. Operações locais recebem UUID e chave de idempotência.
-3. Cliente envia lotes ordenados com versão/base_version.
-4. Servidor valida identidade, autorização, schema e idempotência.
-5. Servidor confirma operações aceitas e devolve cursor/delta.
-6. Conflitos são explicitados para resolução; não usar last-write-wins em dados financeiros.
-
-## Integridade
-
-- Transações financeiras não podem ser duplicadas por retry.
-- Lançamentos confirmados são corrigidos por estorno/compensação.
-- Operações rejeitadas permanecem visíveis para resolução.
-- Revogação de dispositivo invalida novas sincronizações.
-- Migrações locais e restauração precisam de testes.
-
-## Política
-
-Começar com leitura offline e rascunhos. Ampliar escrita offline após testes de conflito, idempotência e segurança.
+## Limites
+Neon não é necessário para iniciar, registrar ou consultar dados locais. Sync não substitui banco local. Documentos/dados sensíveis não são enviados sem configuração e consentimento.

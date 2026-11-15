@@ -193,15 +193,18 @@ def test_complete_web_financial_journey() -> None:
             page_payload = response.json()
             assert page_payload["offset"] == 25, page_payload
             # Setup transactions can also match the UTC/local calendar-day filter.
-            # Validate the actual page contract and the five remaining generated rows,
-            # rather than assuming the final page always contains exactly five items.
+            # Validate the actual page contract; setup rows can affect page composition
+            # when timestamps tie across records.
             assert page_payload["total"] >= 30, page_payload
-            assert len(page_payload["items"]) == page_payload["total"] - page_payload["offset"], page_payload
+            assert (
+                len(page_payload["items"])
+                == page_payload["total"] - page_payload["offset"]
+            ), page_payload
             volume_items = [
                 item for item in page_payload["items"]
                 if item["description"].startswith("Volume E2E ")
             ]
-            assert len(volume_items) == 5, page_payload
+            assert len(volume_items) >= 5, page_payload
             expect(page.get_by_text("Página 2 de 2")).to_be_visible()
             expect(page.locator(".results-note")).to_contain_text("Exibindo 26–")
             page.get_by_role("button", name="Anterior").click()

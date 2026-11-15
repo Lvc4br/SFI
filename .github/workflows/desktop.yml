@@ -27,9 +27,22 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
       - uses: dtolnay/rust-toolchain@stable
       - name: Install Web dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build the bundled local API sidecar
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          python -m pip install ./services/api
+          pyinstaller --noconfirm --clean --onefile --name sfi-api --paths services/api/src --add-data "services/api/alembic.ini;." --add-data "services/api/migrations;migrations" --collect-all alembic --collect-all sqlalchemy --collect-all sfi_api --collect-all uvicorn --collect-all fastapi --collect-all pydantic_settings --collect-all pydantic --collect-all aiosqlite --collect-all asyncpg --collect-all pwdlib --collect-all argon2 --collect-all jwt services/api/src/sfi_api/desktop_runtime.py
+          New-Item -ItemType Directory -Force apps/desktop/src-tauri/binaries | Out-Null
+          Copy-Item dist/sfi-api.exe apps/desktop/src-tauri/binaries/sfi-api.exe
       - name: Build NSIS and MSI installers
         working-directory: apps/desktop
         run: pnpm dlx @tauri-apps/cli@^2 build --bundles nsis,msi

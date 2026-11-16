@@ -186,7 +186,7 @@ def test_complete_web_financial_journey() -> None:
             expect(page.locator(".credit-invoice-list")).to_be_visible()
             invoice = page.locator(".credit-invoice").filter(
                 has_text="Cartão de teste E2E"
-            )
+            ).first
             expect(invoice).to_be_visible()
             invoice.get_by_role("button", name="Fechar").click()
             expect(invoice.get_by_text("Fechada")).to_be_visible()

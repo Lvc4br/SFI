@@ -171,3 +171,96 @@ html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:
 .app-shell[data-theme="dark"] .shopping-create-list input,.app-shell[data-theme="dark"] .shopping-add-item input{background:#111c15;color:var(--ink);border-color:#3a4b40}
 @media(max-width:950px){.shopping-layout{grid-template-columns:1fr}.shopping-list-options{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.shopping-add-item{grid-template-columns:1fr 1fr}.shopping-add-item .shopping-item-name{grid-column:1/-1}}
 @media(max-width:600px){.shopping-detail-heading{flex-direction:column}.shopping-actions{justify-content:flex-start}.shopping-add-item{grid-template-columns:1fr 1fr}.shopping-add-item .shopping-item-name{grid-column:1/-1}.shopping-add-item button{grid-column:1/-1}.shopping-items-heading{flex-direction:column}.shopping-item{grid-template-columns:20px minmax(0,1fr) 25px}.shopping-item-total{grid-column:2;grid-row:2}.shopping-delete{grid-column:3;grid-row:1}.shopping-total{align-items:flex-start;flex-direction:column}.shopping-total small{text-align:left}}
+
+
+/* Credit cards and invoice management */
+.credit-page .panel-heading select {
+  min-height: 40px;
+  max-width: 240px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.credit-invoice-list {
+  display: grid;
+  gap: 10px;
+}
+.credit-invoice {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(220px, 1.5fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.credit-invoice-main,
+.credit-invoice-values {
+  display: grid;
+  gap: 6px;
+}
+.credit-invoice-main strong {
+  font-size: 12px;
+}
+.credit-invoice-main small,
+.credit-invoice-values span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.credit-invoice-values {
+  grid-template-columns: repeat(3, minmax(70px, 1fr));
+}
+.credit-invoice-values strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.credit-invoice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.credit-invoice-actions .button {
+  padding: 8px 10px;
+  font-size: 10px;
+}
+.app-shell[data-theme="dark"] .credit-page .panel-heading select {
+  border-color: var(--line);
+  background: #111c15;
+  color: var(--ink);
+}
+@media (max-width: 950px) {
+  .credit-invoice {
+    grid-template-columns: 1fr auto;
+  }
+  .credit-invoice-values {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .credit-invoice-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 560px) {
+  .credit-invoice {
+    grid-template-columns: 1fr;
+  }
+  .credit-invoice-values {
+    grid-template-columns: 1fr 1fr;
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .credit-invoice-actions {
+    grid-column: auto;
+  }
+  .credit-page .panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

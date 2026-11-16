@@ -78,6 +78,19 @@ def test_installments_and_invoice_partial_payment(tmp_path):
             )
             assert card.status_code == 201, card.text
 
+            invalid_card = client.post(
+                "/api/v1/credit/cards",
+                headers=headers,
+                json={
+                    "account_id": source.json()["id"],
+                    "name": "Conta corrente não pode ser cartão",
+                    "closing_day": 10,
+                    "due_day": 20,
+                    "credit_limit": "1000.00",
+                },
+            )
+            assert invalid_card.status_code == 422
+
             purchase = client.post(
                 "/api/v1/credit/purchases",
                 headers=headers,
@@ -91,6 +104,20 @@ def test_installments_and_invoice_partial_payment(tmp_path):
                 },
             )
             assert purchase.status_code == 201, purchase.text
+
+            duplicate_purchase = client.post(
+                "/api/v1/credit/purchases",
+                headers=headers,
+                json={
+                    "card_id": card.json()["id"],
+                    "description": "Notebook",
+                    "amount": "1000.00",
+                    "purchase_date": "2026-11-12",
+                    "installments": 3,
+                    "idempotency_key": "purchase-notebook-2026-001",
+                },
+            )
+            assert duplicate_purchase.status_code == 409
 
             invoices = client.get(
                 "/api/v1/credit/invoices",

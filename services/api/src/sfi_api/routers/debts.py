@@ -1,0 +1,176 @@
+import uuid
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from sfi_api.database import get_session
+from sfi_api.dependencies import get_current_user
+from sfi_api.models.debt import Debt, DebtPayment
+from sfi_api.models.finance import Account, Transaction
+from sfi_api.models.user import User
+from sfi_api.schemas.debt import (
+    DebtCreate,
+    DebtPaymentCreate,
+    DebtPaymentResponse,
+    DebtResponse,
+)
+
+router = APIRouter(prefix="/debts", tags=["debts"])
+
+
+@router.post("", response_model=DebtResponse, status_code=status.HTTP_201_CREATED)
+async def create_debt(
+    payload: DebtCreate,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    data = payload.model_dump()
+    principal = data.pop("outstanding_principal")
+    debt = Debt(
+        user_id=user.id,
+        **data,
+        outstanding_principal=(
+            principal if principal is not None else payload.original_amount
+        ),
+        next_due_date=payload.first_due_date,
+        status="active",
+    )
+    session.add(debt)
+    await session.commit()
+    await session.refresh(debt)
+    return debt
+
+
+@router.get("", response_model=list[DebtResponse])
+async def list_debts(
+    include_archived: bool = False,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    query = select(Debt).where(Debt.user_id == user.id)
+    if not include_archived:
+        query = query.where(Debt.status != "archived")
+    result = await session.scalars(query.order_by(Debt.next_due_date.asc().nulls_last(), Debt.created_at.desc()))
+    return list(result.all())
+
+
+@router.get("/{debt_id}/payments", response_model=list[DebtPaymentResponse])
+async def list_debt_payments(
+    debt_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    debt = await session.scalar(
+        select(Debt.id).where(Debt.id == debt_id, Debt.user_id == user.id)
+    )
+    if debt is None:
+        raise HTTPException(404, "Dívida não encontrada.")
+    result = await session.scalars(
+        select(DebtPayment).where(
+            DebtPayment.debt_id == debt_id, DebtPayment.user_id == user.id
+        ).order_by(DebtPayment.paid_at.desc())
+    )
+    return list(result.all())
+
+
+@router.post("/{debt_id}/payments", response_model=DebtPaymentResponse, status_code=status.HTTP_201_CREATED)
+async def pay_debt(
+    debt_id: uuid.UUID,
+    payload: DebtPaymentCreate,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    existing = await session.scalar(
+        select(DebtPayment).where(
+            DebtPayment.user_id == user.id,
+            DebtPayment.idempotency_key == payload.idempotency_key,
+        )
+    )
+    if existing:
+        raise HTTPException(409, "Esta chave de idempotência já foi utilizada.")
+
+    debt = await session.scalar(
+        select(Debt).where(
+            Debt.id == debt_id, Debt.user_id == user.id, Debt.status == "active"
+        ).with_for_update()
+    )
+    if debt is None:
+        raise HTTPException(404, "Dívida ativa não encontrada.")
+
+    account = await session.scalar(
+        select(Account).where(
+            Account.id == payload.source_account_id,
+            Account.user_id == user.id,
+            Account.archived_at.is_(None),
+        )
+    )
+    if account is None:
+        raise HTTPException(404, "Conta de origem não encontrada.")
+    if account.account_type == "credit" or account.currency != debt.currency:
+        raise HTTPException(422, "A conta de origem precisa ser não crédito e usar a mesma moeda.")
+
+    if payload.principal_amount > debt.outstanding_principal:
+        raise HTTPException(422, "A amortização não pode superar o saldo devedor.")
+    amount = (payload.principal_amount + payload.interest_amount).quantize(Decimal("0.01"))
+    transaction_id = uuid.uuid4()
+    transaction = Transaction(
+        id=transaction_id,
+        user_id=user.id,
+        account_id=account.id,
+        category_id=None,
+        transaction_type="expense",
+        amount=amount,
+        currency=debt.currency,
+        description=f"Pagamento de dívida: {debt.description}"[:160],
+        idempotency_key=f"debt-payment:{payload.idempotency_key}"[:100],
+        occurred_at=payload.paid_at,
+    )
+    payment = DebtPayment(
+        user_id=user.id,
+        debt_id=debt.id,
+        source_account_id=account.id,
+        transaction_id=transaction_id,
+        amount=amount,
+        principal_amount=payload.principal_amount,
+        interest_amount=payload.interest_amount,
+        idempotency_key=payload.idempotency_key,
+        paid_at=payload.paid_at,
+    )
+    debt.outstanding_principal = (
+        debt.outstanding_principal - payload.principal_amount
+    ).quantize(Decimal("0.01"))
+    if debt.outstanding_principal == Decimal("0.00"):
+        debt.status = "paid"
+        debt.next_due_date = None
+    else:
+        debt.next_due_date = payload.next_due_date
+    session.add_all([transaction, payment])
+    try:
+        await session.commit()
+        await session.refresh(payment)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(409, "O pagamento já foi registrado ou conflitou com outro lançamento.") from None
+    return payment
+
+
+@router.post("/{debt_id}/archive", response_model=DebtResponse)
+async def archive_debt(
+    debt_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    debt = await session.scalar(
+        select(Debt).where(Debt.id == debt_id, Debt.user_id == user.id)
+    )
+    if debt is None:
+        raise HTTPException(404, "Dívida não encontrada.")
+    if debt.status == "active":
+        raise HTTPException(409, "Quite a dívida antes de arquivá-la.")
+    debt.status = "archived"
+    await session.commit()
+    await session.refresh(debt)
+    return debt

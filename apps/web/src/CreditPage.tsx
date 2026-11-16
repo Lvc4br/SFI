@@ -21,6 +21,8 @@ export default function CreditPage({ accounts }: Props) {
   const [notice, setNotice] = useState("");
   const [cardName, setCardName] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [brand, setBrand] = useState("");
+  const [lastFour, setLastFour] = useState("");
   const [closingDay, setClosingDay] = useState("10");
   const [dueDay, setDueDay] = useState("20");
   const [limit, setLimit] = useState("");
@@ -90,11 +92,14 @@ export default function CreditPage({ accounts }: Props) {
           <PanelTitle title="Cadastrar cartão" note="Vincule o cartão a uma conta do tipo crédito." />
           <form className="stack-form" onSubmit={(event) => void run(event, async () => {
             const card = await api.createCreditCard({
-              account_id: accountId, name: cardName.trim(), closing_day: Number(closingDay),
+              account_id: accountId, name: cardName.trim(), brand: brand.trim() || null,
+              last_four: lastFour || null, closing_day: Number(closingDay),
               due_day: Number(dueDay), credit_limit: limit,
             });
             setSelectedCard(card.id);
             setCardName("");
+            setBrand("");
+            setLastFour("");
             setLimit("");
           }, "Cartão cadastrado.")}>
             <label className="field">Nome<input value={cardName} onChange={(event) => setCardName(event.target.value)} required maxLength={80} /></label>
@@ -104,6 +109,10 @@ export default function CreditPage({ accounts }: Props) {
                 {creditAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
             </label>
+            <div className="form-row">
+              <label className="field">Bandeira<input value={brand} onChange={(event) => setBrand(event.target.value)} maxLength={30} placeholder="Visa, Mastercard..." /></label>
+              <label className="field">Últimos 4 dígitos<input value={lastFour} onChange={(event) => setLastFour(event.target.value.replace(/\\D/g, "").slice(0, 4))} inputMode="numeric" pattern="\\d{4}" maxLength={4} /></label>
+            </div>
             <div className="form-row">
               <label className="field">Dia de fechamento<input type="number" min="1" max="31" value={closingDay} onChange={(event) => setClosingDay(event.target.value)} required /></label>
               <label className="field">Dia de vencimento<input type="number" min="1" max="31" value={dueDay} onChange={(event) => setDueDay(event.target.value)} required /></label>
@@ -162,9 +171,13 @@ export default function CreditPage({ accounts }: Props) {
       </section>
       {paymentInvoice && <section className="panel">
         <PanelTitle title="Registrar pagamento" note="A saída e a baixa da conta do cartão são registradas juntas." />
-        <form className="stack-form" onSubmit={(event) => void run(event, () => api.payCreditInvoice(paymentInvoice, {
-          source_account_id: paymentAccount, amount: paymentAmount, paid_at: new Date().toISOString(), idempotency_key: crypto.randomUUID(),
-        }), "Pagamento registrado.")}>
+        <form className="stack-form" onSubmit={(event) => void run(event, async () => {
+          await api.payCreditInvoice(paymentInvoice, {
+            source_account_id: paymentAccount, amount: paymentAmount, paid_at: new Date().toISOString(), idempotency_key: crypto.randomUUID(),
+          });
+          setPaymentInvoice("");
+          setPaymentAmount("");
+        }, "Pagamento registrado.")}>
           <label className="field">Conta de origem<select value={paymentAccount} onChange={(event) => setPaymentAccount(event.target.value)} required><option value="">Selecione</option>{paymentAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label className="field">Valor pago (R$)<input type="number" min="0.01" step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} required /></label>
           <button className="button primary" disabled={busy || paymentAccounts.length === 0}>Confirmar pagamento</button>

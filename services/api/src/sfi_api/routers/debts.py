@@ -49,21 +49,26 @@ async def create_debt(
 @router.get("", response_model=list[DebtResponse])
 async def list_debts(
     include_archived: bool = False,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     query = select(Debt).where(Debt.user_id == user.id)
     if not include_archived:
         query = query.where(Debt.status != "archived")
-    result = await session.scalars(query.order_by(Debt.next_due_date.asc().nulls_last(), Debt.created_at.desc()))
+    result = await session.scalars(
+        query.order_by(
+            Debt.next_due_date.asc().nulls_last(),
+            Debt.created_at.desc(),
+        )
+    )
     return list(result.all())
 
 
 @router.get("/{debt_id}/payments", response_model=list[DebtPaymentResponse])
 async def list_debt_payments(
     debt_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     debt = await session.scalar(
         select(Debt.id).where(Debt.id == debt_id, Debt.user_id == user.id)
@@ -71,19 +76,26 @@ async def list_debt_payments(
     if debt is None:
         raise HTTPException(404, "Dívida não encontrada.")
     result = await session.scalars(
-        select(DebtPayment).where(
-            DebtPayment.debt_id == debt_id, DebtPayment.user_id == user.id
-        ).order_by(DebtPayment.paid_at.desc())
+        select(DebtPayment)
+        .where(
+            DebtPayment.debt_id == debt_id,
+            DebtPayment.user_id == user.id,
+        )
+        .order_by(DebtPayment.paid_at.desc())
     )
     return list(result.all())
 
 
-@router.post("/{debt_id}/payments", response_model=DebtPaymentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{debt_id}/payments",
+    response_model=DebtPaymentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def pay_debt(
     debt_id: uuid.UUID,
     payload: DebtPaymentCreate,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     existing = await session.scalar(
         select(DebtPayment).where(
@@ -95,9 +107,13 @@ async def pay_debt(
         raise HTTPException(409, "Esta chave de idempotência já foi utilizada.")
 
     debt = await session.scalar(
-        select(Debt).where(
-            Debt.id == debt_id, Debt.user_id == user.id, Debt.status == "active"
-        ).with_for_update()
+        select(Debt)
+        .where(
+            Debt.id == debt_id,
+            Debt.user_id == user.id,
+            Debt.status == "active",
+        )
+        .with_for_update()
     )
     if debt is None:
         raise HTTPException(404, "Dívida ativa não encontrada.")
@@ -112,11 +128,16 @@ async def pay_debt(
     if account is None:
         raise HTTPException(404, "Conta de origem não encontrada.")
     if account.account_type == "credit" or account.currency != debt.currency:
-        raise HTTPException(422, "A conta de origem precisa ser não crédito e usar a mesma moeda.")
+        raise HTTPException(
+            422,
+            "A conta de origem precisa ser não crédito e usar a mesma moeda.",
+        )
 
     if payload.principal_amount > debt.outstanding_principal:
         raise HTTPException(422, "A amortização não pode superar o saldo devedor.")
-    amount = (payload.principal_amount + payload.interest_amount).quantize(Decimal("0.01"))
+    amount = (
+        payload.principal_amount + payload.interest_amount
+    ).quantize(Decimal("0.01"))
     transaction_id = uuid.uuid4()
     transaction = Transaction(
         id=transaction_id,
@@ -155,15 +176,18 @@ async def pay_debt(
         await session.refresh(payment)
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(409, "O pagamento já foi registrado ou conflitou com outro lançamento.") from None
+        raise HTTPException(
+            409,
+            "O pagamento já foi registrado ou conflitou com outro lançamento.",
+        ) from None
     return payment
 
 
 @router.post("/{debt_id}/archive", response_model=DebtResponse)
 async def archive_debt(
     debt_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     debt = await session.scalar(
         select(Debt).where(Debt.id == debt_id, Debt.user_id == user.id)

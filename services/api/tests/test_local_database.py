@@ -80,4 +80,4 @@ def test_alembic_bootstraps_empty_sqlite_from_current_domain_metadata(
         "credit_purchase_installments",
         "credit_invoice_payments",
     }.issubset(tables)
-    assert revision == ("0018_credit_cards_invoices",)
+    assert revision == ("0019_debts_and_payments",)

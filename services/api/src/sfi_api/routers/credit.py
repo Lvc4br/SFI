@@ -27,7 +27,9 @@ from sfi_api.schemas.credit import (
     CreditPurchaseCreate,
 )
 
-router = APIRouter(prefix="/credit", tags=["credit-cards"])\nSESSION_DEPENDENCY = Depends(get_session)\nUSER_DEPENDENCY = Depends(get_current_user)
+router = APIRouter(prefix="/credit", tags=["credit-cards"])
+SESSION_DEPENDENCY = Depends(get_session)
+USER_DEPENDENCY = Depends(get_current_user)
 
 
 def _month_shift(value: date, months: int) -> date:

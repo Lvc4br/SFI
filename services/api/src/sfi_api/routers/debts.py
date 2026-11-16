@@ -19,13 +19,15 @@ from sfi_api.schemas.debt import (
 )
 
 router = APIRouter(prefix="/debts", tags=["debts"])
+SESSION_DEPENDENCY = Depends(get_session)
+USER_DEPENDENCY = Depends(get_current_user)
 
 
 @router.post("", response_model=DebtResponse, status_code=status.HTTP_201_CREATED)
 async def create_debt(
     payload: DebtCreate,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     data = payload.model_dump()
     principal = data.pop("outstanding_principal")

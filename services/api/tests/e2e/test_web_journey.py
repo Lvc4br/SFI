@@ -169,7 +169,7 @@ def test_complete_web_financial_journey() -> None:
                 assert credit_purchase.status_code == 201, credit_purchase.text
 
             page.get_by_role("button", name="Cartões").click()
-            expect(page.get_by_role("heading", name="Faturas")).to_be_visible()
+            expect(page.locator(".credit-invoice-list")).to_be_visible()
             invoice = page.locator(".credit-invoice").filter(
                 has_text="Cartão de teste E2E"
             )

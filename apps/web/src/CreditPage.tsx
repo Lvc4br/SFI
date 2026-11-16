@@ -65,6 +65,21 @@ export default function CreditPage({ accounts }: Props) {
     }
   }
 
+  async function closeInvoice(id: string) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await api.closeCreditInvoice(id);
+      setNotice("Fatura fechada.");
+      await reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível fechar a fatura.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const visibleInvoices = invoices.filter((invoice) => !selectedCard || invoice.card_id === selectedCard);
   return (
     <section className="content-grid credit-page">
@@ -137,7 +152,7 @@ export default function CreditPage({ accounts }: Props) {
                 <div className="credit-invoice-values"><span>Total <strong>{brl(invoice.total_amount)}</strong></span><span>Pago <strong>{brl(invoice.paid_amount)}</strong></span><span>Restante <strong>{brl(invoice.remaining_amount)}</strong></span></div>
                 <span className={invoice.status === "paid" ? "status" : "status over"}>{invoice.status === "paid" ? "Paga" : invoice.status === "closed" ? "Fechada" : "Aberta"}</span>
                 <div className="credit-invoice-actions">
-                  {invoice.status === "open" && <button className="button secondary" type="button" disabled={busy} onClick={() => void run(new Event("submit") as unknown as FormEvent, () => api.closeCreditInvoice(invoice.id), "Fatura fechada.")}>Fechar</button>}
+                  {invoice.status === "open" && <button className="button secondary" type="button" disabled={busy} onClick={() => void closeInvoice(invoice.id)}>Fechar</button>}
                   {Number(invoice.remaining_amount) > 0 && <button className="button secondary" type="button" onClick={() => { setPaymentInvoice(invoice.id); setPaymentAmount(invoice.remaining_amount); }}>Pagar</button>}
                 </div>
               </article>;

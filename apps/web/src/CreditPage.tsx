@@ -111,7 +111,7 @@ export default function CreditPage({ accounts }: Props) {
             </label>
             <div className="form-row">
               <label className="field">Bandeira<input value={brand} onChange={(event) => setBrand(event.target.value)} maxLength={30} placeholder="Visa, Mastercard..." /></label>
-              <label className="field">Últimos 4 dígitos<input value={lastFour} onChange={(event) => setLastFour(event.target.value.replace(/\\D/g, "").slice(0, 4))} inputMode="numeric" pattern="\\d{4}" maxLength={4} /></label>
+              <label className="field">Últimos 4 dígitos<input value={lastFour} onChange={(event) => setLastFour(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" pattern="\d{4}" maxLength={4} /></label>
             </div>
             <div className="form-row">
               <label className="field">Dia de fechamento<input type="number" min="1" max="31" value={closingDay} onChange={(event) => setClosingDay(event.target.value)} required /></label>

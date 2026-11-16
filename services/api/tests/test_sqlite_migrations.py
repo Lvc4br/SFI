@@ -26,6 +26,8 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
         "credit_invoices",
         "credit_purchase_installments",
         "credit_invoice_payments",
+        "debts",
+        "debt_payments",
     }
     if not shopping_tables_already_exist:
         excluded.update({"shopping_lists", "shopping_list_items"})
@@ -93,7 +95,7 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
             "PRAGMA foreign_key_list(shopping_list_items)"
         ).fetchall()
 
-    assert revision == "0018_credit_cards_invoices"
+    assert revision == "0019_debts_and_payments"
     assert {
         "shopping_lists",
         "shopping_list_items",
@@ -103,6 +105,8 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
         "credit_invoices",
         "credit_purchase_installments",
         "credit_invoice_payments",
+        "debts",
+        "debt_payments",
     } <= tables
     assert "is_template" in list_columns
     assert "product_id" in item_columns

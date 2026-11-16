@@ -131,6 +131,26 @@ def test_installments_and_invoice_partial_payment(tmp_path):
             row = next(item for item in updated if item["id"] == first["id"])
             assert row["paid_amount"] == "100.00"
             assert row["remaining_amount"] == "233.34"
+
+            closed = client.post(
+                f"/api/v1/credit/invoices/{first['id']}/close",
+                headers=headers,
+            )
+            assert closed.status_code == 200, closed.text
+
+            late_purchase = client.post(
+                "/api/v1/credit/purchases",
+                headers=headers,
+                json={
+                    "card_id": card.json()["id"],
+                    "description": "Compra após fechamento",
+                    "amount": "50.00",
+                    "purchase_date": "2026-11-13",
+                    "installments": 1,
+                    "idempotency_key": "purchase-after-close-001",
+                },
+            )
+            assert late_purchase.status_code == 409
     finally:
         app.dependency_overrides.clear()
         asyncio.run(engine.dispose())

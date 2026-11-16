@@ -216,7 +216,7 @@ async def create_purchase(
         select(CreditCard).where(
             CreditCard.id == payload.card_id,
             CreditCard.user_id == user.id,
-        )
+        ).with_for_update()
     )
     if card is None:
         raise HTTPException(404, "Cartão não encontrado.")
@@ -272,16 +272,38 @@ async def create_purchase(
     first_cycle = date(first_year, first_month, 1)
 
     for number in range(1, payload.installments + 1):
+        cycle_date = _month_shift(first_cycle, number - 1)
+        existing_invoice = await session.scalar(
+            select(CreditInvoice)
+            .where(
+                CreditInvoice.user_id == user.id,
+                CreditInvoice.card_id == card.id,
+                CreditInvoice.period == cycle_date.strftime("%Y-%m"),
+            )
+            .with_for_update()
+        )
+        if existing_invoice is not None and existing_invoice.status != "open":
+            await session.rollback()
+            raise HTTPException(
+                409,
+                "A compra não pode ser adicionada a uma fatura fechada ou paga.",
+            )
+
         installment_amount = base + (
             Decimal("0.01") if number <= remainder else Decimal("0.00")
         )
-        cycle_date = _month_shift(first_cycle, number - 1)
         invoice = await _invoice_for_period(
             session,
             user.id,
             card,
             cycle_date,
         )
+        if invoice.status != "open":
+            await session.rollback()
+            raise HTTPException(
+                409,
+                "A compra não pode ser adicionada a uma fatura fechada ou paga.",
+            )
         description = (
             payload.description
             if payload.installments == 1
@@ -357,7 +379,7 @@ async def close_invoice(
         select(CreditInvoice).where(
             CreditInvoice.id == invoice_id,
             CreditInvoice.user_id == user.id,
-        )
+        ).with_for_update()
     )
     if invoice is None:
         raise HTTPException(404, "Fatura não encontrada.")

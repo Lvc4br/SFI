@@ -27,7 +27,7 @@ from sfi_api.schemas.credit import (
     CreditPurchaseCreate,
 )
 
-router = APIRouter(prefix="/credit", tags=["credit-cards"])
+router = APIRouter(prefix="/credit", tags=["credit-cards"])\nSESSION_DEPENDENCY = Depends(get_session)\nUSER_DEPENDENCY = Depends(get_current_user)
 
 
 def _month_shift(value: date, months: int) -> date:
@@ -157,8 +157,8 @@ async def _invoice_response(
 )
 async def create_card(
     payload: CreditCardCreate,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     account = await session.scalar(
         select(Account).where(
@@ -193,8 +193,8 @@ async def create_card(
 
 @router.get("/cards", response_model=list[CreditCardResponse])
 async def list_cards(
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     result = await session.scalars(
         select(CreditCard)
@@ -207,8 +207,8 @@ async def list_cards(
 @router.post("/purchases", status_code=status.HTTP_201_CREATED)
 async def create_purchase(
     payload: CreditPurchaseCreate,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     card = await session.scalar(
         select(CreditCard).where(
@@ -329,8 +329,8 @@ async def create_purchase(
 @router.get("/invoices", response_model=list[CreditInvoiceResponse])
 async def list_invoices(
     card_id: uuid.UUID | None = None,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     query = select(CreditInvoice).where(CreditInvoice.user_id == user.id)
     if card_id is not None:
@@ -348,8 +348,8 @@ async def list_invoices(
 )
 async def close_invoice(
     invoice_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     invoice = await session.scalar(
         select(CreditInvoice).where(
@@ -374,8 +374,8 @@ async def close_invoice(
 async def pay_invoice(
     invoice_id: uuid.UUID,
     payload: CreditInvoicePaymentCreate,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     existing = await session.scalar(
         select(CreditInvoicePayment).where(

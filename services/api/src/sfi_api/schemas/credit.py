@@ -2,7 +2,9 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 
 class CreditCardCreate(BaseModel):
     account_id: uuid.UUID
@@ -12,15 +14,19 @@ class CreditCardCreate(BaseModel):
     closing_day: int = Field(ge=1, le=31)
     due_day: int = Field(ge=1, le=31)
     credit_limit: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+
     @field_validator("name")
     @classmethod
     def clean_name(cls, value: str) -> str:
-        value=value.strip()
-        if not value: raise ValueError("Informe um nome para o cartão.")
+        value = value.strip()
+        if not value:
+            raise ValueError("Informe um nome para o cartão.")
         return value
 
+
 class CreditCardResponse(BaseModel):
-    model_config=ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     account_id: uuid.UUID
     name: str
@@ -31,6 +37,7 @@ class CreditCardResponse(BaseModel):
     credit_limit: Decimal
     created_at: datetime
 
+
 class CreditPurchaseCreate(BaseModel):
     card_id: uuid.UUID
     description: str = Field(min_length=1, max_length=160)
@@ -38,12 +45,15 @@ class CreditPurchaseCreate(BaseModel):
     purchase_date: date
     installments: int = Field(default=1, ge=1, le=48)
     idempotency_key: str = Field(min_length=16, max_length=100)
+
     @field_validator("description")
     @classmethod
     def clean_description(cls, value: str) -> str:
-        value=value.strip()
-        if not value: raise ValueError("Informe a descrição da compra.")
+        value = value.strip()
+        if not value:
+            raise ValueError("Informe a descrição da compra.")
         return value
+
 
 class CreditInvoiceResponse(BaseModel):
     id: uuid.UUID
@@ -56,17 +66,20 @@ class CreditInvoiceResponse(BaseModel):
     paid_amount: Decimal
     remaining_amount: Decimal
 
+
 class CreditInvoicePaymentCreate(BaseModel):
     source_account_id: uuid.UUID
     amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
     paid_at: datetime
     idempotency_key: str = Field(min_length=16, max_length=100)
+
     @field_validator("paid_at")
     @classmethod
     def aware_date(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("A data do pagamento precisa conter fuso horário.")
         return value
+
 
 class CreditInvoicePaymentResponse(BaseModel):
     id: uuid.UUID

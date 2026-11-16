@@ -8,6 +8,8 @@ A migration 0018 adiciona cartões vinculados a contas do tipo `credit`, ciclos 
 - Compra após o fechamento entra no ciclo seguinte. Parcelas são distribuídas por ciclos consecutivos e os centavos residuais são alocados às primeiras parcelas, preservando o total.
 - Cada parcela cria uma despesa na conta de crédito e aparece na fatura correspondente.
 - Pagamento parcial ou total cria despesa na conta de origem e entrada compensatória na conta de crédito, na mesma transação de banco de dados.
+- A liquidação movimenta saldo entre contas, mas não é contabilizada como nova receita ou despesa no fluxo de caixa; somente as parcelas da compra entram nas despesas.
+- A data contábil de cada parcela é ancorada à meia-noite no fuso horário do usuário para manter a competência correta nos relatórios.
 - Pagamentos excedentes, conta de crédito como origem, moedas não suportadas e chaves repetidas são rejeitados.
 - Os dados são isolados por usuário. Não há integração bancária ou captura automática de compras.
 

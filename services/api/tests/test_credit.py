@@ -133,7 +133,7 @@ def test_installments_and_invoice_partial_payment(tmp_path):
             payment_payload = {
                 "source_account_id": source.json()["id"],
                 "amount": "100.00",
-                "paid_at": "2026-11-15T12:00:00Z",
+                "paid_at": "2026-12-15T12:00:00Z",
                 "idempotency_key": "payment-notebook-001",
             }
             payment_url = f"/api/v1/credit/invoices/{first['id']}/payments"
@@ -158,6 +158,16 @@ def test_installments_and_invoice_partial_payment(tmp_path):
             row = next(item for item in updated if item["id"] == first["id"])
             assert row["paid_amount"] == "100.00"
             assert row["remaining_amount"] == "233.34"
+
+            cashflow = client.get(
+                "/api/v1/finance/summary?start_date=2026-12-01&end_date=2026-12-31",
+                headers=headers,
+            )
+            assert cashflow.status_code == 200, cashflow.text
+            totals = cashflow.json()["totals_by_currency"][0]
+            assert totals["income_total"] == "0.00"
+            assert totals["expense_total"] == "333.34"
+            assert totals["net_flow"] == "-333.34"
 
             closed = client.post(
                 f"/api/v1/credit/invoices/{first['id']}/close",

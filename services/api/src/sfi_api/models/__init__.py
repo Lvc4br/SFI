@@ -1,10 +1,6 @@
 from sfi_api.models.base import Base
-from sfi_api.models.credit import (
-    CreditCard,
-    CreditInvoice,
-    CreditInvoicePayment,
-    CreditPurchaseInstallment,
-)
+from sfi_api.models.credit import CreditCard, CreditInvoice, CreditInvoicePayment, CreditPurchaseInstallment
+from sfi_api.models.debt import Debt, DebtPayment
 from sfi_api.models.finance import Account, Budget, Category, Transaction, Transfer
 from sfi_api.models.login_attempt import LoginAttempt
 from sfi_api.models.product import ProductPriceObservation, ShoppingProduct
@@ -18,26 +14,10 @@ from sfi_api.models.transfer_reversal import TransferReversal
 from sfi_api.models.user import User
 
 __all__ = [
-    "Account",
-    "Base",
-    "Budget",
-    "Category",
-    "CreditCard",
-    "CreditInvoice",
-    "CreditInvoicePayment",
-    "CreditPurchaseInstallment",
-    "LoginAttempt",
-    "ProductPriceObservation",
-    "Recurrence",
-    "RefreshToken",
-    "RevokedAccessToken",
-    "SecurityEvent",
-    "ShoppingList",
-    "ShoppingListItem",
-    "ShoppingProduct",
-    "StockMovement",
-    "Transaction",
-    "Transfer",
-    "TransferReversal",
-    "User",
+    "Account", "Base", "Budget", "Category", "CreditCard", "CreditInvoice",
+    "CreditInvoicePayment", "CreditPurchaseInstallment", "Debt", "DebtPayment",
+    "LoginAttempt", "ProductPriceObservation", "Recurrence", "RefreshToken",
+    "RevokedAccessToken", "SecurityEvent", "ShoppingList", "ShoppingListItem",
+    "ShoppingProduct", "StockMovement", "Transaction", "Transfer",
+    "TransferReversal", "User",
 ]

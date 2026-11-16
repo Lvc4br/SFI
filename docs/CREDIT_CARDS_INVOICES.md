@@ -19,3 +19,9 @@ A migration 0018 adiciona cartões vinculados a contas do tipo `credit`, ciclos 
 - `POST /api/v1/credit/invoices/{id}/payments`
 
 A criação de compra usa `idempotency_key`; o mesmo identificador gera um UUID determinístico por usuário e impede duplicação. Pagamentos têm chave única por usuário. Fechar fatura é uma operação manual nesta versão; a data de fechamento é calculada e armazenada, mas não há job automático.
+
+
+## Interface
+A tela **Cartões** está integrada à navegação do aplicativo. Ela permite cadastrar cartão e conta de crédito vinculada, registrar compra à vista ou parcelada, consultar faturas por cartão, fechar uma fatura manualmente e registrar pagamentos parciais ou totais a partir de uma conta não crédito em BRL.
+
+A interface não armazena número completo, CVV ou dados de autenticação do cartão. Apenas o identificador interno da conta, nome e parâmetros de ciclo são usados pelo SFI.

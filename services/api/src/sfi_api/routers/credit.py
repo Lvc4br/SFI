@@ -2,6 +2,7 @@ import calendar
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -312,8 +313,8 @@ async def create_purchase(
         occurred_at = datetime.combine(
             cycle_date,
             datetime.min.time(),
-            tzinfo=UTC,
-        )
+            tzinfo=ZoneInfo(user.timezone),
+        ).astimezone(UTC)
         installment = CreditPurchaseInstallment(
             user_id=user.id,
             invoice_id=invoice.id,

@@ -12,8 +12,12 @@ class DebtCreate(BaseModel):
     description: str = Field(min_length=1, max_length=160)
     currency: str = Field(default="BRL", pattern=r"^[A-Z]{3}$")
     original_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
-    outstanding_principal: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=2)
-    annual_interest_rate: Decimal = Field(default=Decimal("0"), ge=0, max_digits=9, decimal_places=6)
+    outstanding_principal: Decimal | None = Field(
+        default=None, ge=0, max_digits=18, decimal_places=2
+    )
+    annual_interest_rate: Decimal = Field(
+        default=Decimal("0"), ge=0, max_digits=9, decimal_places=6
+    )
     amortization_method: Literal["manual", "price", "sac"] = "manual"
     contracted_at: date
     first_due_date: date
@@ -39,6 +43,7 @@ class DebtCreate(BaseModel):
 
 class DebtResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     creditor: str
     debt_type: str
@@ -60,7 +65,9 @@ class DebtResponse(BaseModel):
 class DebtPaymentCreate(BaseModel):
     source_account_id: uuid.UUID
     principal_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
-    interest_amount: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=2)
+    interest_amount: Decimal = Field(
+        default=Decimal("0"), ge=0, max_digits=18, decimal_places=2
+    )
     paid_at: datetime
     next_due_date: date | None = None
     idempotency_key: str = Field(min_length=16, max_length=100)
@@ -75,6 +82,7 @@ class DebtPaymentCreate(BaseModel):
 
 class DebtPaymentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     debt_id: uuid.UUID
     source_account_id: uuid.UUID

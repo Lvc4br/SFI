@@ -167,6 +167,20 @@ def test_complete_web_financial_journey() -> None:
                     },
                 )
                 assert credit_purchase.status_code == 201, credit_purchase.text
+                for index in range(30):
+                    created = api.post(
+                        "/api/v1/finance/transactions",
+                        json={
+                            "account_id": account_id,
+                            "category_id": category_id,
+                            "transaction_type": "expense",
+                            "amount": "1.00",
+                            "description": f"Volume E2E {index:02d}",
+                            "occurred_at": f"{today}T12:00:00+00:00",
+                            "idempotency_key": f"e2e-volume-{uuid.uuid4().hex}",
+                        },
+                    )
+                    assert created.status_code == 201, created.text
 
             page.get_by_role("button", name="Cartões").click()
             expect(page.locator(".credit-invoice-list")).to_be_visible()
@@ -183,20 +197,6 @@ def test_complete_web_financial_journey() -> None:
             expect(invoice.get_by_text("Paga")).to_be_visible()
 
             page.get_by_role("button", name="Movimentações").click()
-            for index in range(30):
-                    created = api.post(
-                        "/api/v1/finance/transactions",
-                        json={
-                            "account_id": account_id,
-                            "category_id": category_id,
-                            "transaction_type": "expense",
-                            "amount": "1.00",
-                            "description": f"Volume E2E {index:02d}",
-                            "occurred_at": f"{today}T12:00:00+00:00",
-                            "idempotency_key": f"e2e-volume-{uuid.uuid4().hex}",
-                        },
-                    )
-                    assert created.status_code == 201, created.text
 
             # Wait for each server-side filter request before applying the next one.
             # This keeps the E2E deterministic and exercises the UI's stale-response guard.

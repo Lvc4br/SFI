@@ -2,13 +2,23 @@ import asyncio
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from sfi_api.config import Settings
 from sfi_api.database import get_session
 from sfi_api.main import app
 from sfi_api.models import Base
 from sfi_api.routers.credit import _cycle_dates
+
+
+@pytest.fixture(autouse=True)
+def configure_test_jwt(monkeypatch):
+    def test_settings() -> Settings:
+        return Settings(jwt_secret_key="test-only-secret-key-with-at-least-32-bytes")
+
+    monkeypatch.setattr("sfi_api.security.get_settings", test_settings)
 
 
 def register(client, email):
@@ -127,10 +137,13 @@ def test_installments_and_invoice_partial_payment(tmp_path):
 
 
 def test_cycle_handles_short_month_and_due_month():
-    period, closing, due = _cycle_dates(
-        SimpleNamespace(closing_day=31, due_day=10),
-        date(2027, 2, 28),
-    )
-    assert period == "2027-03"
-    assert closing == date(2027, 3, 31)
-    assert due == date(2027, 4, 10)
+    card = SimpleNamespace(closing_day=31, due_day=10)
+    period, closing, due = _cycle_dates(card, date(2027, 2, 28))
+    assert period == "2027-02"
+    assert closing == date(2027, 2, 28)
+    assert due == date(2027, 3, 10)
+
+    next_period, next_closing, next_due = _cycle_dates(card, date(2027, 3, 1))
+    assert next_period == "2027-03"
+    assert next_closing == date(2027, 3, 31)
+    assert next_due == date(2027, 4, 10)

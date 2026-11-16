@@ -27,13 +27,25 @@ async def lifespan(_: FastAPI):
     await dispose_database()
 
 
-app = FastAPI(title=settings.app_name, version="0.2.0", description="API central do SFI.", lifespan=lifespan)
+app = FastAPI(
+    title=settings.app_name,
+    version="0.2.0",
+    description="API central do SFI.",
+    lifespan=lifespan,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.parsed_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "If-Match", "X-SFI-Client", "X-CSRF-Token"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "If-Match",
+        "X-SFI-Client",
+        "X-CSRF-Token",
+    ],
 )
 
 
@@ -46,9 +58,13 @@ async def apply_security_headers(request, call_next):
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if request.url.path.startswith(settings.api_prefix):
         response.headers["Cache-Control"] = "no-store"
-        response.headers["Content-Security-Policy"] = "default-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+        )
     if settings.environment.lower() == "production":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
     return response
 
 
@@ -68,20 +84,39 @@ app.include_router(dashboard_router, prefix=settings.api_prefix)
 
 @app.get("/", tags=["system"])
 async def root() -> dict[str, str]:
-    return {"name": settings.app_name, "status": "running", "docs": "/docs"}
+    return {
+        "name": settings.app_name,
+        "status": "running",
+        "docs": "/docs",
+    }
 
 
 @app.get(f"{settings.api_prefix}/health/live", tags=["health"])
 async def liveness() -> dict[str, str]:
-    return {"status": "ok", "app": settings.app_name, "environment": settings.environment}
+    return {
+        "status": "ok",
+        "app": settings.app_name,
+        "environment": settings.environment,
+    }
 
 
 @app.get(f"{settings.api_prefix}/health/ready", tags=["health"])
 async def readiness() -> dict[str, str | bool]:
     if not settings.database_url:
-        return {"status": "degraded", "database": "not_configured", "ready": False}
+        return {
+            "status": "degraded",
+            "database": "not_configured",
+            "ready": False,
+        }
     try:
         await check_database()
     except Exception as exc:
-        raise HTTPException(status_code=503, detail={"status": "not_ready", "database": "unavailable"}) from exc
-    return {"status": "ok", "database": "connected", "ready": True}
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "not_ready", "database": "unavailable"},
+        ) from exc
+    return {
+        "status": "ok",
+        "database": "connected",
+        "ready": True,
+    }

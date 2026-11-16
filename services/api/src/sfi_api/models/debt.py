@@ -2,19 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import (
-    CheckConstraint,
-    Date,
-    DateTime,
-    ForeignKey,
-    ForeignKeyConstraint,
-    Index,
-    Numeric,
-    String,
-    UniqueConstraint,
-    Uuid,
-    func,
-)
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, ForeignKeyConstraint, Index, Numeric, String, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sfi_api.models.base import Base
@@ -32,9 +20,7 @@ class Debt(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     creditor: Mapped[str] = mapped_column(String(120), nullable=False)
     debt_type: Mapped[str] = mapped_column(String(30), nullable=False)
     description: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -55,14 +41,9 @@ class Debt(Base):
 class DebtPayment(Base):
     __tablename__ = "debt_payments"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["debt_id", "user_id"], ["debts.id", "debts.user_id"],
-            name="fk_debt_payments_debt_owner", ondelete="RESTRICT"
-        ),
-        ForeignKeyConstraint(
-            ["source_account_id", "user_id"], ["accounts.id", "accounts.user_id"],
-            name="fk_debt_payments_account_owner", ondelete="RESTRICT"
-        ),
+        ForeignKeyConstraint(["debt_id", "user_id"], ["debts.id", "debts.user_id"], name="fk_debt_payments_debt_owner", ondelete="RESTRICT"),
+        ForeignKeyConstraint(["source_account_id", "user_id"], ["accounts.id", "accounts.user_id"], name="fk_debt_payments_account_owner", ondelete="RESTRICT"),
+        ForeignKeyConstraint(["transaction_id", "user_id"], ["transactions.id", "transactions.user_id"], name="fk_debt_payments_transaction_owner", ondelete="RESTRICT"),
         UniqueConstraint("user_id", "idempotency_key", name="uq_debt_payments_idempotency"),
         CheckConstraint("amount > 0", name="ck_debt_payments_amount"),
         CheckConstraint("principal_amount > 0", name="ck_debt_payments_principal"),
@@ -71,9 +52,7 @@ class DebtPayment(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     debt_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     source_account_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     transaction_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)

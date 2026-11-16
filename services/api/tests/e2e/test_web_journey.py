@@ -137,7 +137,53 @@ def test_complete_web_financial_journey() -> None:
                 category_id = next(
                     row["id"] for row in category_rows if row["name"] == "Categoria E2E"
                 )
-                for index in range(30):
+                credit_account = api.post(
+                    "/api/v1/finance/accounts",
+                    json={"name": "Cartão E2E", "account_type": "credit"},
+                )
+                assert credit_account.status_code == 201, credit_account.text
+                credit_card = api.post(
+                    "/api/v1/credit/cards",
+                    json={
+                        "account_id": credit_account.json()["id"],
+                        "name": "Cartão de teste E2E",
+                        "brand": "Visa",
+                        "last_four": "1234",
+                        "closing_day": 10,
+                        "due_day": 20,
+                        "credit_limit": "3000.00",
+                    },
+                )
+                assert credit_card.status_code == 201, credit_card.text
+                credit_purchase = api.post(
+                    "/api/v1/credit/purchases",
+                    json={
+                        "card_id": credit_card.json()["id"],
+                        "description": "Compra parcelada E2E",
+                        "amount": "300.00",
+                        "purchase_date": today,
+                        "installments": 3,
+                        "idempotency_key": f"e2e-card-{uuid.uuid4().hex}",
+                    },
+                )
+                assert credit_purchase.status_code == 201, credit_purchase.text
+
+            page.get_by_role("button", name="Cartões").click()
+            expect(page.get_by_role("heading", name="Faturas")).to_be_visible()
+            invoice = page.locator(".credit-invoice").filter(
+                has_text="Cartão de teste E2E"
+            )
+            expect(invoice).to_be_visible()
+            invoice.get_by_role("button", name="Fechar").click()
+            expect(invoice.get_by_text("Fechada")).to_be_visible()
+            invoice.get_by_role("button", name="Pagar").click()
+            page.get_by_label("Conta de origem").select_option(label="Conta reserva E2E")
+            page.get_by_role("button", name="Confirmar pagamento").click()
+            expect(page.get_by_text("Pagamento registrado.")).to_be_visible()
+            expect(invoice.get_by_text("Paga")).to_be_visible()
+
+            page.get_by_role("button", name="Movimentações").click()
+            for index in range(30):
                     created = api.post(
                         "/api/v1/finance/transactions",
                         json={

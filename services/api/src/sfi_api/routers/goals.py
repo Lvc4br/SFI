@@ -51,7 +51,10 @@ async def list_goals(
     if not include_archived:
         query = query.where(FinancialGoal.status != "archived")
     result = await session.scalars(
-        query.order_by(FinancialGoal.target_date.asc().nulls_last(), FinancialGoal.created_at.desc())
+        query.order_by(
+            FinancialGoal.target_date.asc().nulls_last(),
+            FinancialGoal.created_at.desc(),
+        )
     )
     return list(result.all())
 

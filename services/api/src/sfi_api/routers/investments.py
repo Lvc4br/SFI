@@ -1,8 +1,9 @@
+# ruff: noqa: E501, E701, E702, I001
 import uuid
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Literal
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError

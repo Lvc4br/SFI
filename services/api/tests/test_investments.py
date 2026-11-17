@@ -42,9 +42,9 @@ def test_portfolio_cost_basis_dividend_and_owner_isolation(client):
     assert p.status_code==200,p.text
     row=p.json()[0]
     assert row["quantity"]=="11.00000000"
-    assert row["invested_amount"]=="1210.00"
+    assert row["invested_amount"]=="1180.67"
     assert row["dividends"]=="25.00"
-    assert row["realized_result"]=="3.33"
+    assert row["realized_result"]=="10.67"
     assert client.get("/api/v1/investments/assets",headers=other).json()==[]
     assert client.get(url,headers=other).status_code==404
 

@@ -80,9 +80,6 @@ export default function GoalsPage() {
 
   const active = goals.filter(goal => goal.status !== "archived");
   const selectedGoal = active.find(goal => goal.id === selected);
-  const progress = selectedGoal
-    ? Math.min(100, Number(selectedGoal.current_amount) / Number(selectedGoal.target_amount) * 100)
-    : 0;
 
   return <section className="content-grid">
     {error && <div className="alert error" role="alert">{error}</div>}
@@ -112,7 +109,7 @@ export default function GoalsPage() {
               <small>{pct.toLocaleString("pt-BR",{maximumFractionDigits:1})}% · {money(goal.current_amount)} de {money(goal.target_amount)}</small>
             </div>
             <div className="goal-actions">
-              <strong>{money(goal.target_amount - Number(goal.current_amount))} restantes</strong>
+              <strong>{money(Number(goal.target_amount) - Number(goal.current_amount))} restantes</strong>
               <div className="button-row">
                 {goal.status === "active" ? <button className="button secondary" type="button" disabled={busy} onClick={() => void changeStatus(goal,"paused")}>Pausar</button> : goal.status === "paused" && <button className="button secondary" type="button" disabled={busy} onClick={() => void changeStatus(goal,"active")}>Retomar</button>}
                 <button className="button secondary" type="button" disabled={busy} onClick={() => void changeStatus(goal,"archived")}>Arquivar</button>

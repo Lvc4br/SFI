@@ -111,7 +111,7 @@ async def create_operation(asset_id:uuid.UUID,payload:OperationIn,session:AsyncS
     duplicate=await session.scalar(select(InvestmentOperation.id).where(InvestmentOperation.user_id==user.id,InvestmentOperation.idempotency_key==payload.idempotency_key))
     if duplicate:raise HTTPException(409,"Chave de idempotência já utilizada.")
     if payload.operation_type=="sell":
-        ops=await session.scalars(select(InvestmentOperation).where(InvestmentOperation.asset_id==asset_id,InvestmentOperation.user_id==user.id).order_by(InvestmentOperation.occurred_at,InvestmentOperation.created_at))
+        ops=await session.scalars(select(InvestmentOperation).where(InvestmentOperation.asset_id==asset_id,InvestmentOperation.user_id==user.id,InvestmentOperation.occurred_at<=payload.occurred_at).order_by(InvestmentOperation.occurred_at,InvestmentOperation.created_at))
         held=sum((o.quantity if o.operation_type=="buy" else -o.quantity if o.operation_type=="sell" else Decimal("0")) for o in ops)
         if payload.quantity>held:raise HTTPException(422,"A venda supera a quantidade disponível.")
     row=InvestmentOperation(user_id=user.id,asset_id=asset_id,**payload.model_dump());session.add(row)
@@ -133,6 +133,7 @@ async def portfolio(session:AsyncSession=SESSION,user:User=USER):
                 removed=(cost/qty)*op.quantity if qty else Decimal("0")
                 realized+=op.amount-op.fees-op.taxes-removed;qty-=op.quantity;cost-=removed
             elif op.operation_type=="dividend":dividends+=op.amount
+            elif op.operation_type in {"fee","tax"}:realized-=op.amount
         avg=(cost/qty).quantize(Decimal("0.00000001"),rounding=ROUND_HALF_UP) if qty else Decimal("0")
         output.append(Position(asset=asset,quantity=qty,average_cost=avg,invested_amount=cost.quantize(Decimal("0.01")),dividends=dividends.quantize(Decimal("0.01")),realized_result=realized.quantize(Decimal("0.01")),operations_count=len(rows)))
     return output

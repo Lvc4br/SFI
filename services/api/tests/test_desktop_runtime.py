@@ -80,7 +80,7 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 ).fetchall()
             }
-        assert revision == "0020_financial_goals"
+        assert revision == "0021_investments"
         assert {
             "shopping_lists",
             "shopping_list_items",

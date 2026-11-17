@@ -1,3 +1,4 @@
+# ruff: noqa: E501, E701, E702, I001
 import asyncio
 import pytest
 from fastapi.testclient import TestClient

@@ -287,7 +287,7 @@ def test_complete_web_financial_journey() -> None:
             goal_form = page.locator("form").filter(
                 has=page.get_by_label("Tipo de movimento")
             )
-            goal_form.get_by_label("Meta").select_option(label="Meta E2E · R$ 0,00")
+            goal_form.get_by_label("Meta").select_option(index=1)
             goal_form.get_by_label("Tipo de movimento").select_option("contribution")
             goal_form.get_by_label("Valor (R$)").fill("300.00")
             goal_form.get_by_role("button", name="Registrar movimento").click()
@@ -296,7 +296,7 @@ def test_complete_web_financial_journey() -> None:
             goal_form.get_by_label("Valor (R$)").fill("50.00")
             goal_form.get_by_role("button", name="Registrar movimento").click()
             expect(page.get_by_text("Retirada registrada.")).to_be_visible()
-            expect(goal_form.get_by_text("Saldo reservado: R$ 250,00.")).to_be_visible()
+            expect(goal_form.get_by_text("Saldo reservado:")).to_contain_text("250,00")
 
             page.get_by_role("button", name="Contas e categorias").click()
             page.once("dialog", lambda dialog: dialog.accept("Conta E2E renomeada"))

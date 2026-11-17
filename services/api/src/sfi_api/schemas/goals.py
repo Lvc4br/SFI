@@ -25,7 +25,9 @@ class GoalCreate(BaseModel):
 class GoalUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=500)
-    target_amount: Decimal | None = Field(default=None, gt=0, max_digits=18, decimal_places=2)
+    target_amount: Decimal | None = Field(
+        default=None, gt=0, max_digits=18, decimal_places=2
+    )
     target_date: date | None = None
     status: Literal["active", "paused", "archived"] | None = None
 

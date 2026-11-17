@@ -109,7 +109,7 @@ export default function GoalsPage() {
               <small>{pct.toLocaleString("pt-BR",{maximumFractionDigits:1})}% · {money(goal.current_amount)} de {money(goal.target_amount)}</small>
             </div>
             <div className="goal-actions">
-              <strong>{money(Number(goal.target_amount) - Number(goal.current_amount))} restantes</strong>
+              <strong>{money((Number(goal.target_amount) - Number(goal.current_amount)).toFixed(2))} restantes</strong>
               <div className="button-row">
                 {goal.status === "active" ? <button className="button secondary" type="button" disabled={busy} onClick={() => void changeStatus(goal,"paused")}>Pausar</button> : goal.status === "paused" && <button className="button secondary" type="button" disabled={busy} onClick={() => void changeStatus(goal,"active")}>Retomar</button>}
                 <button className="button secondary" type="button" disabled={busy} onClick={() => void changeStatus(goal,"archived")}>Arquivar</button>

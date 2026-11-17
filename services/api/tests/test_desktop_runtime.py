@@ -91,6 +91,10 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
             "credit_invoices",
             "credit_purchase_installments",
             "credit_invoice_payments",
+            "financial_goals",
+            "goal_entries",
+            "investment_assets",
+            "investment_operations",
         } <= tables
     finally:
         if process.poll() is None:

@@ -52,7 +52,10 @@ class FinancialGoal(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False
     )
 
 
@@ -65,9 +68,14 @@ class GoalEntry(Base):
             name="fk_goal_entries_goal_owner",
             ondelete="RESTRICT",
         ),
-        UniqueConstraint("user_id", "idempotency_key", name="uq_goal_entries_idempotency"),
+        UniqueConstraint(
+            "user_id", "idempotency_key", name="uq_goal_entries_idempotency"
+        ),
         CheckConstraint("amount > 0", name="ck_goal_entries_amount"),
-        CheckConstraint("entry_type IN ('contribution', 'withdrawal')", name="ck_goal_entries_type"),
+        CheckConstraint(
+            "entry_type IN ('contribution', 'withdrawal')",
+            name="ck_goal_entries_type",
+        ),
         Index("ix_goal_entries_user_date", "user_id", "occurred_at"),
     )
 
@@ -82,7 +90,9 @@ class GoalEntry(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     description: Mapped[str | None] = mapped_column(String(200), nullable=True)
     idempotency_key: Mapped[str] = mapped_column(String(100), nullable=False)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

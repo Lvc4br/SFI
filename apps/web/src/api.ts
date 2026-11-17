@@ -39,6 +39,8 @@ export type ProductPrice = { id: string; product_id: string; price: string; curr
 export type ShoppingListDetail = ShoppingList & { items: ShoppingItem[] };
 export type PurchaseConfirmation = { transaction_id: string; list_id: string; amount: string; currency: string; description: string; occurred_at: string; items_count: number };
 export type StockBalance = { product_id: string; product_name: string; unit: string; balance: string };
+export type Goal = { id:string; name:string; description:string|null; currency:string; target_amount:string; current_amount:string; target_date:string|null; status:"active"|"completed"|"paused"|"archived"; created_at:string; updated_at:string };
+export type GoalEntry = { id:string; goal_id:string; entry_type:"contribution"|"withdrawal"; amount:string; description:string|null; occurred_at:string; created_at:string };
 export type Debt = { id:string; creditor:string; debt_type:"loan"|"financing"|"personal"|"mortgage"|"vehicle"|"other"; description:string; currency:string; original_amount:string; outstanding_principal:string; annual_interest_rate:string; amortization_method:"manual"|"price"|"sac"; contracted_at:string; first_due_date:string; next_due_date:string|null; installment_count:number|null; status:"active"|"paid"|"archived"; notes:string|null; created_at:string };
 export type DebtPayment = { id:string; debt_id:string; source_account_id:string; transaction_id:string; amount:string; principal_amount:string; interest_amount:string; paid_at:string; created_at:string };
 export type CreditCard = { id:string; account_id:string; name:string; brand:string|null; last_four:string|null; closing_day:number; due_day:number; credit_limit:string; created_at:string };
@@ -177,6 +179,11 @@ export const api = {
   createBudget: (data: { category_id: string; period: string; currency: string; limit_amount: string }) =>
     request<Budget>("/api/v1/finance/budgets", { method: "POST", body: JSON.stringify(data) }),
   summary: (start: string, end: string) => request<Summary>(`/api/v1/finance/summary?start_date=${start}&end_date=${end}`),
+  goals: (includeArchived = false) => request<Goal[]>(`/api/v1/goals${includeArchived ? "?include_archived=true" : ""}`),
+  createGoal: (data:{name:string;description?:string|null;currency?:string;target_amount:string;target_date?:string|null}) => request<Goal>("/api/v1/goals",{method:"POST",body:JSON.stringify(data)}),
+  updateGoal: (id:string,data:{name?:string;description?:string|null;target_amount?:string;target_date?:string|null;status?:"active"|"paused"|"archived"}) => request<Goal>(`/api/v1/goals/${id}`,{method:"PATCH",body:JSON.stringify(data)}),
+  goalEntries: (id:string) => request<GoalEntry[]>(`/api/v1/goals/${id}/entries`),
+  createGoalEntry: (id:string,data:{entry_type:GoalEntry["entry_type"];amount:string;description?:string|null;occurred_at:string;idempotency_key:string}) => request<GoalEntry>(`/api/v1/goals/${id}/entries`,{method:"POST",body:JSON.stringify(data)}),
   debts: () => request<Debt[]>("/api/v1/debts"),
   createDebt: (data:{creditor:string;debt_type:Debt["debt_type"];description:string;currency?:string;original_amount:string;annual_interest_rate:string;amortization_method:Debt["amortization_method"];contracted_at:string;first_due_date:string}) => request<Debt>("/api/v1/debts",{method:"POST",body:JSON.stringify(data)}),
   debtPayments: (id:string) => request<DebtPayment[]>(`/api/v1/debts/${id}/payments`),

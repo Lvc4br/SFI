@@ -112,8 +112,6 @@ def test_sqlite_upgrade_from_previous_desktop_baseline(
         "debts",
         "debt_payments",
         "financial_goals",
-        "investment_assets",
-        "investment_operations",
         "goal_entries",
         "investment_assets",
         "investment_operations",

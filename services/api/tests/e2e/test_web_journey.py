@@ -279,6 +279,25 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_text("Orçamento criado.")).to_be_visible()
             expect(page.get_by_text("Dentro do limite")).to_be_visible()
 
+            page.get_by_role("button", name="Metas").click()
+            page.get_by_label("Nome da meta").fill("Meta E2E")
+            page.get_by_label("Valor-alvo (R$)").fill("500.00")
+            page.get_by_role("button", name="Criar meta").click()
+            expect(page.get_by_text("Meta criada.")).to_be_visible()
+            goal_form = page.locator("form").filter(
+                has=page.get_by_label("Tipo de movimento")
+            )
+            goal_form.get_by_label("Meta").select_option(label="Meta E2E · R$ 0,00")
+            goal_form.get_by_label("Tipo de movimento").select_option("contribution")
+            goal_form.get_by_label("Valor (R$)").fill("300.00")
+            goal_form.get_by_role("button", name="Registrar movimento").click()
+            expect(page.get_by_text("Aporte registrado.")).to_be_visible()
+            goal_form.get_by_label("Tipo de movimento").select_option("withdrawal")
+            goal_form.get_by_label("Valor (R$)").fill("50.00")
+            goal_form.get_by_role("button", name="Registrar movimento").click()
+            expect(page.get_by_text("Retirada registrada.")).to_be_visible()
+            expect(goal_form.get_by_text("Saldo reservado: R$ 250,00.")).to_be_visible()
+
             page.get_by_role("button", name="Contas e categorias").click()
             page.once("dialog", lambda dialog: dialog.accept("Conta E2E renomeada"))
             page.locator(".account-card").filter(

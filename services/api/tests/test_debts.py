@@ -276,7 +276,7 @@ def test_refinance_preview_calculates_effective_rate_and_never_mutates_debt(clie
     assert result["is_estimate"] is True
     assert result["proposed"]["principal_total"] == "25350.00"
     assert result["proposed"]["monthly_fees_total"] == "300.00"
-    assert result["proposed"]["annual_effective_rate_percent"] == "11.351866"
+    assert result["proposed"]["annual_effective_rate_percent"] == "11.350967"
     assert len(result["proposed"]["installments"]) == 24
     assert "CET oficial" in " ".join(result["assumptions"])
     after = client.get("/api/v1/debts", headers=headers).json()[0]

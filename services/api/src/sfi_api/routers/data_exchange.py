@@ -58,10 +58,15 @@ def _date_value(value: str) -> datetime:
 
 
 def _normalize_row(row: dict, line: int, source_format: str) -> dict:
-    lowered = {str(key).strip().lower(): value for key, value in row.items() if key}
+    lowered = {str(key).strip().lstrip("\ufeff").lower(): value for key, value in row.items() if key}
     raw_amount = str(lowered.get("amount", lowered.get("trnamt", ""))).strip()
+    normalized_amount = raw_amount.replace("R$", "").replace(" ", "")
+    if "," in normalized_amount and "." in normalized_amount:
+        normalized_amount = normalized_amount.replace(".", "").replace(",", ".")
+    else:
+        normalized_amount = normalized_amount.replace(",", ".")
     try:
-        amount = Decimal(raw_amount.replace("R$", "").replace(" ", "").replace(",", "."))
+        amount = Decimal(normalized_amount)
     except InvalidOperation as exc:
         raise ValueError("Valor monetário inválido.") from exc
     transaction_type = str(
@@ -111,7 +116,12 @@ def _parse_content(payload: ImportRequest) -> list[dict]:
         raise HTTPException(413, "O arquivo excede o limite de 5 MB.")
     if payload.format == "csv":
         try:
-            rows = list(csv.DictReader(io.StringIO(payload.content)))
+            sample = payload.content[:4096]
+            try:
+                dialect = csv.Sniffer().sniff(sample, delimiters=",;\\t")
+            except csv.Error:
+                dialect = csv.excel
+            rows = list(csv.DictReader(io.StringIO(payload.content), dialect=dialect))
         except csv.Error as exc:
             raise HTTPException(422, f"CSV inválido: {exc}") from exc
         if not rows:

@@ -277,7 +277,8 @@ def test_full_backup_preview_restore_and_user_isolation(client):
         "format": "csv",
         "content": (
             "date,type,amount,description,account_id,category_id\\n"
-            f"2026-11-16T12:00:00Z,expense,73.25,Registro preservado,{account['id']},{category['id']}\\n"
+            f"2026-11-16T12:00:00Z,expense,73.25,Registro preservado,"
+            f"{account['id']},{category['id']}\\n"
         ),
     }
     imported = client.post(
@@ -301,7 +302,8 @@ def test_full_backup_preview_restore_and_user_isolation(client):
         "format": "csv",
         "content": (
             "date,type,amount,description,account_id,category_id\\n"
-            f"2026-11-17T12:00:00Z,expense,12.00,Registro posterior ao backup,{account['id']},{category['id']}\\n"
+            f"2026-11-17T12:00:00Z,expense,12.00,Registro posterior ao backup,"
+            f"{account['id']},{category['id']}\\n"
         ),
     }
     extra = client.post(

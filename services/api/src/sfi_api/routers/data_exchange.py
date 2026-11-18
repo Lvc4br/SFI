@@ -452,7 +452,7 @@ async def export_transactions(
             sheet.append([record[field] for field in fields])
             for cell in sheet[sheet.max_row]:
                 if isinstance(cell.value, str):
-                    if cell.value.startswith(("=", "+", "-", "@", "\\t", "\\r")):
+                    if cell.value.startswith(("=", "+", "-", "@", "\t", "\r")):
                         cell.value = "'" + cell.value
                     cell.data_type = "s"
         sheet.freeze_panes = "A2"
@@ -478,7 +478,7 @@ async def export_transactions(
         safe_record = dict(record)
         for field in fields:
             value = safe_record[field]
-            if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\\t", "\\r")):
+            if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")):
                 safe_record[field] = "'" + value
         writer.writerow(safe_record)
     return Response(

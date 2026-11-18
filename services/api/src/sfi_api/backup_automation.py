@@ -16,10 +16,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
-
 from sfi_api.backup_crypto import encrypt_backup
-from sfi_api.config import get_settings
 from sfi_api.database import _session_factory
 from sfi_api.models import User
 from sfi_api.routers.backup import _collect_backup

@@ -104,3 +104,40 @@ def test_cet_estimate_rejects_non_positive_net_disbursement_and_past_due_date():
         })
     assert zero_net.status_code == 422
     assert past_due.status_code == 422
+
+
+
+def test_late_payment_estimate_applies_contractual_penalty_interest_and_index():
+    with TestClient(app) as client:
+        response = client.post("/api/v1/calculators/late-payment-estimate", json={
+            "principal": "1000.00",
+            "due_date": "2026-01-01",
+            "payment_date": "2026-02-01",
+            "penalty_percent": "2",
+            "monthly_interest_percent": "1",
+            "interest_method": "simple",
+            "index_correction_factor": "1.01",
+        })
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["days_overdue"] == 31
+    assert data["corrected_principal"] == "1010.00"
+    assert data["penalty"] == "20.20"
+    assert data["interest"] == "10.44"
+    assert data["total_due"] == "1040.64"
+
+
+def test_late_payment_estimate_has_no_penalty_before_or_on_due_date():
+    with TestClient(app) as client:
+        response = client.post("/api/v1/calculators/late-payment-estimate", json={
+            "principal": "1000.00",
+            "due_date": "2026-01-01",
+            "payment_date": "2026-01-01",
+            "penalty_percent": "2",
+            "monthly_interest_percent": "1",
+        })
+    assert response.status_code == 200
+    assert response.json()["days_overdue"] == 0
+    assert response.json()["penalty"] == "0.00"
+    assert response.json()["interest"] == "0.00"
+    assert response.json()["total_due"] == "1000.00"

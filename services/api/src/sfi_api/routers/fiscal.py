@@ -84,7 +84,7 @@ def parse_nfe_xml(content: str) -> dict:
         issued = issued.astimezone(UTC)
     except (InvalidOperation, ValueError) as exc:
         raise HTTPException(422, "Data de emissão ou valor total inválido.") from exc
-    if amount <= 0 or amount > Decimal("9999999999999999.99"):
+    if not amount.is_finite() or amount <= 0 or amount > Decimal("9999999999999999.99"):
         raise HTTPException(422, "O valor total da nota deve ser positivo e válido.")
 
     items = []

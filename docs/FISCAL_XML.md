@@ -12,7 +12,7 @@
 
 - Autenticação obrigatória e isolamento por usuário.
 - Chave de acesso única por usuário.
-- DTD e entidades externas proibidos; limite de tamanho de 2 MiB.
+- DTD e entidades externas proibidos; limite de tamanho de 2 MiB.\n- Chave de acesso com 44 dígitos e dígito verificador validado pelo módulo 11.
 - XML bruto não persistido; itens guardados como JSON extraído.
 - Despesa opcional, sempre após confirmação explícita.
 - Conta da despesa precisa pertencer ao usuário, estar ativa, não ser do tipo crédito e estar em BRL.

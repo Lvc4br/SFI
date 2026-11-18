@@ -18,5 +18,5 @@ A migration `0019_debts_and_payments` adiciona cadastro de obrigações e um liv
 - Dados são isolados por usuário e datas de pagamento precisam conter fuso horário.
 
 ## Limites conhecidos
-- Não há conexão com credores, captura de boletos, cálculo de CET, multas, mora, refinanciamento ou geração automática de parcelas.
-- Price/SAC são armazenados como método informado, não como cronograma calculado. Não use o saldo calculado pelo SFI como quitação oficial; confira o demonstrativo do credor.
+- A projeção não é proposta de quitação nem cronograma contratual oficial. Não inclui CET, seguros, tarifas, impostos, multas, mora, indexadores ou refinanciamento.
+- O SFI não consulta credores nem captura boletos. Compare a projeção com o contrato e o demonstrativo do credor; não altere pagamentos confirmados para ajustar divergências.

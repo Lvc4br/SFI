@@ -203,8 +203,15 @@ def _parse_pdf_statement(binary: bytes) -> list[dict]:
                 ),
             })
             continue
+        date_text = date_match.group(1)
+        try:
+            parsed_date = datetime.strptime(date_text, "%d/%m/%Y").replace(
+                hour=12, tzinfo=UTC
+            )
+        except ValueError:
+            parsed_date = datetime.fromisoformat(date_text).replace(hour=12, tzinfo=UTC)
         records.append({
-            "date": date_match.group(1),
+            "date": parsed_date,
             "amount": amount_text.lstrip("+-"),
             "type": transaction_type,
             "description": description,

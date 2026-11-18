@@ -63,3 +63,42 @@ def test_calculators_reject_invalid_ranges_and_unbounded_periods():
             "installments": 601, "first_due_date": "2026-01-01", "method": "price",
         })
     assert response.status_code == 422
+
+
+
+def test_cet_estimate_uses_actual_dated_cash_flows_and_upfront_costs():
+    with TestClient(app) as client:
+        response = client.post("/api/v1/calculators/cet-estimate", json={
+            "gross_credit_amount": "10000.00",
+            "upfront_costs": "500.00",
+            "installment_amount": "950.00",
+            "monthly_charges": "25.00",
+            "installments": 12,
+            "contract_date": "2026-01-01",
+            "first_due_date": "2026-02-01",
+        })
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["net_disbursement"] == "9500.00"
+    assert data["upfront_costs"] == "500.00"
+    assert data["total_paid"] == "11700.00"
+    assert data["cash_flows"][0]["due_date"] == "2026-02-01"
+    assert data["cash_flows"][-1]["due_date"] == "2027-01-01"
+    assert Decimal(data["effective_annual_cost_percent"]) > 0
+    assert data["is_estimate"] is True
+
+
+def test_cet_estimate_rejects_non_positive_net_disbursement_and_past_due_date():
+    with TestClient(app) as client:
+        zero_net = client.post("/api/v1/calculators/cet-estimate", json={
+            "gross_credit_amount": "1000.00", "upfront_costs": "1000.00",
+            "installment_amount": "100.00", "installments": 12,
+            "contract_date": "2026-01-01", "first_due_date": "2026-02-01",
+        })
+        past_due = client.post("/api/v1/calculators/cet-estimate", json={
+            "gross_credit_amount": "1000.00", "installment_amount": "100.00",
+            "installments": 12, "contract_date": "2026-02-01",
+            "first_due_date": "2026-02-01",
+        })
+    assert zero_net.status_code == 422
+    assert past_due.status_code == 422

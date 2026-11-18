@@ -39,6 +39,8 @@ export type ProductPrice = { id: string; product_id: string; price: string; curr
 export type ShoppingListDetail = ShoppingList & { items: ShoppingItem[] };
 export type PurchaseConfirmation = { transaction_id: string; list_id: string; amount: string; currency: string; description: string; occurred_at: string; items_count: number };
 export type StockBalance = { product_id: string; product_name: string; unit: string; balance: string };
+export type ExchangePreview = {total:number;valid:number;duplicates:number;invalid:number;rows:{line:number;status:string;description:string;amount:string;currency:string;error?:string|null}[]};
+export type ExchangeImportResult = {created:number;duplicates_skipped:number;total:number};
 export type PatrimonyItem = {id:string;name:string;item_kind:"asset"|"liability";category:string;currency:string;description:string|null;archived:boolean;created_at:string};
 export type PatrimonyCurrency = {currency:string;assets_total:string;liabilities_total:string;net_worth:string;items_count:number};
 export type PatrimonySnapshot = {as_of:string;currencies:PatrimonyCurrency[]};
@@ -189,6 +191,9 @@ export const api = {
   updateGoal: (id:string,data:{name?:string;description?:string|null;target_amount?:string;target_date?:string|null;status?:"active"|"paused"|"archived"}) => request<Goal>(`/api/v1/goals/${id}`,{method:"PATCH",body:JSON.stringify(data)}),
   goalEntries: (id:string) => request<GoalEntry[]>(`/api/v1/goals/${id}/entries`),
   createGoalEntry: (id:string,data:{entry_type:GoalEntry["entry_type"];amount:string;description?:string|null;occurred_at:string;idempotency_key:string}) => request<GoalEntry>(`/api/v1/goals/${id}/entries`,{method:"POST",body:JSON.stringify(data)}),
+  exchangePreview: (data:{format:"csv"|"json"|"ofx";content:string;default_account_id?:string|null;default_category_id?:string|null}) => request<ExchangePreview>("/api/v1/exchange/transactions/preview",{method:"POST",body:JSON.stringify(data)}),
+  exchangeImport: (data:{format:"csv"|"json"|"ofx";content:string;default_account_id?:string|null;default_category_id?:string|null;confirmed:true}) => request<ExchangeImportResult>("/api/v1/exchange/transactions/import",{method:"POST",body:JSON.stringify(data)}),
+  exchangeExport: (format:"csv"|"json") => request<unknown>(`/api/v1/exchange/transactions/export?format=${format}`),
   patrimonyItems: (includeArchived=false) => request<PatrimonyItem[]>(`/api/v1/patrimony${includeArchived?"?include_archived=true":""}`),
   createPatrimonyItem: (data:{name:string;item_kind:PatrimonyItem["item_kind"];category:string;currency?:string;description?:string|null}) => request<PatrimonyItem>("/api/v1/patrimony",{method:"POST",body:JSON.stringify(data)}),
   updatePatrimonyItem: (id:string,data:{archived:boolean}) => request<PatrimonyItem>(`/api/v1/patrimony/${id}`,{method:"PATCH",body:JSON.stringify(data)}),

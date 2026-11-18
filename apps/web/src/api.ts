@@ -243,6 +243,7 @@ export const api = {
   automaticBackupStatus: () => request<AutomaticBackupStatus>("/api/v1/backup/automatic"),
   configureAutomaticBackup: (data:{cadence:"daily"|"weekly";local_time:string;passphrase:string}) => request<{enabled:boolean;cadence:string;local_time:string;retention:number}>("/api/v1/backup/automatic",{method:"PUT",body:JSON.stringify(data)}),
   disableAutomaticBackup: () => request<{enabled:boolean}>("/api/v1/backup/automatic",{method:"DELETE"}),
+  downloadAutomaticBackup: (filename:string) => requestBlob("/api/v1/backup/automatic/"+encodeURIComponent(filename)),
   patrimonyItems: (includeArchived=false) => request<PatrimonyItem[]>(`/api/v1/patrimony${includeArchived?"?include_archived=true":""}`),
   createPatrimonyItem: (data:{name:string;item_kind:PatrimonyItem["item_kind"];category:string;currency?:string;description?:string|null}) => request<PatrimonyItem>("/api/v1/patrimony",{method:"POST",body:JSON.stringify(data)}),
   updatePatrimonyItem: (id:string,data:{archived:boolean}) => request<PatrimonyItem>(`/api/v1/patrimony/${id}`,{method:"PATCH",body:JSON.stringify(data)}),

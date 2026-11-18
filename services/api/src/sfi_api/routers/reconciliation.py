@@ -164,7 +164,9 @@ async def import_statement(
         await session.commit()
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(\n            409, "O extrato contém registros já importados; atualize e tente novamente."\n        ) from None
+        raise HTTPException(
+            409, "O extrato contém registros já importados; atualize e tente novamente."
+        ) from None
     return {"created": created, "duplicates_skipped": duplicates, "total": len(parsed_rows)}
 
 
@@ -250,7 +252,10 @@ async def match_suggestions(
     for transaction in candidates.all():
         if transaction.id in matched_ids:
             continue
-        day_delta = (\n            abs((_utc(transaction.occurred_at) - _utc(entry.occurred_at)).total_seconds())\n            / 86400\n        )
+        day_delta = (
+            abs((_utc(transaction.occurred_at) - _utc(entry.occurred_at)).total_seconds())
+            / 86400
+        )
         similarity = SequenceMatcher(
             None, entry.description.casefold(), transaction.description.casefold()
         ).ratio()
@@ -316,7 +321,9 @@ async def match_entry(
         await session.refresh(entry)
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(\n            409, "Esta movimentação já foi conciliada com outro registro."\n        ) from None
+        raise HTTPException(
+            409, "Esta movimentação já foi conciliada com outro registro."
+        ) from None
     return _entry_response(entry)
 
 

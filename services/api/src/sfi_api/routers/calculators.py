@@ -75,12 +75,20 @@ class LatePaymentInput(BaseModel):
     principal: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
     due_date: date
     payment_date: date
-    penalty_percent: Decimal = Field(default=Decimal("2"), ge=0, le=100, max_digits=8, decimal_places=4)
-    monthly_interest_percent: Decimal = Field(default=Decimal("1"), ge=0, le=100, max_digits=8, decimal_places=4)
+    penalty_percent: Decimal = Field(
+        default=Decimal("2"), ge=0, le=100, max_digits=8, decimal_places=4
+    )
+    monthly_interest_percent: Decimal = Field(
+        default=Decimal("1"), ge=0, le=100, max_digits=8, decimal_places=4
+    )
     interest_method: Literal["simple", "compound"] = "simple"
-    index_correction_factor: Decimal = Field(default=Decimal("1"), ge=Decimal("0.1"), le=10, max_digits=10, decimal_places=6)
+    index_correction_factor: Decimal = Field(
+        default=Decimal("1"), ge=Decimal("0.1"), le=10, max_digits=10, decimal_places=6
+    )
 
-    @field_validator("principal", "penalty_percent", "monthly_interest_percent", "index_correction_factor")
+    @field_validator(
+        "principal", "penalty_percent", "monthly_interest_percent", "index_correction_factor"
+    )
     @classmethod
     def reject_non_finite_late_payment_values(cls, value: Decimal) -> Decimal:
         if not value.is_finite():
@@ -97,7 +105,9 @@ class CetEstimateInput(BaseModel):
     contract_date: date
     first_due_date: date
 
-    @field_validator("gross_credit_amount", "upfront_costs", "installment_amount", "monthly_charges")
+    @field_validator(
+        "gross_credit_amount", "upfront_costs", "installment_amount", "monthly_charges"
+    )
     @classmethod
     def reject_non_finite_cet_values(cls, value: Decimal) -> Decimal:
         if not value.is_finite():
@@ -231,7 +241,7 @@ def equivalent_rate(payload: EquivalentRateInput) -> dict:
 
 @router.post("/cet-estimate")
 def cet_estimate(payload: CetEstimateInput) -> dict:
-    """Estimate the effective annual cost from borrower cash flows (not an official CET statement)."""
+    """Estimate effective annual cost from dated borrower cash flows."""
     net_disbursement = money(payload.gross_credit_amount - payload.upfront_costs)
     if net_disbursement <= 0:
         from fastapi import HTTPException
@@ -270,7 +280,9 @@ def cet_estimate(payload: CetEstimateInput) -> dict:
         if low_value <= 0 or high_value >= 0:
             from fastapi import HTTPException
 
-            raise HTTPException(422, "Não foi possível encontrar uma taxa efetiva para os fluxos informados.")
+            raise HTTPException(
+                422, "Não foi possível encontrar uma taxa efetiva para os fluxos informados."
+            )
         for _ in range(220):
             middle = (low + high) / Decimal("2")
             if present_value(middle) > 0:
@@ -286,18 +298,32 @@ def cet_estimate(payload: CetEstimateInput) -> dict:
         "total_paid": str(total_paid),
         "upfront_costs": str(money(payload.upfront_costs)),
         "monthly_charges_total": str(money(payload.monthly_charges * payload.installments)),
-        "effective_annual_cost_percent": str((annual_rate * HUNDRED).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
-        "effective_monthly_cost_percent": str((monthly_rate * HUNDRED).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
+        "effective_annual_cost_percent": str(
+            (annual_rate * HUNDRED).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+        ),
+        "effective_monthly_cost_percent": str(
+            (monthly_rate * HUNDRED).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+        ),
         "cash_flows": [
-            {"number": row["number"], "due_date": row["due_date"].isoformat(), "payment": str(row["payment"])}
+            {
+                "number": row["number"],
+                "due_date": row["due_date"].isoformat(),
+                "payment": str(row["payment"]),
+            }
             for row in payments
         ],
         "is_estimate": True,
         "assumptions": [
             "Taxa efetiva anual estimada por valor presente dos fluxos e dias reais/365.",
             "O valor líquido liberado é o crédito bruto menos os custos iniciais informados.",
-            "Cada parcela inclui o encargo mensal informado; custos variáveis devem ser incluídos no valor de cada parcela.",
-            "Não substitui o CET oficial da instituição financeira nem valida tarifas, tributos ou contrato.",
+            (
+                "Cada parcela inclui o encargo mensal informado; custos variáveis devem ser "
+                "incluídos no valor de cada parcela."
+            ),
+            (
+                "Não substitui o CET oficial da instituição financeira nem valida tarifas, "
+                "tributos ou contrato."
+            ),
         ],
     }
 
@@ -309,12 +335,18 @@ def late_payment_estimate(payload: LatePaymentInput) -> dict:
     with localcontext() as context:
         context.prec = 40
         corrected_principal = money(payload.principal * payload.index_correction_factor)
-        penalty = money(corrected_principal * payload.penalty_percent / HUNDRED) if days_overdue else Decimal("0.00")
+        penalty = (
+            money(corrected_principal * payload.penalty_percent / HUNDRED)
+            if days_overdue
+            else Decimal("0.00")
+        )
         monthly_rate = payload.monthly_interest_percent / HUNDRED
         if not days_overdue or monthly_rate == 0:
             interest = Decimal("0.00")
         elif payload.interest_method == "simple":
-            interest = money(corrected_principal * monthly_rate * Decimal(days_overdue) / Decimal("30"))
+            interest = money(
+                corrected_principal * monthly_rate * Decimal(days_overdue) / Decimal("30")
+            )
         else:
             period_factor = (Decimal("1") + monthly_rate) ** (Decimal(days_overdue) / Decimal("30"))
             interest = money(corrected_principal * (period_factor - Decimal("1")))
@@ -331,7 +363,10 @@ def late_payment_estimate(payload: LatePaymentInput) -> dict:
         "index_correction_factor": str(payload.index_correction_factor),
         "is_estimate": True,
         "assumptions": [
-            "A multa é aplicada uma única vez sobre o principal corrigido e somente quando há atraso.",
+            (
+                "A multa é aplicada uma única vez sobre o principal corrigido e somente quando "
+                "há atraso."
+            ),
             "Juros simples ou compostos são calculados proporcionalmente a períodos de 30 dias.",
             "O fator de correção é informado manualmente; o SFI não consulta índices econômicos.",
             "Use apenas percentuais e critérios previstos no contrato e na legislação aplicável.",

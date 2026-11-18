@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,6 +41,17 @@ class PatrimonyItemCreate(BaseModel):
             raise ValueError("Informe o nome do bem ou passivo.")
         return value
 
+    @model_validator(mode="after")
+    def category_matches_kind(self):
+        asset_categories = {
+            "property", "vehicle", "cash", "receivable", "investment", "other_asset"
+        }
+        if self.item_kind == "asset" and self.category not in asset_categories:
+            raise ValueError("A categoria selecionada não corresponde a um bem.")
+        if self.item_kind == "liability" and self.category in asset_categories:
+            raise ValueError("A categoria selecionada não corresponde a um passivo.")
+        return self
+
 
 class PatrimonyItemUpdate(BaseModel):
     archived: bool
@@ -70,7 +81,7 @@ class ValuationCreate(BaseModel):
     def require_timezone(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("A data da avaliação precisa conter fuso horário.")
-        return value
+        return value.astimezone(timezone.utc)
 
 
 class ValuationResponse(BaseModel):

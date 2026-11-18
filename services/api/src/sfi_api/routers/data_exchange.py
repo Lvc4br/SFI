@@ -671,7 +671,10 @@ async def export_transactions(
         )
         output = ["!Type:CCard" if account.account_type == "credit" else "!Type:Cash" if account.account_type == "cash" else "!Type:Bank"]
         for record in records:
-            parsed_date = datetime.fromisoformat(record["occurred_at"])\n            occurred = (\n                parsed_date.replace(tzinfo=UTC) if parsed_date.tzinfo is None else parsed_date\n            ).astimezone(ZoneInfo(user.timezone))
+            parsed_date = datetime.fromisoformat(record["occurred_at"])
+            occurred = (
+                parsed_date.replace(tzinfo=UTC) if parsed_date.tzinfo is None else parsed_date
+            ).astimezone(ZoneInfo(user.timezone))
             amount = Decimal(record["amount"])
             signed_amount = -amount if record["transaction_type"] == "expense" else amount
             output.extend([

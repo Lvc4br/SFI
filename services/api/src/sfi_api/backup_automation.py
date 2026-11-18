@@ -61,9 +61,9 @@ def _dpapi_transform(value: bytes, *, protect: bool) -> bytes:
         ctypes.POINTER(DataBlob),
     ]
     function.restype = ctypes.wintypes.BOOL
-    description = ctypes.c_wchar_p("SFI automatic backup") if protect else ctypes.c_wchar_p()
-    description_pointer = ctypes.byref(description) if not protect else ctypes.cast(description, ctypes.c_void_p)
-    if not function(ctypes.byref(source), description_pointer, None, None, None, 0x1, ctypes.byref(destination)):
+    description = (\n        ctypes.c_wchar_p("SFI automatic backup") if protect else ctypes.c_wchar_p()\n    )
+    description_pointer = (\n        ctypes.byref(description)\n        if not protect\n        else ctypes.cast(description, ctypes.c_void_p)\n    )
+    if not function(\n        ctypes.byref(source), description_pointer, None, None, None, 0x1, ctypes.byref(destination)\n    ):
         raise ctypes.WinError(ctypes.get_last_error())
     try:
         return ctypes.string_at(destination.pbData, destination.cbData)
@@ -76,7 +76,7 @@ def _dpapi_transform(value: bytes, *, protect: bool) -> bytes:
 def protect_passphrase(passphrase: str) -> str:
     if len(passphrase) < 12 or len(passphrase.encode("utf-8")) > 1024:
         raise BackupAutomationError("A senha do backup deve ter de 12 a 1024 bytes.")
-    return base64.b64encode(_dpapi_transform(passphrase.encode("utf-8"), protect=True)).decode("ascii")
+    return base64.b64encode(\n        _dpapi_transform(passphrase.encode("utf-8"), protect=True)\n    ).decode("ascii")
 
 
 def _unprotect_passphrase(value: str) -> str:
@@ -119,7 +119,7 @@ def configure_automatic_backup(
     user_id: UUID, cadence: str, local_time: str, passphrase: str
 ) -> dict[str, Any]:
     if sys.platform != "win32":
-        raise BackupAutomationError("Agendamento com proteção DPAPI está disponível no Desktop Windows.")
+        raise BackupAutomationError(\n            "Agendamento com proteção DPAPI está disponível no Desktop Windows."\n        )
     if cadence not in {"daily", "weekly"}:
         raise BackupAutomationError("A frequência deve ser daily ou weekly.")
     try:
@@ -130,7 +130,7 @@ def configure_automatic_backup(
     with _CONFIG_LOCK:
         existing = _read_config()
         if existing and existing.get("user_id") != str(user_id):
-            raise BackupAutomationError("Outro usuário já possui um agendamento de backup nesta instalação.")
+            raise BackupAutomationError(\n                "Outro usuário já possui um agendamento de backup nesta instalação."\n            )
         _write_config({
             "version": 1,
             "enabled": True,
@@ -140,7 +140,7 @@ def configure_automatic_backup(
             "protected_passphrase": protected,
             "last_run": None,
         })
-    return {"enabled": True, "cadence": cadence, "local_time": local_time, "retention": _RETENTION_COUNT}
+    return {\n        "enabled": True,\n        "cadence": cadence,\n        "local_time": local_time,\n        "retention": _RETENTION_COUNT,\n    }
 
 
 def disable_automatic_backup(user_id: UUID) -> None:
@@ -173,7 +173,7 @@ def _backup_history(user_id: UUID) -> list[dict[str, Any]]:
     directory = _data_dir() / "backups" / str(user_id)
     if not directory.exists():
         return []
-    files = sorted(directory.glob("*" + _BACKUP_SUFFIX), key=lambda item: item.stat().st_mtime, reverse=True)
+    files = sorted(\n        directory.glob("*" + _BACKUP_SUFFIX),\n        key=lambda item: item.stat().st_mtime,\n        reverse=True,\n    )
     history = []
     for path in files[:_RETENTION_COUNT]:
         stat = path.stat()
@@ -223,7 +223,7 @@ async def _create_scheduled_backup(config: dict[str, Any]) -> None:
         stream.flush()
         os.fsync(stream.fileno())
     os.replace(temporary, destination)
-    backups = sorted(directory.glob("*" + _BACKUP_SUFFIX), key=lambda item: item.stat().st_mtime, reverse=True)
+    backups = sorted(\n        directory.glob("*" + _BACKUP_SUFFIX),\n        key=lambda item: item.stat().st_mtime,\n        reverse=True,\n    )
     for old_backup in backups[_RETENTION_COUNT:]:
         old_backup.unlink(missing_ok=True)
 

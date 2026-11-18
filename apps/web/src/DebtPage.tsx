@@ -98,6 +98,7 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
           <label>Contratação<input type="date" value={contractedAt} onChange={e => setContractedAt(e.target.value)} required /></label>
           <label>Primeiro vencimento<input type="date" value={firstDue} onChange={e => setFirstDue(e.target.value)} required /></label>
         </div>
+        {method !== "manual" && <label>Quantidade de parcelas<input type="number" min="1" max="600" step="1" value={installmentCount} onChange={e => setInstallmentCount(e.target.value)} required /></label>}
         <button className="button primary" disabled={busy || !creditor.trim() || !description.trim() || !amount || Number(amount) <= 0}>Cadastrar dívida</button>
       </form>
     </section>

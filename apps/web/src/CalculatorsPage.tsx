@@ -47,7 +47,7 @@ export default function CalculatorsPage() {
       <form className="form-stack" onSubmit={submit}>
         {(mode==="compound"||mode==="loan"||mode==="cet")&&<label className="field">{mode==="cet"?"Crédito bruto contratado (R$)":"Capital inicial (R$)"}<input inputMode="decimal" value={principal} onChange={e=>setPrincipal(e.target.value)} required/></label>}
         {mode==="compound"&&<label className="field">Aporte mensal (R$)<input inputMode="decimal" value={contribution} onChange={e=>setContribution(e.target.value)} required/></label>}
-        <label className="field">Taxa anual nominal (%)<input inputMode="decimal" value={annualRate} onChange={e=>setAnnualRate(e.target.value)} required/></label>
+        {mode!=="cet"&&<label className="field">Taxa anual nominal (%)<input inputMode="decimal" value={annualRate} onChange={e=>setAnnualRate(e.target.value)} required/></label>}
         {mode==="compound"&&<label className="field">Prazo (meses)<input type="number" min="1" max="1200" value={months} onChange={e=>setMonths(e.target.value)} required/></label>}
         {mode==="cet"&&<>
           <label className="field">Custos descontados na liberação (R$)<input inputMode="decimal" value={upfrontCosts} onChange={e=>setUpfrontCosts(e.target.value)} required/></label>

@@ -281,8 +281,8 @@ async def summary(
     session: AsyncSession = SESSION_DEPENDENCY,
     user: User = USER_DEPENDENCY,
 ):
-    selected_date = as_of or datetime.now(timezone.utc).date()
-    cutoff = datetime.combine(selected_date, time.max, tzinfo=timezone.utc)
+    selected_date = as_of or datetime.now(UTC).date()
+    cutoff = datetime.combine(selected_date, time.max, tzinfo=UTC)
     return await _snapshot(session, user.id, cutoff, selected_date)
 
 
@@ -307,6 +307,6 @@ async def history(
         dates = [value for value in dates if value <= end_date]
     snapshots = []
     for day in dates:
-        cutoff = datetime.combine(day, time.max, tzinfo=timezone.utc)
+        cutoff = datetime.combine(day, time.max, tzinfo=UTC)
         snapshots.append(await _snapshot(session, user.id, cutoff, day))
     return snapshots

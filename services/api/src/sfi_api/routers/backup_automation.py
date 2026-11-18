@@ -82,7 +82,7 @@ async def download_automatic_backup(
 ):
     if sys.platform != "win32" or session.get_bind().dialect.name != "sqlite":
         raise HTTPException(409, "Backup automático está disponível somente no Desktop Windows.")
-    if not re.fullmatch(r"sfi-\\d{8}-\\d{6}\\.sfi-backup\\.json", filename):
+    if not re.fullmatch(r"sfi-\d{8}-\d{6}\.sfi-backup\.json", filename):
         raise HTTPException(404, "Backup não encontrado.")
     path = _data_dir() / "backups" / str(user.id) / filename
     if not path.is_file():

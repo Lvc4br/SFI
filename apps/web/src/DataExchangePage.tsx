@@ -10,6 +10,7 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
  const [busy,setBusy]=useState(false);
  const [backup,setBackup]=useState<BackupDocument|null>(null),[backupPreview,setBackupPreview]=useState<BackupPreview|null>(null);
  const [backupFilename,setBackupFilename]=useState(""),[backupError,setBackupError]=useState(""),[backupNotice,setBackupNotice]=useState("");
+ const [backupPassphrase,setBackupPassphrase]=useState(""),[encryptedEnvelope,setEncryptedEnvelope]=useState<Record<string,unknown>|null>(null);
  async function chooseFile(event:ChangeEvent<HTMLInputElement>){
   const file=event.target.files?.[0];if(!file)return;
   setError("");setNotice("");setPreview(null);
@@ -51,13 +52,13 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
 
  async function downloadBackup(){
   setBusy(true);setBackupError("");setBackupNotice("");
-  try{const blob=await api.exportFullBackup();const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="sfi-backup.json";document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);setBackupNotice("Backup completo gerado. Guarde o arquivo em local seguro.");}
+  try{if(backupPassphrase.length<12)throw new Error("Defina uma senha de pelo menos 12 caracteres para criptografar o backup.");const envelope=await api.exportEncryptedBackup(backupPassphrase);const blob=new Blob([JSON.stringify(envelope)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="sfi-backup-encrypted.json";document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);setBackupNotice("Backup criptografado gerado. A senha não é armazenada pelo SFI.");}
   catch(e){setBackupError(e instanceof Error?e.message:"Falha ao gerar backup completo.");}
   finally{setBusy(false);}
  }
  async function chooseBackup(event:ChangeEvent<HTMLInputElement>){
   const file=event.target.files?.[0];if(!file)return;
-  setBackup(null);setBackupPreview(null);setBackupError("");setBackupNotice("");
+  setBackup(null);setEncryptedEnvelope(null);setBackupPreview(null);setBackupError("");setBackupNotice("");
   if(file.size>50*1024*1024){setBackupError("O backup excede o limite de 50 MB.");return;}
   try{
    const parsed=JSON.parse(await file.text()) as BackupDocument;
@@ -72,11 +73,11 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
   finally{setBusy(false);}
  }
  async function restoreBackup(){
-  if(!backup||!backupPreview)return;
+  if((!backup&&!encryptedEnvelope)||!backupPreview)return;
   const confirmed=window.confirm("A restauração substituirá os dados financeiros atuais deste usuário pelos dados do backup. Faça um backup atual antes de continuar. Deseja prosseguir?");
   if(!confirmed)return;
   setBusy(true);setBackupError("");setBackupNotice("");
-  try{const result=await api.restoreFullBackup(backup);setBackupNotice(`Restauração concluída: ${result.records_restored} registros em ${result.tables_restored} tabelas.`);window.location.reload();}
+  try{const result=encryptedEnvelope?await api.restoreEncryptedBackup(encryptedEnvelope,backupPassphrase):await api.restoreFullBackup(backup!);setBackupNotice(`Restauração concluída: ${result.records_restored} registros em ${result.tables_restored} tabelas.`);window.location.reload();}
   catch(e){setBackupError(e instanceof Error?e.message:"Falha ao restaurar o backup.");}
   finally{setBusy(false);}
  }
@@ -102,12 +103,12 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
 
   <section className="panel backup-panel"><h3>Backup completo e restauração</h3><p className="muted">Inclui contas, categorias, movimentações, cartões, faturas, dívidas, metas, investimentos, patrimônio, compras, estoque, documentos fiscais, recorrências e conciliação. Tokens e eventos de segurança não são exportados.</p>
    {backupError&&<p className="form-error" role="alert">{backupError}</p>}{backupNotice&&<p className="form-hint" role="status">{backupNotice}</p>}
-   <div className="button-row"><button className="button primary" type="button" disabled={busy} onClick={()=>void downloadBackup()}>Gerar backup completo</button></div>
+   <label>Senha do backup (mínimo 12 caracteres)<input type="password" minLength={12} maxLength={1024} autoComplete="new-password" value={backupPassphrase} onChange={e=>setBackupPassphrase(e.target.value)} placeholder="Crie uma senha forte para o arquivo"/></label><div className="button-row"><button className="button primary" type="button" disabled={busy||backupPassphrase.length<12} onClick={()=>void downloadBackup()}>Gerar backup criptografado</button></div>
    <label>Arquivo de backup SFI (.json)<input type="file" accept=".json,application/json" onChange={chooseBackup}/></label>
    {backupFilename&&<small className="muted">Arquivo: {backupFilename}</small>}
-   {backup&&<button className="button secondary" type="button" disabled={busy} onClick={()=>void previewBackup()}>Validar e visualizar restauração</button>}
+   {(backup||encryptedEnvelope)&&<button className="button secondary" type="button" disabled={busy||(!!encryptedEnvelope&&backupPassphrase.length<12)} onClick={()=>void previewBackup()}>Validar e visualizar restauração</button>}
    {backupPreview&&<><div className="metric-grid"><article className="metric-card"><span className="eyebrow">REGISTROS NO BACKUP</span><strong>{backupPreview.records_in_backup}</strong></article><article className="metric-card"><span className="eyebrow">REGISTROS ATUAIS</span><strong>{backupPreview.records_current}</strong></article></div><p className="muted">A restauração substitui os registros financeiros atuais deste usuário. O perfil de autenticação e os dados de outros usuários não são substituídos.</p><div className="table-wrap"><table><thead><tr><th>Módulo/tabela</th><th>No backup</th><th>Atuais</th></tr></thead><tbody>{backupPreview.tables.filter(row=>row.backup_records||row.current_records).map(row=><tr key={row.name}><td>{row.name}</td><td>{row.backup_records}</td><td>{row.current_records}</td></tr>)}</tbody></table></div><button className="button danger" type="button" disabled={busy} onClick={()=>void restoreBackup()}>Substituir dados pelos do backup</button></>}
-   <small className="muted">Limite de 50 MB e 250.000 registros. Restauração integral disponível no SQLite local; backups incompatíveis com o esquema atual são rejeitados. Faça um backup atual antes de restaurar.</small>
+   <small className="muted">Novos arquivos são criptografados com AES-256-GCM e scrypt. A senha não é armazenada e não pode ser recuperada. Backups JSON antigos sem criptografia continuam aceitos para compatibilidade. Limite de 50 MB e 250.000 registros. Restauração disponível somente no SQLite local; faça um backup atual antes de restaurar.</small>
   </section>
   <section className="panel"><h3>Regras de segurança</h3><ul className="muted"><li>Prévia não grava dados.</li><li>Confirmação é obrigatória; arquivos com linhas inválidas são rejeitados por inteiro.</li><li>Contas e categorias precisam pertencer à sua conta SFI.</li><li>Duplicatas são detectadas por chave determinística e ignoradas em reimportações.</li><li>Limite de 5 MB e 10.000 movimentações por arquivo. Planilhas XLSX usam a primeira aba e a primeira linha como cabeçalho.</li></ul></section>
  </div>;

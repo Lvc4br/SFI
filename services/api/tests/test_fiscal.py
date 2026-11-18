@@ -209,3 +209,65 @@ def test_nfe_qr_payload_must_match_document_key(client):
         },
     )
     assert mismatch.status_code == 422
+
+
+
+def ocr_danfe_text():
+    return """RECEBEMOS DE MERCADO EXEMPLO LTDA OS PRODUTOS CONSTANTES DA NOTA FISCAL
+CNPJ: 12.345.678/0001-95
+DATA DA EMISSAO: 17/11/2026
+NUMERO: 123 SERIE: 1
+CHAVE DE ACESSO: 35261112345678000195550010000001231000001235
+VALOR TOTAL DA NOTA: R$ 25,90"""
+
+
+def blank_danfe_image():
+    import base64
+    from io import BytesIO
+
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (1200, 800), "white").save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def test_scanned_danfe_image_uses_local_ocr_and_returns_reviewable_preview(client, monkeypatch):
+    monkeypatch.setattr("sfi_api.routers.fiscal._ocr_image_bytes", lambda _image: ocr_danfe_text())
+    headers = register(client, "fiscal-image-ocr@example.com")
+    response = client.post(
+        "/api/v1/fiscal/documents/preview",
+        headers=headers,
+        json={"content": blank_danfe_image(), "format": "image"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["issuer_name"] == "MERCADO EXEMPLO LTDA"
+    assert response.json()["issuer_tax_id"] == "12345678000195"
+    assert response.json()["total_amount"] == "25.90"
+
+
+def test_scanned_danfe_pdf_falls_back_to_ocr(client, monkeypatch):
+    import base64
+    from io import BytesIO
+
+    from PIL import Image
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    monkeypatch.setattr("sfi_api.routers.fiscal._ocr_image_bytes", lambda _image: ocr_danfe_text())
+    image_buffer = BytesIO()
+    Image.new("RGB", (1200, 800), "white").save(image_buffer, format="PNG")
+    pdf_buffer = BytesIO()
+    page = canvas.Canvas(pdf_buffer)
+    page.drawImage(ImageReader(BytesIO(image_buffer.getvalue())), 20, 20, width=550, height=360)
+    page.save()
+
+    headers = register(client, "fiscal-scanned-pdf-ocr@example.com")
+    response = client.post(
+        "/api/v1/fiscal/documents/preview",
+        headers=headers,
+        json={"content": base64.b64encode(pdf_buffer.getvalue()).decode("ascii"), "format": "pdf"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["access_key"] == "35261112345678000195550010000001231000001235"
+    assert response.json()["total_amount"] == "25.90"

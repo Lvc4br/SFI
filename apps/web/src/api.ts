@@ -39,6 +39,7 @@ export type ProductPrice = { id: string; product_id: string; price: string; curr
 export type ShoppingListDetail = ShoppingList & { items: ShoppingItem[] };
 export type PurchaseConfirmation = { transaction_id: string; list_id: string; amount: string; currency: string; description: string; occurred_at: string; items_count: number };
 export type StockBalance = { product_id: string; product_name: string; unit: string; balance: string };
+export type FiscalPreview = {access_key:string;document_number:string;series:string;issuer_name:string;issuer_tax_id:string;issue_date:string;total_amount:string;currency:string;xml_sha256:string;already_imported:boolean;items:{code:string;description:string;ncm:string;cfop:string;quantity:string;unit:string;unit_price:string;total:string}[]};
 export type ExchangePreview = {total:number;valid:number;duplicates:number;invalid:number;rows:{line:number;status:string;description:string;amount:string;currency:string;error?:string|null}[]};
 export type ExchangeImportResult = {created:number;duplicates_skipped:number;total:number};
 export type PatrimonyItem = {id:string;name:string;item_kind:"asset"|"liability";category:string;currency:string;description:string|null;archived:boolean;created_at:string};
@@ -214,6 +215,9 @@ export const api = {
   updateGoal: (id:string,data:{name?:string;description?:string|null;target_amount?:string;target_date?:string|null;status?:"active"|"paused"|"archived"}) => request<Goal>(`/api/v1/goals/${id}`,{method:"PATCH",body:JSON.stringify(data)}),
   goalEntries: (id:string) => request<GoalEntry[]>(`/api/v1/goals/${id}/entries`),
   createGoalEntry: (id:string,data:{entry_type:GoalEntry["entry_type"];amount:string;description?:string|null;occurred_at:string;idempotency_key:string}) => request<GoalEntry>(`/api/v1/goals/${id}/entries`,{method:"POST",body:JSON.stringify(data)}),
+  fiscalPreview: (content:string) => request<FiscalPreview>("/api/v1/fiscal/documents/preview",{method:"POST",body:JSON.stringify({content})}),
+  fiscalConfirm: (data:{content:string;create_expense:boolean;account_id?:string|null;category_id?:string|null}) => request<{id:string;access_key:string;issuer_name:string;document_number:string;total_amount:string;transaction_id:string|null}>("/api/v1/fiscal/documents/confirm",{method:"POST",body:JSON.stringify(data)}),
+  fiscalDocuments: () => request<{id:string;access_key:string;document_number:string;series:string;issuer_name:string;issuer_tax_id:string;issue_date:string;total_amount:string;currency:string;items:FiscalPreview["items"];transaction_id:string|null}[]>("/api/v1/fiscal/documents"),
   exchangePreview: (data:{format:"csv"|"json"|"ofx";content:string;default_account_id?:string|null;default_category_id?:string|null}) => request<ExchangePreview>("/api/v1/exchange/transactions/preview",{method:"POST",body:JSON.stringify(data)}),
   exchangeImport: (data:{format:"csv"|"json"|"ofx";content:string;default_account_id?:string|null;default_category_id?:string|null;confirmed:true}) => request<ExchangeImportResult>("/api/v1/exchange/transactions/import",{method:"POST",body:JSON.stringify(data)}),
   exportTransactions: (format:"csv"|"json") => requestBlob(`/api/v1/exchange/transactions/export?format=${format}`),

@@ -16,8 +16,8 @@ from sqlalchemy import delete, func, insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sfi_api.database import get_session
-from sfi_api.models import Base, User
 from sfi_api.dependencies import get_current_user
+from sfi_api.models import Base, User
 
 router = APIRouter(prefix="/backup", tags=["backup"])
 BACKUP_FORMAT = "sfi-personal-data"

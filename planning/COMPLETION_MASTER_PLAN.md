@@ -237,3 +237,7 @@ Nenhum módulo é concluído apenas por documentação, rota, tabela, botão ou 
 - [ ] Ainda fora deste módulo: lotes/validade, múltiplos locais de armazenamento, conversão de unidades, estorno/reabertura de compra e importação de notas fiscais.
 
 O estoque é local-first conforme o banco configurado pelo runtime. Nenhuma escrita ou migração foi executada contra Neon de produção.
+NaN) ou indicador D/C. OCR, reconhecimento de colunas e perfis específicos de bancos seguem pendentes.
+- Projeções Price/SAC disponíveis na API e na tela de dívidas. O cálculo usa Decimal, taxa nominal anual dividida por 12, ajuste da última amortização e datas mensais com ajuste de fim de mês. Não altera saldos nem cria pagamentos.
+- Testes automatizados foram adicionados para exportação QIF/PDF, isolamento, round-trip QIF, PDF com descrição multilinha, cronogramas Price/SAC, taxa zero e datas de fim de mês. **Os testes e a CI do head atual não foram executados nesta etapa**, pois a validação CI foi reservada para depois da conclusão das implementações.
+- Pendências externas/funcionais: teste operacional DPAPI e ciclo de backup em Windows real; OCR e layouts bancários; CET/encargos contratuais oficiais; SEFAZ/DANFE/QR/CT-e/NFS-e; auditoria de acessibilidade e leitores de tela; sincronização multi-dispositivo e infraestrutura remota; revisão independente de segurança e requisitos LGPD.

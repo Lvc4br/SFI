@@ -649,12 +649,12 @@ async def export_transactions(
             output.extend([
                 f"D{occurred.month:02d}/{occurred.day:02d}'{occurred.year % 100:02d}",
                 f"T{signed_amount:.2f}",
-                "P" + record["description"].replace("\\r", " ").replace("\\n", " "),
+                "P" + record["description"].replace(chr(13), " ").replace(chr(10), " "),
             ])
             if record["category_name"]:
                 output.append("L" + record["category_name"].replace("\\r", " ").replace("\\n", " "))
             output.append("^")
-        content = "\\n".join(output) + "\\n"
+        content = chr(10).join(output) + chr(10)
         return Response(
             content=content,
             media_type="application/x-qif; charset=utf-8",
@@ -674,7 +674,7 @@ async def export_transactions(
         story = [
             Paragraph("SFI — Relatório de movimentações", styles["Title"]),
             Paragraph(
-                f"Usuário: {escape(user.email)} · Registros: {len(records)}",
+                f"Registros: {len(records)}",
                 styles["Normal"],
             ),
             Spacer(1, 6 * mm),

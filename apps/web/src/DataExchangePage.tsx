@@ -2,7 +2,7 @@ import {useEffect,useState} from "react";
 import type {ChangeEvent,FormEvent} from "react";
 import {api,isDesktopApp,type Account,type Category,type ExchangePreview,type BackupDocument,type BackupPreview,type AutomaticBackupStatus} from "./api";
 
-type ImportFormat="csv"|"json"|"ofx"|"xlsx";
+type ImportFormat="csv"|"json"|"ofx"|"xlsx"|"qif"|"pdf";
 export default function DataExchangePage({accounts,categories}:{accounts:Account[];categories:Category[]}){
  const [format,setFormat]=useState<ImportFormat>("csv"),[content,setContent]=useState(""),[filename,setFilename]=useState("");
  const [accountId,setAccountId]=useState(accounts[0]?.id??""),[categoryId,setCategoryId]=useState("");
@@ -17,10 +17,10 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
   const file=event.target.files?.[0];if(!file)return;
   setError("");setNotice("");setPreview(null);
   const extension=file.name.toLowerCase().split(".").pop();
-  if(extension!=="csv"&&extension!=="json"&&extension!=="ofx"&&extension!=="xlsx"){setError("Formato não suportado. Use CSV, JSON, OFX ou XLSX.");return;}
+  if(extension!=="csv"&&extension!=="json"&&extension!=="ofx"&&extension!=="xlsx"&&extension!=="qif"&&extension!=="pdf"){setError("Formato não suportado. Use CSV, JSON, OFX, XLSX, QIF ou PDF.");return;}
   if(file.size>5*1024*1024){setError("O arquivo excede o limite de 5 MB.");return;}
   try{
-   if(extension==="xlsx"){
+   if(extension==="xlsx"||extension==="pdf"){
     const bytes=new Uint8Array(await file.arrayBuffer());let binary="";
     for(let offset=0;offset<bytes.length;offset+=0x8000){binary+=String.fromCharCode(...bytes.subarray(offset,offset+0x8000));}
     setContent(btoa(binary));
@@ -106,10 +106,10 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
 
  const validRows=preview?.rows.filter(row=>row.status==="valid")??[];
  return <div className="content-grid exchange-page">
-  <section className="panel"><h3>Importar movimentações</h3><p className="muted">Carregue um extrato, confira a prévia e só então confirme. O sistema não altera nem apaga lançamentos existentes.</p>
+  <section className="panel"><h3>Importar movimentações</h3><p className="muted">Carregue CSV, JSON, OFX, Excel, QIF ou PDF, confira a prévia e só então confirme. PDFs digitalizados e layouts não reconhecidos não são importados automaticamente.</p>
    {error&&<p className="form-error" role="alert">{error}</p>}{notice&&<p className="form-hint" role="status">{notice}</p>}
    <form className="form-stack" onSubmit={makePreview}>
-    <label>Arquivo de extrato<input type="file" accept=".csv,.json,.ofx,.xlsx,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={chooseFile}/></label>
+    <label>Arquivo de extrato<input type="file" accept=".csv,.json,.ofx,.xlsx,.qif,.pdf,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={chooseFile}/></label>
     {filename&&<small className="muted">Arquivo: {filename} · Formato: {format.toUpperCase()}</small>}
     <label>Conta padrão (quando o arquivo não informar a conta)<select value={accountId} onChange={e=>setAccountId(e.target.value)}><option value="">Exigir conta por linha</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name} · {a.currency}</option>)}</select></label>
     <label>Categoria padrão (opcional)<select value={categoryId} onChange={e=>setCategoryId(e.target.value)}><option value="">Sem categoria padrão</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name} · {c.category_type==="expense"?"Despesa":"Receita"}</option>)}</select></label>
@@ -140,6 +140,6 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
    <div className="button-row"><button className="button primary" type="button" disabled={busy||backupPassphrase.length<12} onClick={()=>void saveAutomaticBackup()}>{automaticStatus?.enabled?"Atualizar agendamento":"Ativar backup automático"}</button>{automaticStatus?.enabled&&<button className="button secondary" type="button" disabled={busy} onClick={()=>void removeAutomaticBackup()}>Desativar</button>}</div>
    {automaticStatus&&<><p className="muted">Status: {automaticStatus.enabled?"Ativo":"Desativado"} · Retenção: {automaticStatus.retention} versões · Último backup: {automaticStatus.last_run?new Date(automaticStatus.last_run).toLocaleString():"Ainda não executado"}</p>{automaticStatus.last_error&&<p className="form-error">Última tentativa falhou ({automaticStatus.last_error}). O SFI tentará novamente no próximo ciclo.</p>}<div className="table-wrap"><table><thead><tr><th>Arquivo</th><th>Data</th><th>Tamanho</th><th>Ação</th></tr></thead><tbody>{automaticStatus.history.map(item=><tr key={item.filename}><td>{item.filename}</td><td>{new Date(item.created_at).toLocaleString()}</td><td>{(item.size_bytes/1024/1024).toFixed(2)} MB</td><td><button className="button secondary" type="button" disabled={busy} onClick={()=>void downloadAutomaticBackup(item.filename)}>Baixar</button></td></tr>)}</tbody></table></div></>}
   </section>}
-  <section className="panel"><h3>Regras de segurança</h3><ul className="muted"><li>Prévia não grava dados.</li><li>Confirmação é obrigatória; arquivos com linhas inválidas são rejeitados por inteiro.</li><li>Contas e categorias precisam pertencer à sua conta SFI.</li><li>Duplicatas são detectadas por chave determinística e ignoradas em reimportações.</li><li>Limite de 5 MB e 10.000 movimentações por arquivo. Planilhas XLSX usam a primeira aba e a primeira linha como cabeçalho.</li></ul></section>
+  <section className="panel"><h3>Regras de segurança</h3><ul className="muted"><li>Prévia não grava dados.</li><li>Confirmação é obrigatória; arquivos com linhas inválidas são rejeitados por inteiro.</li><li>Contas e categorias precisam pertencer à sua conta SFI.</li><li>Duplicatas são detectadas por chave determinística e ignoradas em reimportações.</li><li>Limite de 5 MB e 10.000 movimentações por arquivo. Planilhas XLSX usam a primeira aba e a primeira linha como cabeçalho. PDFs precisam conter texto selecionável e linhas com data, descrição e valor assinado ou indicador D/C; OCR e layouts bancários específicos ainda não estão disponíveis. QIF usa o sinal do valor para classificar receita/despesa.</li></ul></section>
  </div>;
 }

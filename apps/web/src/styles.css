@@ -301,3 +301,8 @@ html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:
 .theme-select{min-height:36px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);font:inherit;font-size:11px}
 .theme-select:focus-visible{outline:3px solid #1f6feb;outline-offset:3px}
 @media(max-width:760px){.theme-select-label{font-size:8px}.theme-select{min-height:34px;padding:6px 7px}}
+
+
+/* Keep the growing desktop navigation and account actions reachable on short screens. */
+.sidebar{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+@media(max-width:760px){.sidebar{overflow:visible}}

@@ -2,6 +2,7 @@ import base64
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -142,6 +143,7 @@ def parse_nfe_xml(content: str) -> dict:
 MAX_PDF_BYTES = 10 * 1024 * 1024
 MAX_PDF_PAGES = 10
 MAX_PDF_TEXT_CHARS = 200_000
+MAX_OCR_TOTAL_PIXELS = 40_000_000
 
 
 def _valid_access_key(key: str) -> bool:
@@ -207,11 +209,21 @@ def _ocr_pdf_text(raw: bytes) -> str:
         if not 1 <= len(document) <= MAX_PDF_PAGES:
             raise HTTPException(422, "O PDF deve conter entre 1 e 10 páginas.")
         recognized = []
+        total_pixels = 0
         for index in range(len(document)):
             page = document[index]
-            bitmap = page.render(scale=2.0)
+            width, height = page.get_size()
+            if width <= 0 or height <= 0:
+                raise HTTPException(422, "O PDF contém uma página com dimensões inválidas.")
+            scale = min(2.0, math.sqrt(20_000_000 / (width * height)))
+            if scale < 0.1:
+                raise HTTPException(413, "Uma página do PDF excede o limite de renderização OCR.")
+            bitmap = page.render(scale=scale)
             image = bitmap.to_pil().convert("RGB")
             image.thumbnail((4000, 4000))
+            total_pixels += image.width * image.height
+            if total_pixels > MAX_OCR_TOTAL_PIXELS:
+                raise HTTPException(413, "O PDF excede o limite total de pixels para OCR.")
             buffer = io.BytesIO()
             image.save(buffer, format="PNG")
             recognized.append(_ocr_image_bytes(buffer.getvalue()))

@@ -58,3 +58,28 @@ def test_automatic_backup_history_isolated_per_user(tmp_path, monkeypatch):
 
     assert [item["filename"] for item in _backup_history(owner_id)] == ["owner.sfi-backup.json"]
     assert [item["filename"] for item in _backup_history(other_id)] == ["other.sfi-backup.json"]
+
+
+
+def test_user_cannot_replace_or_disable_another_users_schedule(tmp_path, monkeypatch):
+    from sfi_api.backup_automation import BackupAutomationError
+
+    monkeypatch.setenv("SFI_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("sfi_api.backup_automation.sys.platform", "win32")
+    monkeypatch.setattr("sfi_api.backup_automation.protect_passphrase", lambda value: "dpapi-protected")
+    owner_id = uuid4()
+    other_id = uuid4()
+    _write_config({
+        "version": 1,
+        "enabled": True,
+        "user_id": str(owner_id),
+        "cadence": "daily",
+        "local_time": "08:00",
+        "protected_passphrase": "protected",
+        "last_run": None,
+    })
+
+    with pytest.raises(BackupAutomationError, match="Outro usuário"):
+        configure_automatic_backup(other_id, "daily", "09:00", "senha-forte-backup-2026")
+    with pytest.raises(BackupAutomationError, match="outro usuário"):
+        disable_automatic_backup(other_id)

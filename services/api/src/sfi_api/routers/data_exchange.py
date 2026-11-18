@@ -11,6 +11,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 from xml.sax.saxutils import escape
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
@@ -670,7 +671,7 @@ async def export_transactions(
         )
         output = ["!Type:CCard" if account.account_type == "credit" else "!Type:Cash" if account.account_type == "cash" else "!Type:Bank"]
         for record in records:
-            occurred = datetime.fromisoformat(record["occurred_at"])
+            occurred = datetime.fromisoformat(record["occurred_at"]).astimezone(ZoneInfo(user.timezone))
             amount = Decimal(record["amount"])
             signed_amount = -amount if record["transaction_type"] == "expense" else amount
             output.extend([

@@ -1,5 +1,7 @@
+import calendar
 import uuid
-from decimal import Decimal
+from datetime import date
+from decimal import Decimal, ROUND_HALF_UP, localcontext
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -84,6 +86,93 @@ async def list_debt_payments(
         .order_by(DebtPayment.paid_at.desc())
     )
     return list(result.all())
+
+
+
+def _add_months(value: date, months: int) -> date:
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    return date(year, month, min(value.day, calendar.monthrange(year, month)[1]))
+
+
+def _money(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _build_amortization_schedule(debt: Debt) -> dict:
+    if debt.amortization_method not in {"price", "sac"}:
+        raise HTTPException(409, "Defina o método Price ou SAC para projetar parcelas.")
+    if not debt.installment_count:
+        raise HTTPException(409, "Informe a quantidade de parcelas para gerar a projeção.")
+    principal = _money(debt.outstanding_principal)
+    if principal <= 0:
+        return {"debt_id": str(debt.id), "method": debt.amortization_method,
+                "currency": debt.currency, "installments": [], "principal_total": "0.00",
+                "interest_total": "0.00", "payment_total": "0.00", "is_estimate": True}
+    monthly_rate = debt.annual_interest_rate / Decimal("100") / Decimal("12")
+    count = debt.installment_count
+    start_date = debt.next_due_date or debt.first_due_date
+    with localcontext() as context:
+        context.prec = 32
+        if debt.amortization_method == "price":
+            if monthly_rate == 0:
+                fixed_payment = _money(principal / Decimal(count))
+            else:
+                factor = (Decimal("1") + monthly_rate) ** count
+                fixed_payment = _money(principal * monthly_rate * factor / (factor - 1))
+        else:
+            fixed_payment = None
+        balance = principal
+        installments = []
+        for index in range(1, count + 1):
+            opening_balance = balance
+            interest = _money(balance * monthly_rate)
+            if debt.amortization_method == "sac":
+                principal_part = balance if index == count else _money(principal / Decimal(count))
+            else:
+                principal_part = balance if index == count else min(
+                    balance, _money(fixed_payment - interest)
+                )
+            payment = _money(principal_part + interest)
+            balance = _money(max(Decimal("0"), balance - principal_part))
+            installments.append({
+                "number": index, "due_date": _add_months(start_date, index - 1).isoformat(),
+                "opening_balance": str(opening_balance), "principal": str(principal_part),
+                "interest": str(interest), "payment": str(payment),
+                "closing_balance": str(balance),
+            })
+        principal_total = sum((Decimal(item["principal"]) for item in installments), Decimal("0"))
+        interest_total = sum((Decimal(item["interest"]) for item in installments), Decimal("0"))
+        payment_total = sum((Decimal(item["payment"]) for item in installments), Decimal("0"))
+    return {
+        "debt_id": str(debt.id), "method": debt.amortization_method, "currency": debt.currency,
+        "annual_rate_percent": str(debt.annual_interest_rate),
+        "monthly_rate_percent": str(monthly_rate * Decimal("100")),
+        "installments": installments, "principal_total": str(_money(principal_total)),
+        "interest_total": str(_money(interest_total)), "payment_total": str(_money(payment_total)),
+        "is_estimate": True,
+        "assumptions": [
+            "Taxa anual nominal dividida por 12; não representa CET.",
+            "Sem seguros, tarifas, impostos, multas, mora ou indexadores.",
+            "Projeção calculada sobre o principal em aberto e a quantidade cadastrada de parcelas.",
+            "Datas mensais preservam o dia de vencimento e ajustam para o último dia do mês quando necessário.",
+        ],
+    }
+
+
+@router.get("/{debt_id}/schedule")
+async def debt_amortization_schedule(
+    debt_id: uuid.UUID,
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
+):
+    debt = await session.scalar(
+        select(Debt).where(Debt.id == debt_id, Debt.user_id == user.id)
+    )
+    if debt is None:
+        raise HTTPException(404, "Dívida não encontrada.")
+    return _build_amortization_schedule(debt)
 
 
 @router.post(

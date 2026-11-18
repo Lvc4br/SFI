@@ -167,6 +167,7 @@ def automatic_backup_status(user_id: UUID) -> dict[str, Any]:
         "cadence": config.get("cadence"),
         "local_time": config.get("local_time"),
         "last_run": config.get("last_run"),
+        "last_error": config.get("last_error"),
         "retention": _RETENTION_COUNT,
         "history": _backup_history(),
     }
@@ -199,10 +200,10 @@ def _is_due(config: dict[str, Any], now: datetime) -> bool:
         return False
     if last_run is None:
         return True
-    elapsed = now - last_run.astimezone(now.tzinfo)
+    elapsed_days = (now.date() - last_run.astimezone().date()).days
     if cadence == "daily":
-        return elapsed >= timedelta(days=1)
-    return cadence == "weekly" and elapsed >= timedelta(days=7)
+        return elapsed_days >= 1
+    return cadence == "weekly" and elapsed_days >= 7
 
 
 async def _create_scheduled_backup(config: dict[str, Any]) -> None:
@@ -233,6 +234,7 @@ async def _create_scheduled_backup(config: dict[str, Any]) -> None:
 
 def _record_run(config: dict[str, Any], timestamp: str) -> None:
     config["last_run"] = timestamp
+    config["last_error"] = None
     with _CONFIG_LOCK:
         _write_config(config)
 
@@ -249,9 +251,16 @@ async def automatic_backup_worker() -> None:
             if config and config.get("enabled") and _is_due(config, now):
                 await _create_scheduled_backup(config)
                 _record_run(config, now.isoformat())
-        except Exception:
-            # Keep the desktop process alive; status exposes the last successful run.
-            pass
+        except Exception as exc:
+            # Keep the desktop process alive and expose a non-sensitive failure summary.
+            try:
+                with _CONFIG_LOCK:
+                    failed_config = _read_config()
+                    if failed_config:
+                        failed_config["last_error"] = type(exc).__name__
+                        _write_config(failed_config)
+            except Exception:
+                pass
         await asyncio.sleep(60)
 
 

@@ -21,7 +21,7 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
   catch{setError("Não foi possível ler o arquivo.");}
  }
  async function makePreview(){setBusy(true);setError("");setNotice("");try{setPreview(await api.fiscalPreview(content));setNotice("Prévia pronta. Nenhuma nota ou despesa foi gravada.");}catch(e){setError(e instanceof Error?e.message:"Falha ao analisar o XML.");}finally{setBusy(false);}}
- async function confirm(){if(!preview)return;setBusy(true);setError("");setNotice("");try{const result=await api.fiscalConfirm({content,create_expense:createExpense,account_id:createExpense?accountId:null,category_id:createExpense?(categoryId||null):null});setNotice(createExpense? "Nota importada e despesa registrada.":"Nota importada sem criar movimentação.");setPreview(null);setContent("");setFilename("");await reload();}catch(e){setError(e instanceof Error?e.message:"Falha ao importar a nota.");}finally{setBusy(false);}}
+ async function confirm(){if(!preview)return;setBusy(true);setError("");setNotice("");try{await api.fiscalConfirm({content,create_expense:createExpense,account_id:createExpense?accountId:null,category_id:createExpense?(categoryId||null):null});setNotice(createExpense? "Nota importada e despesa registrada.":"Nota importada sem criar movimentação.");setPreview(null);setContent("");setFilename("");await reload();}catch(e){setError(e instanceof Error?e.message:"Falha ao importar a nota.");}finally{setBusy(false);}}
  return <div className="content-grid">
   <section className="panel">
    <h3>Importar NF-e / NFC-e</h3>

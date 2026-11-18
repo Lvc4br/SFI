@@ -163,7 +163,9 @@ def parse_nfe_pdf(content_base64: str) -> dict:
             raise HTTPException(422, "O PDF deve conter entre 1 e 10 páginas.")
         extracted_pages = [page.extract_text() or "" for page in reader.pages]
         if sum(len(page_text) for page_text in extracted_pages) > MAX_PDF_TEXT_CHARS:
-            raise HTTPException(413, "O texto extraído do PDF excede o limite de 200 mil caracteres.")
+            raise HTTPException(
+                413, "O texto extraído do PDF excede o limite de 200 mil caracteres."
+            )
         text = "\n".join(extracted_pages)
     except HTTPException:
         raise

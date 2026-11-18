@@ -11,6 +11,7 @@ from sfi_api.routers.dashboard import router as dashboard_router
 from sfi_api.routers.data_exchange import router as data_exchange_router
 from sfi_api.routers.debts import router as debts_router
 from sfi_api.routers.finance import router as finance_router
+from sfi_api.routers.fiscal import router as fiscal_router
 from sfi_api.routers.goals import router as goals_router
 from sfi_api.routers.investments import router as investments_router
 from sfi_api.routers.patrimony import router as patrimony_router
@@ -74,6 +75,7 @@ async def apply_security_headers(request, call_next):
 
 app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(finance_router, prefix=settings.api_prefix)
+app.include_router(fiscal_router, prefix=settings.api_prefix)
 app.include_router(credit_router, prefix=settings.api_prefix)
 app.include_router(debts_router, prefix=settings.api_prefix)
 app.include_router(data_exchange_router, prefix=settings.api_prefix)

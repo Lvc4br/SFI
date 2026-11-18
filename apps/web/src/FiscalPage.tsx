@@ -85,7 +85,7 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
     {filename&&<small className="muted">{filename}</small>}
     <div className="form-stack">
      <div className="panel-heading"><strong>QR Code da nota (opcional)</strong><button className="button secondary" type="button" onClick={()=>cameraActive?stopCamera():void startCamera()}>{cameraActive?"Desligar câmera":"Ler com câmera"}</button></div>
-     {cameraActive&&<video ref={videoRef} autoPlay playsInline muted aria-label="Visualização da câmera para leitura do QR Code" style={{width:"100%",maxHeight:"280px",objectFit:"contain",borderRadius:"8px",background:"#111"}}/>}
+     <video ref={videoRef} autoPlay playsInline muted hidden={!cameraActive} aria-label="Visualização da câmera para leitura do QR Code" style={{width:"100%",maxHeight:"280px",objectFit:"contain",borderRadius:"8px",background:"#111"}}/>
      {cameraMessage&&<p className="form-hint" role="status">{cameraMessage}</p>}
      <label>Conteúdo do QR Code<textarea value={qrPayload} maxLength={4096} rows={3} onChange={event=>{setQrPayload(event.target.value);setPreview(null);}} placeholder="Cole o texto/URL obtido do QR Code da NF-e/NFC-e"/></label>
     </div>

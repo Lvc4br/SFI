@@ -71,6 +71,22 @@ class EquivalentRateInput(BaseModel):
     compounds_per_year: int = Field(ge=1, le=365)
 
 
+class CetEstimateInput(BaseModel):
+    gross_credit_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    upfront_costs: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=2)
+    installment_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    monthly_charges: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=2)
+    installments: int = Field(ge=1, le=600)
+    first_due_date: date
+
+    @field_validator("gross_credit_amount", "upfront_costs", "installment_amount", "monthly_charges")
+    @classmethod
+    def reject_non_finite_cet_values(cls, value: Decimal) -> Decimal:
+        if not value.is_finite():
+            raise ValueError("Informe um número finito.")
+        return value
+
+
 @router.post("/compound-interest")
 def compound_interest(payload: CompoundInterestInput) -> dict:
     monthly_rate = payload.annual_rate_percent / HUNDRED / Decimal("12")
@@ -191,4 +207,79 @@ def equivalent_rate(payload: EquivalentRateInput) -> dict:
         ),
         "compounds_per_year": payload.compounds_per_year,
         "is_estimate": True,
+    }
+
+
+
+@router.post("/cet-estimate")
+def cet_estimate(payload: CetEstimateInput) -> dict:
+    """Estimate the effective annual cost from borrower cash flows (not an official CET statement)."""
+    net_disbursement = money(payload.gross_credit_amount - payload.upfront_costs)
+    if net_disbursement <= 0:
+        from fastapi import HTTPException
+
+        raise HTTPException(422, "Os custos iniciais devem ser menores que o crédito bruto.")
+
+    payments = []
+    for index in range(payload.installments):
+        due_date = add_months(payload.first_due_date, index)
+        payment = money(payload.installment_amount + payload.monthly_charges)
+        payments.append({"number": index + 1, "due_date": due_date, "payment": payment})
+
+    total_paid = money(sum((row["payment"] for row in payments), Decimal("0")))
+    start_date = payload.first_due_date
+    day_offsets = [(row["due_date"] - start_date).days for row in payments]
+    if any(days <= 0 for days in day_offsets):
+        from fastapi import HTTPException
+
+        raise HTTPException(422, "O primeiro vencimento deve ocorrer após a liberação do crédito.")
+
+    def present_value(annual_rate: Decimal) -> Decimal:
+        base = Decimal("1") + annual_rate
+        return sum(
+            (
+                row["payment"] / (base ** (Decimal(days) / Decimal("365")))
+                for row, days in zip(payments, day_offsets, strict=True)
+            ),
+            Decimal("0"),
+        ) - net_disbursement
+
+    with localcontext() as context:
+        context.prec = 50
+        low = Decimal("-0.999999")
+        high = Decimal("1000000")
+        low_value = present_value(low)
+        high_value = present_value(high)
+        if low_value <= 0 or high_value >= 0:
+            from fastapi import HTTPException
+
+            raise HTTPException(422, "Não foi possível encontrar uma taxa efetiva para os fluxos informados.")
+        for _ in range(220):
+            middle = (low + high) / Decimal("2")
+            if present_value(middle) > 0:
+                low = middle
+            else:
+                high = middle
+        annual_rate = (low + high) / Decimal("2")
+        monthly_rate = (Decimal("1") + annual_rate) ** (Decimal("1") / Decimal("12")) - 1
+
+    return {
+        "currency": "BRL",
+        "net_disbursement": str(net_disbursement),
+        "total_paid": str(total_paid),
+        "upfront_costs": str(money(payload.upfront_costs)),
+        "monthly_charges_total": str(money(payload.monthly_charges * payload.installments)),
+        "effective_annual_cost_percent": str((annual_rate * HUNDRED).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
+        "effective_monthly_cost_percent": str((monthly_rate * HUNDRED).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
+        "cash_flows": [
+            {"number": row["number"], "due_date": row["due_date"].isoformat(), "payment": str(row["payment"])}
+            for row in payments
+        ],
+        "is_estimate": True,
+        "assumptions": [
+            "Taxa efetiva anual estimada por valor presente dos fluxos e dias reais/365.",
+            "O valor líquido liberado é o crédito bruto menos os custos iniciais informados.",
+            "Cada parcela inclui o encargo mensal informado; custos variáveis devem ser incluídos no valor de cada parcela.",
+            "Não substitui o CET oficial da instituição financeira nem valida tarifas, tributos ou contrato.",
+        ],
     }

@@ -7,6 +7,7 @@ from sfi_api.config import get_settings
 from sfi_api.database import check_database, dispose_database
 from sfi_api.routers.auth import router as auth_router
 from sfi_api.routers.backup import router as backup_router
+from sfi_api.routers.backup_encryption import router as backup_encryption_router
 from sfi_api.routers.credit import router as credit_router
 from sfi_api.routers.dashboard import router as dashboard_router
 from sfi_api.routers.data_exchange import router as data_exchange_router
@@ -82,6 +83,7 @@ app.include_router(credit_router, prefix=settings.api_prefix)
 app.include_router(debts_router, prefix=settings.api_prefix)
 app.include_router(data_exchange_router, prefix=settings.api_prefix)
 app.include_router(backup_router, prefix=settings.api_prefix)
+app.include_router(backup_encryption_router, prefix=settings.api_prefix)
 app.include_router(goals_router, prefix=settings.api_prefix)
 app.include_router(investments_router, prefix=settings.api_prefix)
 app.include_router(patrimony_router, prefix=settings.api_prefix)

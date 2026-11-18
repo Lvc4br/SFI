@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import ctypes
+import ctypes.wintypes
 import json
 import os
 import sys
@@ -56,7 +57,7 @@ def _dpapi_transform(value: bytes, *, protect: bool) -> bytes:
     function = crypt.CryptProtectData if protect else crypt.CryptUnprotectData
     function.argtypes = [
         ctypes.POINTER(DataBlob),
-        ctypes.c_wchar_p,
+        ctypes.c_void_p,
         ctypes.c_void_p,
         ctypes.c_void_p,
         ctypes.c_void_p,
@@ -64,12 +65,16 @@ def _dpapi_transform(value: bytes, *, protect: bool) -> bytes:
         ctypes.POINTER(DataBlob),
     ]
     function.restype = ctypes.wintypes.BOOL
-    if not function(ctypes.byref(source), "SFI automatic backup", None, None, None, 0, ctypes.byref(destination)):
+    description = ctypes.c_wchar_p("SFI automatic backup")
+    description_pointer = ctypes.byref(description) if not protect else ctypes.cast(description, ctypes.c_void_p)
+    if not function(ctypes.byref(source), description_pointer, None, None, None, 0, ctypes.byref(destination)):
         raise ctypes.WinError(ctypes.get_last_error())
     try:
         return ctypes.string_at(destination.pbData, destination.cbData)
     finally:
         kernel.LocalFree(destination.pbData)
+        if not protect and description:
+            kernel.LocalFree(description)
 
 
 def protect_passphrase(passphrase: str) -> str:

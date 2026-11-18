@@ -39,6 +39,9 @@ export type ProductPrice = { id: string; product_id: string; price: string; curr
 export type ShoppingListDetail = ShoppingList & { items: ShoppingItem[] };
 export type PurchaseConfirmation = { transaction_id: string; list_id: string; amount: string; currency: string; description: string; occurred_at: string; items_count: number };
 export type StockBalance = { product_id: string; product_name: string; unit: string; balance: string };
+export type PatrimonyItem = {id:string;name:string;item_kind:"asset"|"liability";category:string;currency:string;description:string|null;archived:boolean;created_at:string};
+export type PatrimonyCurrency = {currency:string;assets_total:string;liabilities_total:string;net_worth:string;items_count:number};
+export type PatrimonySnapshot = {as_of:string;currencies:PatrimonyCurrency[]};
 export type InvestmentAsset = {id:string;name:string;ticker:string|null;asset_type:"stock"|"reit"|"etf"|"bond"|"fund"|"crypto"|"fixed_income"|"other";currency:string;notes:string|null;archived:boolean;created_at:string};
 export type InvestmentPosition = {asset:InvestmentAsset;quantity:string;average_cost:string;invested_amount:string;dividends:string;realized_result:string;operations_count:number};
 export type Goal = { id:string; name:string; description:string|null; currency:string; target_amount:string; current_amount:string; target_date:string|null; status:"active"|"completed"|"paused"|"archived"; created_at:string; updated_at:string };
@@ -186,6 +189,12 @@ export const api = {
   updateGoal: (id:string,data:{name?:string;description?:string|null;target_amount?:string;target_date?:string|null;status?:"active"|"paused"|"archived"}) => request<Goal>(`/api/v1/goals/${id}`,{method:"PATCH",body:JSON.stringify(data)}),
   goalEntries: (id:string) => request<GoalEntry[]>(`/api/v1/goals/${id}/entries`),
   createGoalEntry: (id:string,data:{entry_type:GoalEntry["entry_type"];amount:string;description?:string|null;occurred_at:string;idempotency_key:string}) => request<GoalEntry>(`/api/v1/goals/${id}/entries`,{method:"POST",body:JSON.stringify(data)}),
+  patrimonyItems: (includeArchived=false) => request<PatrimonyItem[]>(`/api/v1/patrimony${includeArchived?"?include_archived=true":""}`),
+  createPatrimonyItem: (data:{name:string;item_kind:PatrimonyItem["item_kind"];category:string;currency?:string;description?:string|null}) => request<PatrimonyItem>("/api/v1/patrimony",{method:"POST",body:JSON.stringify(data)}),
+  updatePatrimonyItem: (id:string,data:{archived:boolean}) => request<PatrimonyItem>(`/api/v1/patrimony/${id}`,{method:"PATCH",body:JSON.stringify(data)}),
+  createPatrimonyValuation: (id:string,data:{amount:string;notes?:string|null;idempotency_key:string;valued_at:string}) => request<unknown>(`/api/v1/patrimony/${id}/valuations`,{method:"POST",body:JSON.stringify(data)}),
+  patrimonySummary: (asOf?:string) => request<PatrimonySnapshot>(`/api/v1/patrimony/summary${asOf?"?as_of="+asOf:""}`),
+  patrimonyHistory: (start?:string,end?:string) => request<PatrimonySnapshot[]>(`/api/v1/patrimony/history?${new URLSearchParams({...(start?{start_date:start}:{}),...(end?{end_date:end}:{})})}`),
   investmentAssets: () => request<InvestmentAsset[]>("/api/v1/investments/assets"),
   createInvestmentAsset: (data:{name:string;ticker?:string|null;asset_type:InvestmentAsset["asset_type"];currency?:string;notes?:string|null}) => request<InvestmentAsset>("/api/v1/investments/assets",{method:"POST",body:JSON.stringify(data)}),
   investmentPortfolio: () => request<InvestmentPosition[]>("/api/v1/investments/portfolio"),

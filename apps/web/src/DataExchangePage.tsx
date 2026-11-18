@@ -61,14 +61,14 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
   setBackup(null);setEncryptedEnvelope(null);setBackupPreview(null);setBackupError("");setBackupNotice("");
   if(file.size>50*1024*1024){setBackupError("O backup excede o limite de 50 MB.");return;}
   try{
-   const parsed=JSON.parse(await file.text()) as BackupDocument;
-   if(parsed.format!=="sfi-personal-data"||parsed.version!==1||!parsed.tables)throw new Error("Arquivo não é um backup SFI compatível.");
-   setBackup(parsed);setBackupFilename(file.name);setBackupNotice("Arquivo carregado. Analise a prévia antes de restaurar.");
+   const parsed=JSON.parse(await file.text()) as Record<string,unknown>;
+   if(parsed.format==="sfi-encrypted-backup"){setEncryptedEnvelope(parsed);setBackup(null);setBackupFilename(file.name);setBackupNotice("Backup criptografado carregado. Informe a senha e valide a prévia.");}
+   else{const legacy=parsed as unknown as BackupDocument;if(legacy.format!=="sfi-personal-data"||legacy.version!==1||!legacy.tables)throw new Error("Arquivo não é um backup SFI compatível.");setBackup(legacy);setBackupFilename(file.name);setBackupNotice("Backup JSON legado sem criptografia carregado. Valide a prévia antes de restaurar.");}
   }catch(e){setBackupError(e instanceof Error?e.message:"Não foi possível ler o backup.");}
  }
  async function previewBackup(){
-  if(!backup)return;setBusy(true);setBackupError("");setBackupNotice("");
-  try{const result=await api.previewBackupRestore(backup);setBackupPreview(result);setBackupNotice("Prévia validada. Nenhum dado foi alterado.");}
+  if(!backup&&!encryptedEnvelope)return;if(encryptedEnvelope&&backupPassphrase.length<12){setBackupError("Informe a senha usada para criptografar o backup.");return;}setBusy(true);setBackupError("");setBackupNotice("");
+  try{const result=encryptedEnvelope?await api.previewEncryptedBackup(encryptedEnvelope,backupPassphrase):await api.previewBackupRestore(backup!);setBackupPreview(result);setBackupNotice("Prévia validada. Nenhum dado foi alterado.");}
   catch(e){setBackupError(e instanceof Error?e.message:"Falha ao validar o backup.");}
   finally{setBusy(false);}
  }

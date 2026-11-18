@@ -7,6 +7,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -165,6 +166,10 @@ def _validate_backup(backup: dict) -> tuple[dict[str, list[dict]], int]:
         raise HTTPException(422, "O perfil do backup está incompleto.")
     if len(profile["timezone"]) > 64:
         raise HTTPException(422, "O fuso horário do perfil é inválido.")
+    try:
+        ZoneInfo(profile["timezone"])
+    except ZoneInfoNotFoundError as exc:
+        raise HTTPException(422, "O fuso horário do perfil não é reconhecido.") from exc
     return validated, total_rows
 
 

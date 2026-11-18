@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { calculatorApi } from "./api";
-import type { CetEstimateResult, CompoundInterestResult, LoanCalculatorResult } from "./api";
+import type { CetEstimateResult, CompoundInterestResult, LatePaymentEstimateResult, LoanCalculatorResult } from "./api";
 
-type Mode = "compound" | "loan" | "real" | "equivalent" | "cet";
+type Mode = "compound" | "loan" | "real" | "equivalent" | "cet" | "late";
 const money = (value:string) => new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(value));
 const rate = (value:string) => Number(value).toLocaleString("pt-BR",{maximumFractionDigits:6}) + "%";
 
@@ -16,19 +16,20 @@ export default function CalculatorsPage() {
   const [firstDueDate,setFirstDueDate]=useState(new Date().toISOString().slice(0,10));
   const [method,setMethod]=useState<"price"|"sac">("price");
   const [inflation,setInflation]=useState("4.5");
-  const [frequency,setFrequency]=useState("12");\n  const [upfrontCosts,setUpfrontCosts]=useState("0.00");\n  const [monthlyCharges,setMonthlyCharges]=useState("0.00");\n  const [installmentAmount,setInstallmentAmount]=useState("950.00");\n  const [contractDate,setContractDate]=useState(new Date().toISOString().slice(0,10));
+  const [frequency,setFrequency]=useState("12");\n  const [upfrontCosts,setUpfrontCosts]=useState("0.00");\n  const [monthlyCharges,setMonthlyCharges]=useState("0.00");\n  const [installmentAmount,setInstallmentAmount]=useState("950.00");\n  const [contractDate,setContractDate]=useState(new Date().toISOString().slice(0,10));\n  const [dueDate,setDueDate]=useState(new Date().toISOString().slice(0,10));\n  const [paymentDate,setPaymentDate]=useState(new Date().toISOString().slice(0,10));\n  const [penaltyPercent,setPenaltyPercent]=useState("2");\n  const [monthlyInterest,setMonthlyInterest]=useState("1");\n  const [correctionFactor,setCorrectionFactor]=useState("1");\n  const [lateMethod,setLateMethod]=useState<"simple"|"compound">("simple");
   const [compoundResult,setCompoundResult]=useState<CompoundInterestResult|null>(null);
-  const [loanResult,setLoanResult]=useState<LoanCalculatorResult|null>(null);\n  const [cetResult,setCetResult]=useState<CetEstimateResult|null>(null);
+  const [loanResult,setLoanResult]=useState<LoanCalculatorResult|null>(null);\n  const [cetResult,setCetResult]=useState<CetEstimateResult|null>(null);\n  const [lateResult,setLateResult]=useState<LatePaymentEstimateResult|null>(null);
   const [simpleResult,setSimpleResult]=useState("");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
 
   async function submit(event:FormEvent) {
-    event.preventDefault(); setBusy(true); setError(""); setCompoundResult(null); setLoanResult(null); setCetResult(null); setSimpleResult("");
+    event.preventDefault(); setBusy(true); setError(""); setCompoundResult(null); setLoanResult(null); setCetResult(null); setLateResult(null); setSimpleResult("");
     try {
       if(mode==="compound") setCompoundResult(await calculatorApi.compoundInterest({principal,monthly_contribution:contribution,annual_rate_percent:annualRate,months:Number(months)}));
       if(mode==="loan") setLoanResult(await calculatorApi.loanSchedule({principal,annual_rate_percent:annualRate,installments:Number(installments),first_due_date:firstDueDate,method}));
       if(mode==="cet") setCetResult(await calculatorApi.cetEstimate({gross_credit_amount:principal,upfront_costs:upfrontCosts,installment_amount:installmentAmount,monthly_charges:monthlyCharges,installments:Number(installments),contract_date:contractDate,first_due_date:firstDueDate}));
+      if(mode==="late") setLateResult(await calculatorApi.latePaymentEstimate({principal,due_date:dueDate,payment_date:paymentDate,penalty_percent:penaltyPercent,monthly_interest_percent:monthlyInterest,interest_method:lateMethod,index_correction_factor:correctionFactor}));
       if(mode==="real") { const result=await calculatorApi.realReturn({nominal_return_percent:annualRate,inflation_percent:inflation}); setSimpleResult(result.real_return_percent); }
       if(mode==="equivalent") { const result=await calculatorApi.equivalentRate({annual_nominal_rate_percent:annualRate,compounds_per_year:Number(frequency)}); setSimpleResult(result.effective_annual_rate_percent); }
     } catch (reason) { setError(reason instanceof Error?reason.message:"Não foi possível calcular."); }
@@ -42,13 +43,21 @@ export default function CalculatorsPage() {
         <button className={mode==="compound"?"button primary":"button secondary"} type="button" onClick={()=>setMode("compound")}>Juros compostos</button>
         <button className={mode==="loan"?"button primary":"button secondary"} type="button" onClick={()=>setMode("loan")}>Price / SAC</button>
         <button className={mode==="real"?"button primary":"button secondary"} type="button" onClick={()=>setMode("real")}>Rentabilidade real</button>
-        <button className={mode==="equivalent"?"button primary":"button secondary"} type="button" onClick={()=>setMode("equivalent")}>Taxas equivalentes</button>\n        <button className={mode==="cet"?"button primary":"button secondary"} type="button" onClick={()=>setMode("cet")}>CET estimado</button>
+        <button className={mode==="equivalent"?"button primary":"button secondary"} type="button" onClick={()=>setMode("equivalent")}>Taxas equivalentes</button>\n        <button className={mode==="cet"?"button primary":"button secondary"} type="button" onClick={()=>setMode("cet")}>CET estimado</button>\n        <button className={mode==="late"?"button primary":"button secondary"} type="button" onClick={()=>setMode("late")}>Encargos por atraso</button>
       </div>
       <form className="form-stack" onSubmit={submit}>
-        {(mode==="compound"||mode==="loan"||mode==="cet")&&<label className="field">{mode==="cet"?"Crédito bruto contratado (R$)":"Capital inicial (R$)"}<input inputMode="decimal" value={principal} onChange={e=>setPrincipal(e.target.value)} required/></label>}
+        {(mode==="compound"||mode==="loan"||mode==="cet"||mode==="late")&&<label className="field">{mode==="cet"?"Crédito bruto contratado (R$)":mode==="late"?"Principal em atraso (R$)":"Capital inicial (R$)"}<input inputMode="decimal" value={principal} onChange={e=>setPrincipal(e.target.value)} required/></label>}
         {mode==="compound"&&<label className="field">Aporte mensal (R$)<input inputMode="decimal" value={contribution} onChange={e=>setContribution(e.target.value)} required/></label>}
         {mode!=="cet"&&<label className="field">Taxa anual nominal (%)<input inputMode="decimal" value={annualRate} onChange={e=>setAnnualRate(e.target.value)} required/></label>}
         {mode==="compound"&&<label className="field">Prazo (meses)<input type="number" min="1" max="1200" value={months} onChange={e=>setMonths(e.target.value)} required/></label>}
+        {mode==="late"&&<>
+          <label className="field">Data de vencimento<input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} required/></label>
+          <label className="field">Data prevista de pagamento<input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)} required/></label>
+          <label className="field">Multa contratual (%)<input inputMode="decimal" value={penaltyPercent} onChange={e=>setPenaltyPercent(e.target.value)} required/></label>
+          <label className="field">Juros mensais (%)<input inputMode="decimal" value={monthlyInterest} onChange={e=>setMonthlyInterest(e.target.value)} required/></label>
+          <label className="field">Fator de correção monetária<input inputMode="decimal" value={correctionFactor} onChange={e=>setCorrectionFactor(e.target.value)} required/></label>
+          <label className="field">Método de juros<select value={lateMethod} onChange={e=>setLateMethod(e.target.value as "simple"|"compound")}><option value="simple">Simples, proporcional a 30 dias</option><option value="compound">Compostos, proporcional a 30 dias</option></select></label>
+        </>}
         {mode==="cet"&&<>
           <label className="field">Custos descontados na liberação (R$)<input inputMode="decimal" value={upfrontCosts} onChange={e=>setUpfrontCosts(e.target.value)} required/></label>
           <label className="field">Valor base de cada parcela (R$)<input inputMode="decimal" value={installmentAmount} onChange={e=>setInstallmentAmount(e.target.value)} required/></label>
@@ -68,9 +77,19 @@ export default function CalculatorsPage() {
       </form>
       {error&&<div className="alert error" role="alert">{error}</div>}
     </section>
-    {(compoundResult||loanResult||cetResult||simpleResult)&&<section className="panel" aria-live="polite">
+    {(compoundResult||loanResult||cetResult||lateResult||simpleResult)&&<section className="panel" aria-live="polite">
       <div className="panel-heading"><div><h3>Resultado da simulação</h3><p className="muted">Valores estimados; confira as premissas antes de tomar decisões.</p></div></div>
       {compoundResult&&<div className="metric-grid"><article className="metric-card"><span>Valor futuro</span><strong>{money(compoundResult.future_value)}</strong></article><article className="metric-card"><span>Total investido</span><strong>{money(compoundResult.invested_amount)}</strong></article><article className="metric-card"><span>Juros estimados</span><strong>{money(compoundResult.interest_earned)}</strong></article></div>}
+      {lateResult&&<>
+        <div className="metric-grid">
+          <article className="metric-card"><span>VALOR CORRIGIDO</span><strong>{money(lateResult.corrected_principal)}</strong></article>
+          <article className="metric-card"><span>MULTA</span><strong>{money(lateResult.penalty)}</strong></article>
+          <article className="metric-card"><span>JUROS</span><strong>{money(lateResult.interest)}</strong></article>
+          <article className="metric-card"><span>TOTAL ESTIMADO</span><strong>{money(lateResult.total_due)}</strong></article>
+        </div>
+        <p className="muted">Dias em atraso: {lateResult.days_overdue}. O cálculo usa os parâmetros informados e não determina se eles são legalmente aplicáveis ao seu contrato.</p>
+        <ul className="form-hint">{lateResult.assumptions.map(item=><li key={item}>{item}</li>)}</ul>
+      </>}
       {cetResult&&<>
         <div className="metric-grid">
           <article className="metric-card"><span>CRÉDITO LÍQUIDO RECEBIDO</span><strong>{money(cetResult.net_disbursement)}</strong></article>

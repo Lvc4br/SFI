@@ -2,7 +2,6 @@ import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
-from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status

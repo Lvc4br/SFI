@@ -279,7 +279,7 @@ def parse_document(payload: FiscalPreviewRequest) -> dict:
         parsed["qr_code_access_key"] = None
         return parsed
     qr_text = unquote_plus(payload.qr_code_payload)
-    match = re.search(r"(?<!\\d)(\\d{44})(?!\\d)", qr_text)
+    match = re.search(r"(?<!\d)(\d{44})(?!\d)", qr_text)
     if not match:
         raise HTTPException(
             422, "O conteúdo informado não contém uma chave de acesso válida no QR Code."

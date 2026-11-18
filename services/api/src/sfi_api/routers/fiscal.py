@@ -4,6 +4,7 @@ import io
 import json
 import re
 import uuid
+from urllib.parse import unquote_plus
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -31,6 +32,7 @@ MAX_XML_BYTES = 2 * 1024 * 1024
 class FiscalPreviewRequest(BaseModel):
     content: str = Field(min_length=1, max_length=14_000_000)
     format: Literal["xml", "pdf"] = "xml"
+    qr_code_payload: str | None = Field(default=None, max_length=4096)
 
 
 class FiscalConfirmRequest(FiscalPreviewRequest):
@@ -267,9 +269,31 @@ def parse_nfe_pdf(content_base64: str) -> dict:
 
 
 def parse_document(payload: FiscalPreviewRequest) -> dict:
-    if payload.format == "pdf":
-        return parse_nfe_pdf(payload.content)
-    return parse_nfe_xml(payload.content)
+    parsed = (
+        parse_nfe_pdf(payload.content)
+        if payload.format == "pdf"
+        else parse_nfe_xml(payload.content)
+    )
+    if not payload.qr_code_payload:
+        parsed["qr_code_status"] = "not_provided"
+        parsed["qr_code_access_key"] = None
+        return parsed
+    qr_text = unquote_plus(payload.qr_code_payload)
+    match = re.search(r"(?<!\\d)(\\d{44})(?!\\d)", qr_text)
+    if not match:
+        raise HTTPException(
+            422, "O conteúdo informado não contém uma chave de acesso válida no QR Code."
+        )
+    qr_key = match.group(1)
+    if not _valid_access_key(qr_key):
+        raise HTTPException(422, "O QR Code contém uma chave com dígito verificador inválido.")
+    if qr_key != parsed["access_key"]:
+        raise HTTPException(
+            422, "A chave do QR Code não corresponde à chave do documento importado."
+        )
+    parsed["qr_code_status"] = "matches"
+    parsed["qr_code_access_key"] = qr_key
+    return parsed
 
 
 @router.post("/documents/preview")

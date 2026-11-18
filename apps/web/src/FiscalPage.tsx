@@ -6,7 +6,7 @@ type SavedDocument={id:string;access_key:string;document_number:string;series:st
 const money=(value:string,currency="BRL")=>new Intl.NumberFormat("pt-BR",{style:"currency",currency}).format(Number(value));
 
 export default function FiscalPage({accounts,categories}:{accounts:Account[];categories:Category[]}){
- const [content,setContent]=useState(""),[filename,setFilename]=useState(""),[format,setFormat]=useState<"xml"|"pdf">("xml");
+ const [content,setContent]=useState(""),[filename,setFilename]=useState(""),[format,setFormat]=useState<"xml"|"pdf">("xml"),[qrPayload,setQrPayload]=useState("");
  const [preview,setPreview]=useState<FiscalPreview|null>(null),[documents,setDocuments]=useState<SavedDocument[]>([]);
  const [accountId,setAccountId]=useState(accounts[0]?.id??""),[categoryId,setCategoryId]=useState("");
  const [createExpense,setCreateExpense]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
@@ -31,8 +31,8 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
   }
   catch{setError("Não foi possível ler o arquivo.");}
  }
- async function makePreview(){setBusy(true);setError("");setNotice("");try{setPreview(await api.fiscalPreview(content,format));setNotice("Prévia pronta. Nenhuma nota ou despesa foi gravada.");}catch(e){setError(e instanceof Error?e.message:"Falha ao analisar o XML.");}finally{setBusy(false);}}
- async function confirm(){if(!preview)return;setBusy(true);setError("");setNotice("");try{await api.fiscalConfirm({content,format,create_expense:createExpense,account_id:createExpense?accountId:null,category_id:createExpense?(categoryId||null):null});setNotice(createExpense? "Nota importada e despesa registrada.":"Nota importada sem criar movimentação.");setPreview(null);setContent("");setFilename("");await reload();}catch(e){setError(e instanceof Error?e.message:"Falha ao importar a nota.");}finally{setBusy(false);}}
+ async function makePreview(){setBusy(true);setError("");setNotice("");try{setPreview(await api.fiscalPreview(content,format,qrPayload));setNotice("Prévia pronta. Nenhuma nota ou despesa foi gravada.");}catch(e){setError(e instanceof Error?e.message:"Falha ao analisar o XML.");}finally{setBusy(false);}}
+ async function confirm(){if(!preview)return;setBusy(true);setError("");setNotice("");try{await api.fiscalConfirm({content,format,qr_code_payload:qrPayload||null,create_expense:createExpense,account_id:createExpense?accountId:null,category_id:createExpense?(categoryId||null):null});setNotice(createExpense? "Nota importada e despesa registrada.":"Nota importada sem criar movimentação.");setPreview(null);setContent("");setFilename("");setQrPayload("");await reload();}catch(e){setError(e instanceof Error?e.message:"Falha ao importar a nota.");}finally{setBusy(false);}}
  return <div className="content-grid">
   <section className="panel">
    <h3>Importar NF-e / NFC-e</h3>
@@ -41,6 +41,8 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
    <div className="form-stack">
     <label>Arquivo XML ou PDF<input type="file" accept=".xml,.pdf,application/xml,text/xml,application/pdf" onChange={chooseFile}/></label>
     {filename&&<small className="muted">{filename}</small>}
+    <label>Conteúdo do QR Code (opcional)<textarea value={qrPayload} maxLength={4096} rows={3} onChange={event=>{setQrPayload(event.target.value);setPreview(null);}} placeholder="Cole o texto/URL obtido do QR Code da NF-e/NFC-e"/></label>
+    <p className="muted">O SFI compara a chave do QR com a chave do documento. Isso não consulta a SEFAZ nem comprova autenticidade ou situação fiscal.</p>
     <button className="button primary" type="button" disabled={busy||!content} onClick={()=>void makePreview()}>{busy?"Analisando...":"Analisar documento"}</button>
    </div>
   </section>
@@ -56,6 +58,7 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
     <div><dt>Número / série</dt><dd>{preview.document_number} / {preview.series}</dd></div>
     <div><dt>Emissão</dt><dd>{new Date(preview.issue_date).toLocaleString("pt-BR")}</dd></div>
     <div><dt>Chave de acesso</dt><dd className="key-wrap">{preview.access_key}</dd></div>
+    <div><dt>QR Code</dt><dd>{preview.qr_code_status==="matches"?"Chave confere com o documento": "Não informado"}</dd></div>
    </dl>
    <div className="table-wrap"><table><thead><tr><th>Produto</th><th>NCM</th><th>CFOP</th><th>Qtd.</th><th>Total</th></tr></thead><tbody>{preview.items.map((item,index)=><tr key={item.code+"-"+index}><td>{item.description||item.code}</td><td>{item.ncm||"—"}</td><td>{item.cfop||"—"}</td><td>{item.quantity} {item.unit}</td><td>{money(item.total)}</td></tr>)}</tbody></table></div>
    <label className="checkbox-field"><input type="checkbox" checked={createExpense} onChange={e=>setCreateExpense(e.target.checked)}/> Criar despesa com o valor total da nota</label>

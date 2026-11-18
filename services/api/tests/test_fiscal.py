@@ -185,3 +185,27 @@ def test_danfe_pdf_rejects_scanned_or_invalid_documents(client):
         json={"content": base64.b64encode(buffer.getvalue()).decode("ascii"), "format": "pdf"},
     )
     assert response.status_code == 422
+
+
+
+def test_nfe_qr_payload_must_match_document_key(client):
+    headers = register(client, "fiscal-qr@example.com")
+    key = "35261112345678000195550010000001231000001235"
+    matching = client.post(
+        "/api/v1/fiscal/documents/preview",
+        headers=headers,
+        json={"content": sample_xml(), "qr_code_payload": f"https://example.test/qrcode?p={key}"},
+    )
+    assert matching.status_code == 200, matching.text
+    assert matching.json()["qr_code_status"] == "matches"
+    assert matching.json()["qr_code_access_key"] == key
+
+    mismatch = client.post(
+        "/api/v1/fiscal/documents/preview",
+        headers=headers,
+        json={
+            "content": sample_xml(),
+            "qr_code_payload": "https://example.test/qrcode?p=35261112345678000195550010000001231000001234",
+        },
+    )
+    assert mismatch.status_code == 422

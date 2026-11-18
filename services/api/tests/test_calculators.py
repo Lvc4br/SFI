@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
 from sfi_api.main import app

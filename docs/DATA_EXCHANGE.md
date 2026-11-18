@@ -1,11 +1,12 @@
 # Importação e exportação de movimentações
 
-A primeira fatia do intercâmbio de dados oferece importação com prévia e confirmação humana para CSV, JSON e OFX, além de exportação CSV/JSON.
+A primeira fatia do intercâmbio de dados oferece importação com prévia e confirmação humana para CSV, JSON, OFX e XLSX, além de exportação CSV/JSON/XLSX.
 
 ## Formatos de importação
 - CSV: cabeçalhos date/occurred_at, type/transaction_type, amount, description e account_id/account_name opcionais; category_id/category_name opcionais.
 - JSON: array de objetos ou objeto com a propriedade transactions.
 - OFX: extratos SGML com blocos STMTTRN, DTPOSTED, TRNAMT, TRNTYPE, FITID, NAME e MEMO.
+- XLSX: primeira aba, cabeçalhos na primeira linha; conteúdo binário enviado em Base64. Datas do Excel sem fuso são interpretadas como UTC.
 
 ## Fluxo seguro
 1. Envie o conteúdo para POST /api/v1/exchange/transactions/preview.
@@ -19,4 +20,6 @@ A primeira fatia do intercâmbio de dados oferece importação com prévia e con
 - Contas/categorias precisam pertencer ao usuário e estar ativas.
 - Nenhuma transação existente é alterada ou removida.
 - Importação não cria contas/categorias automaticamente e não converte moedas.
-- XLSX, PDF, QIF e exportação de todo o banco ainda não estão nesta fatia.
+- Planilhas XLSX são limitadas a 5 MiB, 10.000 linhas e 25 MiB descompactados; a primeira aba é utilizada.
+- XLSX exportado contém identificadores, conta/categoria, tipo, valor textual, moeda, descrição e data.
+- PDF, QIF e exportação/restauração de todo o banco ainda não estão nesta fatia.

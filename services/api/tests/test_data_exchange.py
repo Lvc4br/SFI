@@ -65,12 +65,12 @@ def test_csv_preview_import_and_idempotent_reimport(client):
     account, category = setup_account(client, headers)
     content = (
         "date,type,amount,description,account_id,category_id,external_id\n"
-        (
-            f"2026-11-16T12:00:00Z,expense,35.50,Compra mercado,"
-            f"{account['id']},{category['id']},bank-001\n"
-        )
-        f"2026-11-17T12:00:00Z,expense,12.00,Café,{account['id']},{category['id']},bank-002\n"
-        f"2026-11-17T12:00:00Z,expense,12.00,Café,{account['id']},{category['id']},bank-002\n"
+        f"2026-11-16T12:00:00Z,expense,35.50,Compra mercado,{account['id']},"
+        f"{category['id']},bank-001\n"
+        f"2026-11-17T12:00:00Z,expense,12.00,Café,{account['id']},"
+        f"{category['id']},bank-002\n"
+        f"2026-11-17T12:00:00Z,expense,12.00,Café,{account['id']},"
+        f"{category['id']},bank-002\n"
     )
     payload = {
         "format": "csv",

@@ -276,9 +276,9 @@ def test_full_backup_preview_restore_and_user_isolation(client):
     transaction_payload = {
         "format": "csv",
         "content": (
-            "date,type,amount,description,account_id,category_id\\n"
+            "date,type,amount,description,account_id,category_id\n"
             f"2026-11-16T12:00:00Z,expense,73.25,Registro preservado,"
-            f"{account['id']},{category['id']}\\n"
+            f"{account['id']},{category['id']}\n"
         ),
     }
     imported = client.post(
@@ -301,9 +301,9 @@ def test_full_backup_preview_restore_and_user_isolation(client):
     later_payload = {
         "format": "csv",
         "content": (
-            "date,type,amount,description,account_id,category_id\\n"
+            "date,type,amount,description,account_id,category_id\n"
             f"2026-11-17T12:00:00Z,expense,12.00,Registro posterior ao backup,"
-            f"{account['id']},{category['id']}\\n"
+            f"{account['id']},{category['id']}\n"
         ),
     }
     extra = client.post(
@@ -370,8 +370,9 @@ def test_backup_restore_rolls_back_when_referential_integrity_fails(client):
     payload = {
         "format": "csv",
         "content": (
-            "date,type,amount,description,account_id,category_id\\n"
-            f"2026-11-16T12:00:00Z,expense,8.50,Registro válido,{account['id']},{category['id']}\\n"
+            "date,type,amount,description,account_id,category_id\n"
+            f"2026-11-16T12:00:00Z,expense,8.50,Registro válido,"
+            f"{account['id']},{category['id']}\n"
         ),
     }
     imported = client.post(

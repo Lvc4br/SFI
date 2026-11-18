@@ -107,7 +107,12 @@ def _parse_qif(content: str) -> list[dict]:
                 else:
                     try:
                         normalized = amount_text.replace("R$", "").replace(" ", "")
-                        if "," in normalized:
+                        if "," in normalized and "." in normalized:
+                            if normalized.rfind(".") > normalized.rfind(","):
+                                normalized = normalized.replace(",", "")
+                            else:
+                                normalized = normalized.replace(".", "").replace(",", ".")
+                        elif "," in normalized:
                             normalized = normalized.replace(".", "").replace(",", ".")
                         amount = Decimal(normalized)
                         if amount == 0:

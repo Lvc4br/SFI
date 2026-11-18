@@ -6,6 +6,7 @@ import io
 import json
 import re
 import uuid
+from xml.sax.saxutils import escape
 import zipfile
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
@@ -16,6 +17,11 @@ from fastapi.responses import Response
 from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel, Field
 from pypdf import PdfReader
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -594,28 +600,118 @@ async def import_transactions(
 
 @router.get("/transactions/export")
 async def export_transactions(
-    format: Literal["csv", "json", "xlsx"] = "csv",
+    format: Literal["csv", "json", "xlsx", "qif", "pdf"] = "csv",
+    account_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    rows = await session.scalars(
-        select(Transaction)
-        .where(Transaction.user_id == user.id)
+    if format == "qif" and account_id is None:
+        raise HTTPException(422, "A exportação QIF exige selecionar uma conta.")
+    statement = (
+        select(Transaction, Account.name, Category.name)
+        .join(Account, Account.id == Transaction.account_id)
+        .outerjoin(Category, Category.id == Transaction.category_id)
+        .where(Transaction.user_id == user.id, Account.user_id == user.id)
         .order_by(Transaction.occurred_at, Transaction.created_at)
     )
+    if account_id is not None:
+        owned_account = await session.scalar(
+            select(Account.id).where(Account.id == account_id, Account.user_id == user.id)
+        )
+        if owned_account is None:
+            raise HTTPException(404, "Conta não encontrada.")
+        statement = statement.where(Transaction.account_id == account_id)
+    result = await session.execute(statement)
     records = [
         {
             "id": str(row.id),
             "account_id": str(row.account_id),
+            "account_name": account_name,
             "category_id": str(row.category_id) if row.category_id else "",
+            "category_name": category_name or "",
             "transaction_type": row.transaction_type,
             "amount": str(row.amount),
             "currency": row.currency,
             "description": row.description,
             "occurred_at": row.occurred_at.isoformat(),
         }
-        for row in rows.all()
+        for row, account_name, category_name in result.all()
     ]
+    if format == "qif":
+        account = await session.scalar(
+            select(Account).where(Account.id == account_id, Account.user_id == user.id)
+        )
+        output = ["!Type:Bank"]
+        for record in records:
+            occurred = datetime.fromisoformat(record["occurred_at"])
+            amount = Decimal(record["amount"])
+            signed_amount = -amount if record["transaction_type"] == "expense" else amount
+            output.extend([
+                f"D{occurred.month:02d}/{occurred.day:02d}'{occurred.year % 100:02d}",
+                f"T{signed_amount:.2f}",
+                "P" + record["description"].replace("\\r", " ").replace("\\n", " "),
+            ])
+            if record["category_name"]:
+                output.append("L" + record["category_name"].replace("\\r", " ").replace("\\n", " "))
+            output.append("^")
+        content = "\\n".join(output) + "\\n"
+        return Response(
+            content=content,
+            media_type="application/x-qif; charset=utf-8",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="sfi-{account.id}-transactions.qif"'
+                )
+            },
+        )
+    if format == "pdf":
+        output = io.BytesIO()
+        document = SimpleDocTemplate(
+            output, pagesize=landscape(A4), rightMargin=12 * mm, leftMargin=12 * mm,
+            topMargin=12 * mm, bottomMargin=12 * mm,
+        )
+        styles = getSampleStyleSheet()
+        story = [
+            Paragraph("SFI — Relatório de movimentações", styles["Title"]),
+            Paragraph(
+                f"Usuário: {escape(user.email)} · Registros: {len(records)}",
+                styles["Normal"],
+            ),
+            Spacer(1, 6 * mm),
+        ]
+        table_rows = [[
+            "Data", "Conta", "Tipo", "Descrição", "Categoria", "Valor", "Moeda"
+        ]]
+        for record in records:
+            occurred = datetime.fromisoformat(record["occurred_at"])
+            description = Paragraph(escape(record["description"]), styles["BodyText"])
+            table_rows.append([
+                occurred.strftime("%d/%m/%Y"), Paragraph(escape(record["account_name"]), styles["BodyText"]),
+                "Despesa" if record["transaction_type"] == "expense" else "Receita",
+                description, Paragraph(escape(record["category_name"]), styles["BodyText"]),
+                record["amount"], record["currency"],
+            ])
+        table = Table(
+            table_rows, repeatRows=1,
+            colWidths=[22 * mm, 32 * mm, 20 * mm, 78 * mm, 30 * mm, 25 * mm, 16 * mm],
+        )
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#263445")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CBD5E1")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F3F6F9")]),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(table)
+        document.build(story)
+        return Response(
+            content=output.getvalue(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="sfi-transactions.pdf"'},
+        )
     if format == "json":
         return Response(
             content=json.dumps(records, ensure_ascii=False),

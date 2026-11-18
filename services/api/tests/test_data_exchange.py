@@ -1,7 +1,7 @@
 import asyncio
 import base64
-import io
 import hashlib
+import io
 import json
 
 import pytest

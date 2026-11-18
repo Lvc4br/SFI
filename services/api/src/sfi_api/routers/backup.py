@@ -14,7 +14,6 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import delete, func, insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.sqltypes import Date, DateTime, LargeBinary, Numeric, Uuid
 
 from sfi_api.database import get_session
 from sfi_api.models import Base, User
@@ -126,7 +125,10 @@ async def _collect_backup(session: AsyncSession, user: User) -> dict:
 
 def _validate_backup(backup: dict) -> tuple[dict[str, list[dict]], int]:
     if backup.get("format") != BACKUP_FORMAT or backup.get("version") != BACKUP_VERSION:
-        raise HTTPException(422, "Formato ou versão de backup não compatível com esta versão do SFI.")
+        raise HTTPException(
+            422,
+            "Formato ou versão de backup não compatível com esta versão do SFI.",
+        )
     tables = backup.get("tables")
     if not isinstance(tables, dict):
         raise HTTPException(422, "O backup não contém a seção de tabelas.")
@@ -261,7 +263,9 @@ async def restore_backup(
                 record["user_id"] = user.id
             await session.execute(insert(table), records)
         await session.execute(
-            update(User).where(User.id == user.id).values(timezone=payload.backup["profile"]["timezone"])
+            update(User)
+            .where(User.id == user.id)
+            .values(timezone=payload.backup["profile"]["timezone"])
         )
         await session.commit()
     except Exception as exc:

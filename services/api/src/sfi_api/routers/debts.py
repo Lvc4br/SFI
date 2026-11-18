@@ -1,8 +1,8 @@
 import calendar
 import uuid
-from types import SimpleNamespace
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal, localcontext
+from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -195,6 +195,92 @@ async def debt_amortization_schedule(
     if debt is None:
         raise HTTPException(404, "Dívida não encontrada.")
     return _build_amortization_schedule(debt)
+
+
+@router.post("/{debt_id}/refinance-preview")
+async def debt_refinance_preview(
+    debt_id: uuid.UUID,
+    payload: DebtRefinancePreview,
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
+):
+    """Compare the current estimate with a hypothetical refinancing; never writes data."""
+    debt = await session.scalar(
+        select(Debt).where(Debt.id == debt_id, Debt.user_id == user.id)
+    )
+    if debt is None:
+        raise HTTPException(404, "Dívida não encontrada.")
+    if debt.status != "active":
+        raise HTTPException(409, "Somente dívidas ativas podem ser simuladas.")
+    if debt.amortization_method not in {"price", "sac"} or not debt.installment_count:
+        raise HTTPException(409, "Cadastre um cronograma Price ou SAC para comparar custos.")
+    if payload.new_principal + payload.financed_fees > Decimal("9999999999999999.99"):
+        raise HTTPException(422, "Principal e tarifas excedem o limite monetário.")
+    monthly_rate = payload.monthly_effective_rate_percent / Decimal("100")
+    financed_principal = (
+        payload.new_principal + payload.financed_fees
+    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    annual_effective_rate = (
+        ((Decimal("1") + monthly_rate) ** 12 - Decimal("1")) * Decimal("100")
+    )
+    hypothetical = SimpleNamespace(
+        id=debt.id,
+        amortization_method=payload.amortization_method,
+        installment_count=payload.installment_count,
+        annual_interest_rate=monthly_rate * Decimal("1200"),
+        outstanding_principal=financed_principal,
+        currency=debt.currency,
+        next_due_date=payload.first_due_date,
+        first_due_date=payload.first_due_date,
+    )
+    current = _build_amortization_schedule(debt)
+    proposed = _build_amortization_schedule(hypothetical)
+    monthly_fees_total = (
+        payload.monthly_fees * payload.installment_count
+    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    proposed_total = (
+        Decimal(proposed["payment_total"]) + monthly_fees_total
+    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    current_total = Decimal(current["payment_total"])
+    savings = (current_total - proposed_total).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    return {
+        "debt_id": str(debt.id),
+        "currency": debt.currency,
+        "is_estimate": True,
+        "current": {
+            "method": current["method"],
+            "installments": current["installments"],
+            "principal_total": current["principal_total"],
+            "interest_total": current["interest_total"],
+            "payment_total": current["payment_total"],
+        },
+        "proposed": {
+            "method": proposed["method"],
+            "installments": proposed["installments"],
+            "principal_total": str(financed_principal),
+            "interest_total": proposed["interest_total"],
+            "monthly_fees_total": str(monthly_fees_total),
+            "payment_total": str(proposed_total),
+            "monthly_effective_rate_percent": str(
+                payload.monthly_effective_rate_percent
+            ),
+            "annual_effective_rate_percent": str(
+                annual_effective_rate.quantize(Decimal("0.000001"))
+            ),
+            "financed_fees": str(payload.financed_fees),
+        },
+        "estimated_savings": str(savings),
+        "saves_money": savings > 0,
+        "assumptions": [
+            "Simulação informativa; não altera contrato, dívida, saldo ou movimentações.",
+            "A taxa informada é efetiva mensal; taxa anual efetiva calculada por (1+i)^12-1.",
+            "Tarifas financiadas integram o principal; tarifas mensais são somadas às parcelas.",
+            "CET oficial pode incluir IOF, seguros, tributos, tarifas e fluxos/datas específicos não informados.",
+            "A proposta depende de confirmação e condições formais do credor.",
+        ],
+    }
 
 
 @router.post(

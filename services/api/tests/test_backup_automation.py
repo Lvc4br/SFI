@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import sys
 from uuid import uuid4
 
 import pytest
@@ -83,3 +84,14 @@ def test_user_cannot_replace_or_disable_another_users_schedule(tmp_path, monkeyp
         configure_automatic_backup(other_id, "daily", "09:00", "senha-forte-backup-2026")
     with pytest.raises(BackupAutomationError, match="outro usuário"):
         disable_automatic_backup(other_id)
+
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DPAPI is only available on Windows")
+def test_windows_dpapi_round_trip_protects_and_recovers_passphrase():
+    from sfi_api.backup_automation import _unprotect_passphrase, protect_passphrase
+
+    original = "senha-automatic-backup-Windows-2026"
+    protected = protect_passphrase(original)
+    assert original not in protected
+    assert _unprotect_passphrase(protected) == original

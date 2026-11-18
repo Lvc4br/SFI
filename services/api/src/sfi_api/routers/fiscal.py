@@ -9,10 +9,9 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 
-from pypdf import PdfReader
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -133,6 +132,7 @@ def parse_nfe_xml(content: str) -> dict:
 
 MAX_PDF_BYTES = 10 * 1024 * 1024
 MAX_PDF_PAGES = 10
+MAX_PDF_TEXT_CHARS = 200_000
 
 
 def _valid_access_key(key: str) -> bool:
@@ -161,7 +161,10 @@ def parse_nfe_pdf(content_base64: str) -> dict:
             raise HTTPException(422, "PDF protegido por senha não é aceito.")
         if not 1 <= len(reader.pages) <= MAX_PDF_PAGES:
             raise HTTPException(422, "O PDF deve conter entre 1 e 10 páginas.")
-        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        extracted_pages = [page.extract_text() or "" for page in reader.pages]
+        if sum(len(page_text) for page_text in extracted_pages) > MAX_PDF_TEXT_CHARS:
+            raise HTTPException(413, "O texto extraído do PDF excede o limite de 200 mil caracteres.")
+        text = "\n".join(extracted_pages)
     except HTTPException:
         raise
     except Exception as exc:

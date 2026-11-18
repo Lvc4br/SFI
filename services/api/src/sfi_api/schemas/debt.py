@@ -92,3 +92,20 @@ class DebtPaymentResponse(BaseModel):
     interest_amount: Decimal
     paid_at: datetime
     created_at: datetime
+
+
+
+class DebtRefinancePreview(BaseModel):
+    new_principal: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    monthly_effective_rate_percent: Decimal = Field(
+        ge=0, max_digits=9, decimal_places=6
+    )
+    installment_count: int = Field(ge=1, le=600)
+    amortization_method: Literal["price", "sac"]
+    first_due_date: date
+    financed_fees: Decimal = Field(
+        default=Decimal("0"), ge=0, max_digits=18, decimal_places=2
+    )
+    monthly_fees: Decimal = Field(
+        default=Decimal("0"), ge=0, max_digits=18, decimal_places=2
+    )

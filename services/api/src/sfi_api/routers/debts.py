@@ -1,5 +1,6 @@
 import calendar
 import uuid
+from types import SimpleNamespace
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 
@@ -17,6 +18,7 @@ from sfi_api.schemas.debt import (
     DebtCreate,
     DebtPaymentCreate,
     DebtPaymentResponse,
+    DebtRefinancePreview,
     DebtResponse,
 )
 

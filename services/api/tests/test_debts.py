@@ -251,3 +251,59 @@ def test_debt_schedule_supports_zero_interest_and_month_end_dates(client):
         "installment_count": 601,
     })
     assert invalid.status_code == 422
+
+
+
+def test_refinance_preview_calculates_effective_rate_and_never_mutates_debt(client):
+    headers = register(client, "debt-refinance-preview@example.com")
+    debt = create_debt(client, headers)
+    before = client.get("/api/v1/debts", headers=headers).json()[0]
+    response = client.post(
+        f"/api/v1/debts/{debt['id']}/refinance-preview",
+        headers=headers,
+        json={
+            "new_principal": "25000.00",
+            "monthly_effective_rate_percent": "0.900000",
+            "installment_count": 24,
+            "amortization_method": "price",
+            "first_due_date": "2026-12-10",
+            "financed_fees": "350.00",
+            "monthly_fees": "12.50",
+        },
+    )
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["is_estimate"] is True
+    assert result["proposed"]["principal_total"] == "25350.00"
+    assert result["proposed"]["monthly_fees_total"] == "300.00"
+    assert result["proposed"]["annual_effective_rate_percent"] == "11.351866"
+    assert len(result["proposed"]["installments"]) == 24
+    assert "CET oficial" in " ".join(result["assumptions"])
+    after = client.get("/api/v1/debts", headers=headers).json()[0]
+    assert after["outstanding_principal"] == before["outstanding_principal"]
+    assert after["status"] == before["status"]
+
+
+def test_refinance_preview_is_user_scoped_and_rejects_paid_debts(client):
+    owner = register(client, "debt-refinance-owner@example.com")
+    other = register(client, "debt-refinance-other@example.com")
+    debt = create_debt(client, owner)
+    payload = {
+        "new_principal": "10000.00",
+        "monthly_effective_rate_percent": "1.000000",
+        "installment_count": 12,
+        "amortization_method": "sac",
+        "first_due_date": "2026-12-10",
+    }
+    foreign = client.post(
+        f"/api/v1/debts/{debt['id']}/refinance-preview",
+        headers=other,
+        json=payload,
+    )
+    assert foreign.status_code == 404
+    invalid = client.post(
+        f"/api/v1/debts/{debt['id']}/refinance-preview",
+        headers=owner,
+        json={**payload, "new_principal": "10000000000000000.00"},
+    )
+    assert invalid.status_code == 422

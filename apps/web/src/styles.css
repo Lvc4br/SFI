@@ -306,3 +306,24 @@ html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:
 /* Keep the growing desktop navigation and account actions reachable on short screens. */
 .sidebar{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 @media(max-width:760px){.sidebar{overflow:visible}}
+
+
+/* User-defined palette: local-only visual preferences. */
+.app-shell[data-custom-palette="true"]{background:var(--custom-background);--surface:var(--custom-surface);--green:var(--custom-accent)}
+.app-shell[data-custom-palette="true"] .sidebar,
+.app-shell[data-custom-palette="true"] .panel,
+.app-shell[data-custom-palette="true"] .metric-card{background:var(--custom-surface)}
+.app-shell[data-custom-palette="true"] .button.primary{background:var(--custom-accent);color:var(--custom-accent-text)}
+.app-shell[data-custom-palette="true"] .button.primary:hover{filter:brightness(.92)}
+.app-shell[data-custom-palette="true"] .nav-item:hover,
+.app-shell[data-custom-palette="true"] .nav-item.active{background:color-mix(in srgb,var(--custom-accent) 13%,transparent);color:var(--custom-accent)}
+.app-shell[data-custom-palette="true"] .brand-symbol{background:color-mix(in srgb,var(--custom-accent) 18%,white);color:var(--custom-accent)}
+.palette-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin:18px 0}
+.palette-controls label{display:grid;gap:8px;font-size:12px;font-weight:700;color:var(--ink)}
+.palette-controls input[type=color]{width:100%;height:44px;padding:4px;border:1px solid var(--line);border-radius:9px;background:var(--surface);cursor:pointer}
+.palette-preview{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 18px}
+.palette-preview-accent,.palette-preview-surface{display:inline-flex;align-items:center;min-height:42px;padding:10px 14px;border:1px solid var(--line);border-radius:9px;font-size:12px;font-weight:700}
+.palette-preview-surface{border-width:2px;color:var(--ink)}
+.auth-layout[data-custom-palette="true"]{background:var(--custom-background)}
+.auth-layout[data-custom-palette="true"] .auth-panel{background:var(--custom-background)}
+@media(max-width:640px){.palette-controls{grid-template-columns:1fr}}

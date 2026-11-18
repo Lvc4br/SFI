@@ -122,10 +122,15 @@ def parse_nfe_xml(content: str) -> dict:
 @router.post("/documents/preview")
 async def preview_document(
     payload: FiscalPreviewRequest,
+    session: AsyncSession = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
     parsed = parse_nfe_xml(payload.content)
-    return {**parsed, "already_imported": False}
+    existing = await session.scalar(select(FiscalDocument.id).where(
+        FiscalDocument.user_id == user.id,
+        FiscalDocument.access_key == parsed["access_key"],
+    ))
+    return {**parsed, "already_imported": existing is not None}
 
 
 @router.post("/documents/confirm", status_code=status.HTTP_201_CREATED)
@@ -151,8 +156,8 @@ async def confirm_document(
             Account.user_id == user.id,
             Account.archived_at.is_(None),
         ))
-        if account is None or account.account_type == "credit":
-            raise HTTPException(422, "Conta inválida, arquivada ou incompatível.")
+        if account is None or account.account_type == "credit" or account.currency != "BRL":
+            raise HTTPException(422, "Selecione uma conta ativa, não creditícia e em BRL.")
         if payload.category_id:
             category = await session.scalar(select(Category).where(
                 Category.id == payload.category_id,

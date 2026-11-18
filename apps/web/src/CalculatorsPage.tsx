@@ -13,7 +13,7 @@ export default function CalculatorsPage() {
   const [annualRate,setAnnualRate]=useState("10");
   const [months,setMonths]=useState("12");
   const [installments,setInstallments]=useState("12");
-  const [firstDueDate,setFirstDueDate]=useState(new Date().toISOString().slice(0,10));
+  const [firstDueDate,setFirstDueDate]=useState(new Date(Date.now()+30*24*60*60*1000).toISOString().slice(0,10));
   const [method,setMethod]=useState<"price"|"sac">("price");
   const [inflation,setInflation]=useState("4.5");
   const [frequency,setFrequency]=useState("12");

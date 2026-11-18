@@ -267,10 +267,24 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_label("Data inicial").fill("")
             page.get_by_label("Data final").fill("")
 
-            page.get_by_role("button", name="Ativar tema escuro").click()
+            theme_select = page.get_by_label("Tema visual")
+            theme_select.select_option("dark")
             expect(page.locator(".app-shell")).to_have_attribute("data-theme", "dark")
-            page.get_by_role("button", name="Ativar tema claro").click()
+            theme_select.select_option("contrast")
+            expect(page.locator(".app-shell")).to_have_attribute("data-theme", "contrast")
+            theme_select.select_option("light")
             expect(page.locator(".app-shell")).to_have_attribute("data-theme", "light")
+
+            page.get_by_role("button", name="Calculadoras").click()
+            page.get_by_role("button", name="Calcular").click()
+            expect(page.get_by_text("Valor futuro")).to_be_visible()
+            page.get_by_role("button", name="Price / SAC").click()
+            page.get_by_role("button", name="Calcular").click()
+            expect(page.get_by_role("columnheader", name="Prestação")).to_be_visible()
+
+            page.get_by_role("button", name="Relatórios").click()
+            expect(page.get_by_text("Relatório anual")).to_be_visible()
+            expect(page.get_by_text(f"Consolidado de {datetime.now().year}")).to_be_visible()
 
             page.get_by_role("button", name="Orçamento").click()
             page.get_by_label("Categoria").select_option(label="Categoria E2E")

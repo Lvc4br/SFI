@@ -526,3 +526,88 @@ def test_pdf_text_preview_rejects_unsigned_amount_as_ambiguous(client, monkeypat
     assert preview.status_code == 200
     assert preview.json()["invalid"] == 1
     assert "não é seguro inferir" in preview.json()["rows"][0]["error"]
+
+
+def test_qif_export_is_account_scoped_and_round_trips_signs(client):
+    owner = register(client, "exchange-qif-export@example.com")
+    other = register(client, "exchange-qif-export-other@example.com")
+    account, category = setup_account(client, owner)
+    other_account, _ = setup_account(client, other)
+    content = (
+        "date,type,amount,description,account_id,category_id\n"
+        f"2026-11-16T12:00:00Z,expense,35.90,Mercado,{account['id']},{category['id']}\n"
+        f"2026-11-17T12:00:00Z,income,1500.00,Salário,{account['id']},\n"
+    )
+    imported = client.post(
+        "/api/v1/exchange/transactions/import", headers=owner,
+        json={"format": "csv", "content": content, "confirmed": True},
+    )
+    assert imported.status_code == 201, imported.text
+    missing_account = client.get(
+        "/api/v1/exchange/transactions/export?format=qif", headers=owner
+    )
+    assert missing_account.status_code == 422
+    exported = client.get(
+        f"/api/v1/exchange/transactions/export?format=qif&account_id={account['id']}",
+        headers=owner,
+    )
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("application/x-qif")
+    assert exported.text.startswith("!Type:Bank\n")
+    assert "T-35.90\n" in exported.text
+    assert "T1500.00\n" in exported.text
+    assert "PMercado\n" in exported.text
+    round_trip = client.post(
+        "/api/v1/exchange/transactions/preview", headers=owner,
+        json={"format": "qif", "content": exported.text, "default_account_id": account["id"]},
+    )
+    assert round_trip.status_code == 200, round_trip.text
+    assert round_trip.json()["total"] == 2
+    foreign = client.get(
+        f"/api/v1/exchange/transactions/export?format=qif&account_id={other_account['id']}",
+        headers=owner,
+    )
+    assert foreign.status_code == 404
+
+
+def test_qif_export_uses_credit_card_account_type(client):
+    headers = register(client, "exchange-qif-credit@example.com")
+    account = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Cartão", "account_type": "credit"},
+    ).json()
+    exported = client.get(
+        f"/api/v1/exchange/transactions/export?format=qif&account_id={account['id']}",
+        headers=headers,
+    )
+    assert exported.status_code == 200
+    assert exported.text.startswith("!Type:CCard\n")
+
+
+def test_pdf_export_is_valid_and_isolated_by_user(client):
+    from pypdf import PdfReader
+
+    owner = register(client, "exchange-pdf-export@example.com")
+    other = register(client, "exchange-pdf-export-other@example.com")
+    account, category = setup_account(client, owner)
+    content = (
+        "date,type,amount,description,account_id,category_id\n"
+        f"2026-11-16T12:00:00Z,expense,19.90,Farmácia,{account['id']},{category['id']}\n"
+    )
+    imported = client.post(
+        "/api/v1/exchange/transactions/import", headers=owner,
+        json={"format": "csv", "content": content, "confirmed": True},
+    )
+    assert imported.status_code == 201, imported.text
+    exported = client.get("/api/v1/exchange/transactions/export?format=pdf", headers=owner)
+    assert exported.status_code == 200
+    assert exported.content.startswith(b"%PDF-")
+    reader = PdfReader(io.BytesIO(exported.content))
+    extracted = "\n".join(page.extract_text() or "" for page in reader.pages)
+    assert "Farm" in extracted
+    other_pdf = client.get("/api/v1/exchange/transactions/export?format=pdf", headers=other)
+    assert other_pdf.status_code == 200
+    other_text = "\n".join(
+        page.extract_text() or "" for page in PdfReader(io.BytesIO(other_pdf.content)).pages
+    )
+    assert "Farm" not in other_text

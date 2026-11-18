@@ -80,7 +80,7 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 ).fetchall()
             }
-        assert revision == "0021_investments"
+        assert revision == "0022_patrimony"
         assert {
             "shopping_lists",
             "shopping_list_items",
@@ -95,6 +95,8 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
             "goal_entries",
             "investment_assets",
             "investment_operations",
+        "patrimony_items",
+        "patrimony_valuations",
         } <= tables
     finally:
         if process.poll() is None:

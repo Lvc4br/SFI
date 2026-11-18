@@ -257,6 +257,7 @@ export const api = {
   debts: () => request<Debt[]>("/api/v1/debts"),
   createDebt: (data:{creditor:string;debt_type:Debt["debt_type"];description:string;currency?:string;original_amount:string;annual_interest_rate:string;amortization_method:Debt["amortization_method"];contracted_at:string;first_due_date:string}) => request<Debt>("/api/v1/debts",{method:"POST",body:JSON.stringify(data)}),
   debtPayments: (id:string) => request<DebtPayment[]>(`/api/v1/debts/${id}/payments`),
+  debtSchedule: (id:string) => request<{debt_id:string;method:string;currency:string;annual_rate_percent:string;monthly_rate_percent:string;installments:{number:number;due_date:string;opening_balance:string;principal:string;interest:string;payment:string;closing_balance:string}[];principal_total:string;interest_total:string;payment_total:string;is_estimate:boolean;assumptions:string[]}>(`/api/v1/debts/${id}/schedule`),
   payDebt: (id:string,data:{source_account_id:string;principal_amount:string;interest_amount:string;paid_at:string;next_due_date:string|null;idempotency_key:string}) => request<DebtPayment>(`/api/v1/debts/${id}/payments`,{method:"POST",body:JSON.stringify(data)}),
   creditCards: () => request<CreditCard[]>("/api/v1/credit/cards"),
   createCreditCard: (data: { account_id:string; name:string; brand?:string|null; last_four?:string|null; closing_day:number; due_day:number; credit_limit:string }) => request<CreditCard>("/api/v1/credit/cards",{method:"POST",body:JSON.stringify(data)}),

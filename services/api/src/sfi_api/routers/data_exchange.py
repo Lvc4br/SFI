@@ -65,7 +65,7 @@ def _normalize_row(row: dict, line: int, source_format: str) -> dict:
     except InvalidOperation as exc:
         raise ValueError("Valor monetário inválido.") from exc
     transaction_type = str(
-        lowered.get("transaction_type", lowered.get("type", ""))
+        lowered.get("transaction_type", lowered.get("type", lowered.get("trntype", "")))
     ).strip().lower()
     if transaction_type in {"credit", "dep", "directdep", "int", "div"}:
         transaction_type = "income"
@@ -80,6 +80,10 @@ def _normalize_row(row: dict, line: int, source_format: str) -> dict:
         raise ValueError("Tipo deve ser income/expense ou equivalente OFX.")
     if amount <= 0:
         raise ValueError("O valor deve ser maior que zero.")
+    if amount != amount.quantize(Decimal("0.01")):
+        raise ValueError("A movimentação não pode ter mais de duas casas decimais.")
+    if amount > Decimal("9999999999999999.99"):
+        raise ValueError("O valor excede o limite de precisão financeira.")
     date_text = str(
         lowered.get("occurred_at", lowered.get("date", lowered.get("dtposted", "")))
     )

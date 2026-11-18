@@ -74,11 +74,11 @@ def _date_value(value: str | date | datetime | None) -> datetime:
 
 
 
-def _parse_qif_date(value: str) -> str:
+def _parse_qif_date(value: str) -> datetime:
     raw = value.strip()
     for pattern in ("%m/%d'%y", "%m/%d/%y", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"):
         try:
-            return datetime.strptime(raw, pattern).date().isoformat()
+            return datetime.strptime(raw, pattern).replace(tzinfo=UTC)
         except ValueError:
             continue
     raise ValueError("Data QIF inválida ou ambígua; use MM/DD'AA ou DD/MM/AAAA.")
@@ -126,7 +126,9 @@ def _parse_qif(content: str) -> list[dict]:
                             "external_id": "",
                         })
                     except (InvalidOperation, ValueError) as exc:
-                        records.append({"line": line_number, "error": f"Registro QIF inválido: {exc}"})
+                        records.append(
+                        {"line": line_number, "error": f"Registro QIF inválido: {exc}"}
+                    )
                 current = {}
             continue
         if line.startswith("!"):
@@ -193,7 +195,9 @@ def _parse_pdf_statement(binary: bytes) -> list[dict]:
         else:
             records.append({
                 "line": line_number,
-                "error": "Valor sem sinal ou indicador D/C; não é seguro inferir receita ou despesa.",
+                "error": (
+                    "Valor sem sinal ou indicador D/C; não é seguro inferir receita ou despesa."
+                ),
             })
             continue
         records.append({
@@ -206,7 +210,7 @@ def _parse_pdf_statement(binary: bytes) -> list[dict]:
     if not records:
         raise HTTPException(
             422,
-            "Nenhuma movimentação foi reconhecida. O PDF precisa ter linhas no formato data, descrição e valor assinado ou indicador D/C.",
+            "PDF sem linhas reconhecidas no formato data, descrição e valor assinado ou D/C.",
         )
     return records
 
@@ -248,9 +252,10 @@ def _normalize_row(row: dict, line: int, source_format: str) -> dict:
     if amount > Decimal("9999999999999999.99"):
         raise ValueError("O valor excede o limite de precisão financeira.")
     date_text = lowered.get("occurred_at", lowered.get("date", lowered.get("dtposted", "")))
-    description = str(
-        lowered.get("description", lowered.get("payee", lowered.get("name", lowered.get("memo", ""))))
-    ).strip()
+    description_value = lowered.get(
+        "description", lowered.get("payee", lowered.get("name", lowered.get("memo", "")))
+    )
+    description = str(description_value).strip()
     if not description:
         raise ValueError("Descrição não informada.")
     return {

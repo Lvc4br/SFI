@@ -166,6 +166,7 @@ def _build_amortization_schedule(debt: Debt) -> dict:
             "Taxa anual nominal dividida por 12; não representa CET.",
             "Sem seguros, tarifas, impostos, multas, mora ou indexadores.",
             "Projeção calculada sobre o principal em aberto e a quantidade cadastrada de parcelas.",
+            "Pagamentos já registrados não reduzem automaticamente a quantidade de parcelas projetadas.",
             "Datas mensais preservam o dia de vencimento e ajustam para o último dia do mês quando necessário.",
         ],
     }

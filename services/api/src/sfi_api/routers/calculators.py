@@ -77,6 +77,7 @@ class CetEstimateInput(BaseModel):
     installment_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
     monthly_charges: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=2)
     installments: int = Field(ge=1, le=600)
+    contract_date: date
     first_due_date: date
 
     @field_validator("gross_credit_amount", "upfront_costs", "installment_amount", "monthly_charges")
@@ -227,8 +228,7 @@ def cet_estimate(payload: CetEstimateInput) -> dict:
         payments.append({"number": index + 1, "due_date": due_date, "payment": payment})
 
     total_paid = money(sum((row["payment"] for row in payments), Decimal("0")))
-    start_date = payload.first_due_date
-    day_offsets = [(row["due_date"] - start_date).days for row in payments]
+    day_offsets = [(row["due_date"] - payload.contract_date).days for row in payments]
     if any(days <= 0 for days in day_offsets):
         from fastapi import HTTPException
 

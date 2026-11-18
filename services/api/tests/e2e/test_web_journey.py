@@ -275,6 +275,15 @@ def test_complete_web_financial_journey() -> None:
             theme_select.select_option("light")
             expect(page.locator(".app-shell")).to_have_attribute("data-theme", "light")
 
+            accent_picker = page.get_by_label("Cor de destaque")
+            accent_picker.evaluate(
+                "(element) => { element.value = '#4f46e5'; "
+                "element.dispatchEvent(new Event('input', {bubbles: true})); "
+                "element.dispatchEvent(new Event('change', {bubbles: true})); }"
+            )
+            assert "#4f46e5" in (page.locator(".app-shell").get_attribute("style") or "")
+            page.get_by_role("button", name="Restaurar cores padrão").click()
+
             page.get_by_role("button", name="Calculadoras").click()
             page.get_by_role("button", name="Calcular").click()
             expect(page.get_by_text("Valor futuro")).to_be_visible()

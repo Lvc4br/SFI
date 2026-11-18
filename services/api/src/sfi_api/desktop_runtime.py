@@ -117,8 +117,15 @@ def run() -> None:
     if not server.started:
         raise RuntimeError("A API local não ficou pronta dentro do prazo de inicialização.")
 
+    from sfi_api.backup_automation import (
+        start_automatic_backup_worker,
+        stop_automatic_backup_worker,
+    )
+
+    start_automatic_backup_worker()
     print(f"SFI_API_READY {port}", flush=True)
     server_thread.join()
+    stop_automatic_backup_worker()
 
 
 if __name__ == "__main__":

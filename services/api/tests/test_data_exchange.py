@@ -290,19 +290,17 @@ def test_full_backup_preview_restore_and_user_isolation(client):
     assert "refresh_tokens" not in backup["tables"]
     assert "security_events" not in backup["tables"]
 
+    later_payload = {
+        "format": "csv",
+        "content": (
+            "date,type,amount,description,account_id,category_id\\n"
+            f"2026-11-17T12:00:00Z,expense,12.00,Registro posterior ao backup,{account['id']},{category['id']}\\n"
+        ),
+    }
     extra = client.post(
-        "/api/v1/finance/transactions",
+        "/api/v1/exchange/transactions/import",
         headers=owner,
-        json={
-            "account_id": account["id"],
-            "category_id": category["id"],
-            "transaction_type": "expense",
-            "amount": "12.00",
-            "currency": "BRL",
-            "description": "Registro posterior ao backup",
-            "occurred_at": "2026-11-17T12:00:00Z",
-            "idempotency_key": "backup-after-snapshot-001",
-        },
+        json={**later_payload, "confirmed": True},
     )
     assert extra.status_code == 201, extra.text
 
@@ -355,3 +353,34 @@ def test_backup_restore_rejects_incomplete_or_unsupported_backup(client):
         "/api/v1/backup/preview", headers=headers, json={"backup": unsupported}
     )
     assert response.status_code == 422
+
+
+def test_backup_restore_rolls_back_when_referential_integrity_fails(client):
+    headers = register(client, "backup-atomic@example.com")
+    account, category = setup_account(client, headers)
+    payload = {
+        "format": "csv",
+        "content": (
+            "date,type,amount,description,account_id,category_id\\n"
+            f"2026-11-16T12:00:00Z,expense,8.50,Registro válido,{account['id']},{category['id']}\\n"
+        ),
+    }
+    imported = client.post(
+        "/api/v1/exchange/transactions/import",
+        headers=headers,
+        json={**payload, "confirmed": True},
+    )
+    assert imported.status_code == 201
+    backup = client.get("/api/v1/backup/export", headers=headers).json()
+    backup["tables"]["accounts"][0]["id"] = "00000000-0000-0000-0000-000000000001"
+
+    response = client.post(
+        "/api/v1/backup/restore",
+        headers=headers,
+        json={"backup": backup, "confirmed": True},
+    )
+    assert response.status_code == 422
+    transactions = client.get("/api/v1/finance/transactions", headers=headers)
+    assert transactions.status_code == 200
+    assert len(transactions.json()) == 1
+    assert transactions.json()[0]["description"] == "Registro válido"

@@ -143,7 +143,10 @@ def _parse_content(payload: ImportRequest) -> list[dict]:
                     or member.compress_size > 0 and member.file_size / member.compress_size > 200
                     for member in members
                 ):
-                    raise HTTPException(413, "A planilha possui conteúdo compactado acima do limite seguro.")
+                    raise HTTPException(
+                        413,
+                        "A planilha possui conteúdo compactado acima do limite seguro.",
+                    )
             workbook = load_workbook(io.BytesIO(binary), read_only=True, data_only=True)
             sheet = workbook.active
             iterator = sheet.iter_rows(values_only=True)
@@ -151,8 +154,11 @@ def _parse_content(payload: ImportRequest) -> list[dict]:
             if not headers or not any(value is not None for value in headers):
                 raise HTTPException(422, "A planilha não possui cabeçalho na primeira linha.")
             names = [str(value).strip() if value is not None else "" for value in headers]
-            if any(not name for name in names) or len(set(name.lower() for name in names)) != len(names):
-                raise HTTPException(422, "Os cabeçalhos da planilha devem ser preenchidos e únicos.")
+            duplicate_headers = len(set(name.lower() for name in names)) != len(names)
+            if any(not name for name in names) or duplicate_headers:
+                raise HTTPException(
+                    422, "Os cabeçalhos da planilha devem ser preenchidos e únicos."
+                )
             rows = []
             for values in iterator:
                 if any(value is not None for value in values):
@@ -163,7 +169,9 @@ def _parse_content(payload: ImportRequest) -> list[dict]:
         except HTTPException:
             raise
         except Exception as exc:
-            raise HTTPException(422, "Não foi possível ler a primeira planilha do arquivo XLSX.") from exc
+            raise HTTPException(
+                422, "Não foi possível ler a primeira planilha do arquivo XLSX."
+            ) from exc
         if not rows:
             raise HTTPException(422, "A planilha não contém linhas de dados.")
     elif len(payload.content.encode("utf-8")) > MAX_IMPORT_BYTES:
@@ -457,7 +465,8 @@ async def export_transactions(
                     cell.data_type = "s"
         sheet.freeze_panes = "A2"
         sheet.auto_filter.ref = sheet.dimensions
-        for column, width in {"A": 38, "B": 38, "C": 38, "D": 18, "E": 20, "F": 12, "G": 42, "H": 30}.items():
+        widths = {"A": 38, "B": 38, "C": 38, "D": 18, "E": 20, "F": 12, "G": 42, "H": 30}
+        for column, width in widths.items():
             sheet.column_dimensions[column].width = width
         output = io.BytesIO()
         workbook.save(output)

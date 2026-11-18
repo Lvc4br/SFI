@@ -86,5 +86,6 @@ def test_alembic_bootstraps_empty_sqlite_from_current_domain_metadata(
         "patrimony_items",
         "patrimony_valuations",
         "fiscal_documents",
+        "bank_statement_entries",
     }.issubset(tables)
-    assert revision == ("0023_fiscal_documents",)
+    assert revision == ("0024_bank_reconciliation",)

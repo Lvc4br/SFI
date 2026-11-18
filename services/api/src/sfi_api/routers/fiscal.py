@@ -14,11 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
-from sfi_api.models.fiscal import FiscalDocument
 from sfi_api.models.finance import Account, Category, Transaction
+from sfi_api.models.fiscal import FiscalDocument
 from sfi_api.models.user import User
 
 router = APIRouter(prefix="/fiscal", tags=["fiscal documents"])
+SESSION_DEPENDENCY = Depends(get_session)
+USER_DEPENDENCY = Depends(get_current_user)
 MAX_XML_BYTES = 2 * 1024 * 1024
 
 
@@ -71,7 +73,9 @@ def parse_nfe_xml(content: str) -> dict:
     if issuer is None or ide is None or total is None:
         raise HTTPException(422, "A NF-e está incompleta: emitente, identificação ou total ausente.")
     issuer_name = _text(issuer, "xNome")
-    issuer_tax_id = re.sub(r"\D", "", _text(issuer, "CNPJ") or _text(issuer, "CPF"))
+    issuer_tax_id = re.sub(
+        r"\D", "", _text(issuer, "CNPJ") or _text(issuer, "CPF")
+    )
     if not issuer_name or len(issuer_tax_id) not in {11, 14}:
         raise HTTPException(422, "Dados de identificação do emitente inválidos.")
     try:
@@ -136,8 +140,8 @@ async def preview_document(
 @router.post("/documents/confirm", status_code=status.HTTP_201_CREATED)
 async def confirm_document(
     payload: FiscalConfirmRequest,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     parsed = parse_nfe_xml(payload.content)
     existing = await session.scalar(select(FiscalDocument.id).where(
@@ -216,8 +220,8 @@ async def confirm_document(
 
 @router.get("/documents")
 async def list_documents(
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     rows = await session.scalars(
         select(FiscalDocument).where(FiscalDocument.user_id == user.id)

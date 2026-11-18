@@ -22,6 +22,8 @@ Todos os endpoints exigem o usuário autenticado e usam a mesma autorização po
 
 A restauração continua bloqueada em bancos que não sejam SQLite. O Neon remoto não é alterado. O plaintext existe apenas em memória durante a validação/restauração; a API não grava a senha nem uma cópia temporária descriptografada.
 
-## Limitações desta etapa
+## Interface e limitações
 
-A integração dos endpoints com os controles da interface desktop ainda precisa ser concluída. A geração automática agendada, retenção, histórico e execução enquanto o aplicativo está fechado também permanecem pendentes. Até a interface ser integrada, os endpoints são uma capacidade da API, não um recurso pronto para uso pelo usuário final.
+A tela de intercâmbio permite gerar backups criptografados, selecionar envelopes criptografados, informar a senha, validar a prévia e restaurar após confirmação. Backups JSON legados continuam aceitos para recuperação de arquivos antigos. O limite de seleção do envelope é 70 MiB para acomodar a expansão Base64; o conteúdo lógico descriptografado permanece limitado a 50 MiB.
+
+A geração automática agendada, retenção, histórico e execução enquanto o aplicativo está fechado ainda permanecem pendentes.

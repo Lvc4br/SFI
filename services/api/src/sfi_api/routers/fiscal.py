@@ -2,13 +2,21 @@ import base64
 import hashlib
 import io
 import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
+from pathlib import Path
 from urllib.parse import unquote_plus
+
+import pypdfium2 as pdfium
+from PIL import Image
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -31,7 +39,7 @@ MAX_XML_BYTES = 2 * 1024 * 1024
 
 class FiscalPreviewRequest(BaseModel):
     content: str = Field(min_length=1, max_length=14_000_000)
-    format: Literal["xml", "pdf"] = "xml"
+    format: Literal["xml", "pdf", "image"] = "xml"
     qr_code_payload: str | None = Field(default=None, max_length=4096)
 
 
@@ -150,38 +158,76 @@ def _valid_access_key(key: str) -> bool:
     return expected == int(key[-1])
 
 
-def parse_nfe_pdf(content_base64: str) -> dict:
-    try:
-        raw = base64.b64decode(content_base64, validate=True)
-    except (ValueError, base64.binascii.Error) as exc:
-        raise HTTPException(422, "PDF em Base64 inválido.") from exc
-    if not raw or len(raw) > MAX_PDF_BYTES:
-        raise HTTPException(413, "O PDF deve ter até 10 MB.")
-    try:
-        reader = PdfReader(io.BytesIO(raw), strict=True)
-        if reader.is_encrypted:
-            raise HTTPException(422, "PDF protegido por senha não é aceito.")
-        if not 1 <= len(reader.pages) <= MAX_PDF_PAGES:
-            raise HTTPException(422, "O PDF deve conter entre 1 e 10 páginas.")
-        extracted_pages = [page.extract_text() or "" for page in reader.pages]
-        if sum(len(page_text) for page_text in extracted_pages) > MAX_PDF_TEXT_CHARS:
+def _ocr_image_bytes(image_bytes: bytes) -> str:
+    bundle_root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[4]))
+    bundled_ocr = bundle_root / "ocr"
+    executable = bundled_ocr / "tesseract.exe"
+    if not executable.is_file():
+        found = shutil.which("tesseract")
+        if not found:
             raise HTTPException(
-                413, "O texto extraído do PDF excede o limite de 200 mil caracteres."
+                503,
+                "O mecanismo OCR não está disponível nesta instalação. Atualize o SFI para uma versão com OCR.",
             )
-        text = "\n".join(extracted_pages)
+        executable = Path(found)
+        tessdata = os.environ.get("TESSDATA_PREFIX")
+    else:
+        tessdata = str(bundled_ocr / "tessdata")
+
+    environment = os.environ.copy()
+    if tessdata:
+        environment["TESSDATA_PREFIX"] = tessdata
+    environment["OMP_THREAD_LIMIT"] = "1"
+    try:
+        result = subprocess.run(
+            [str(executable), "stdin", "stdout", "-l", "por+eng", "--psm", "6"],
+            input=image_bytes,
+            capture_output=True,
+            timeout=45,
+            check=False,
+            env=environment,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(422, "O OCR excedeu o tempo máximo de processamento.") from exc
+    except OSError as exc:
+        raise HTTPException(503, "Não foi possível iniciar o mecanismo OCR.") from exc
+    if result.returncode != 0:
+        raise HTTPException(422, "O OCR não conseguiu processar a imagem enviada.")
+    text = result.stdout.decode("utf-8", errors="replace")
+    if len(text) > MAX_PDF_TEXT_CHARS:
+        raise HTTPException(413, "O texto reconhecido excede o limite de 200 mil caracteres.")
+    return text
+
+
+def _ocr_pdf_text(raw: bytes) -> str:
+    try:
+        document = pdfium.PdfDocument(raw)
+        if not 1 <= len(document) <= MAX_PDF_PAGES:
+            raise HTTPException(422, "O PDF deve conter entre 1 e 10 páginas.")
+        recognized = []
+        for index in range(len(document)):
+            page = document[index]
+            bitmap = page.render(scale=2.0)
+            image = bitmap.to_pil().convert("RGB")
+            image.thumbnail((4000, 4000))
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            recognized.append(_ocr_image_bytes(buffer.getvalue()))
+            page.close()
+        document.close()
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(422, "PDF inválido ou não suportado.") from exc
-    if not text.strip():
-        raise HTTPException(
-            422,
-            (
-                "O PDF não contém texto selecionável. OCR de documentos digitalizados "
-                "ainda não está disponível."
-            ),
-        )
+        raise HTTPException(422, "Não foi possível converter as páginas do PDF para OCR.") from exc
+    text = "\n".join(recognized)
+    if len(text) > MAX_PDF_TEXT_CHARS:
+        raise HTTPException(413, "O texto reconhecido excede o limite de 200 mil caracteres.")
+    return text
 
+
+def _parse_danfe_text(text: str, raw: bytes) -> dict:
+    if not text.strip():
+        raise HTTPException(422, "Não foi possível reconhecer texto no DANFE. Confira a qualidade da imagem.")
     normalized = re.sub(r"[ \t]+", " ", text)
     key_match = re.search(r"(?<!\d)((?:\d[\s.-]?){43}\d)(?!\d)", normalized)
     if not key_match:
@@ -207,11 +253,7 @@ def parse_nfe_pdf(content_base64: str) -> dict:
     if not issuer_name:
         tax_position = normalized.find(tax_match.group(1))
         issuer_name = next(
-            (
-                line.strip()
-                for line in reversed(normalized[:tax_position].splitlines())
-                if line.strip()
-            ),
+            (line.strip() for line in reversed(normalized[:tax_position].splitlines()) if line.strip()),
             "",
         )
     issuer_name = re.sub(r"\s+", " ", issuer_name)[:160]
@@ -237,10 +279,7 @@ def parse_nfe_pdf(content_base64: str) -> dict:
     if not date_match or not number_match or not series_match or not total_match:
         raise HTTPException(
             422,
-            (
-                "O layout do DANFE não foi reconhecido por completo. Confira o XML "
-                "original ou informe os dados manualmente."
-            ),
+            "O layout do DANFE não foi reconhecido por completo. Confira o XML original ou revise os dados manualmente.",
         )
     try:
         issued_date = datetime.strptime(date_match.group(1), "%d/%m/%Y").replace(tzinfo=UTC)
@@ -268,10 +307,63 @@ def parse_nfe_pdf(content_base64: str) -> dict:
     }
 
 
+def parse_nfe_pdf(content_base64: str) -> dict:
+    try:
+        raw = base64.b64decode(content_base64, validate=True)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise HTTPException(422, "PDF em Base64 inválido.") from exc
+    if not raw or len(raw) > MAX_PDF_BYTES:
+        raise HTTPException(413, "O PDF deve ter até 10 MB.")
+    try:
+        reader = PdfReader(io.BytesIO(raw), strict=True)
+        if reader.is_encrypted:
+            raise HTTPException(422, "PDF protegido por senha não é aceito.")
+        if not 1 <= len(reader.pages) <= MAX_PDF_PAGES:
+            raise HTTPException(422, "O PDF deve conter entre 1 e 10 páginas.")
+        extracted_pages = [page.extract_text() or "" for page in reader.pages]
+        if sum(len(page_text) for page_text in extracted_pages) > MAX_PDF_TEXT_CHARS:
+            raise HTTPException(413, "O texto extraído do PDF excede o limite de 200 mil caracteres.")
+        text = "\n".join(extracted_pages)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(422, "PDF inválido ou não suportado.") from exc
+    if not text.strip():
+        text = _ocr_pdf_text(raw)
+    return _parse_danfe_text(text, raw)
+
+
+def parse_nfe_image(content_base64: str) -> dict:
+    try:
+        raw = base64.b64decode(content_base64, validate=True)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise HTTPException(422, "Imagem em Base64 inválida.") from exc
+    if not raw or len(raw) > MAX_PDF_BYTES:
+        raise HTTPException(413, "A imagem deve ter até 10 MB.")
+    try:
+        with Image.open(io.BytesIO(raw)) as image:
+            if image.format not in {"PNG", "JPEG", "WEBP", "TIFF"}:
+                raise HTTPException(422, "Formato de imagem não suportado.")
+            if image.width * image.height > 20_000_000:
+                raise HTTPException(413, "A imagem excede o limite de 20 megapixels.")
+            image = image.convert("RGB")
+            image.thumbnail((4000, 4000))
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(422, "Imagem inválida ou não suportada.") from exc
+    text = _ocr_image_bytes(buffer.getvalue())
+    return _parse_danfe_text(text, raw)
+
+
 def parse_document(payload: FiscalPreviewRequest) -> dict:
     parsed = (
         parse_nfe_pdf(payload.content)
         if payload.format == "pdf"
+        else parse_nfe_image(payload.content)
+        if payload.format == "image"
         else parse_nfe_xml(payload.content)
     )
     if not payload.qr_code_payload:

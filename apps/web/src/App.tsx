@@ -90,7 +90,6 @@ export default function App() {
  {page === "settings" && (
   <section className="content-grid">
    <section className="panel">
-       <section className="panel">
     <PanelTitle title="Aparência personalizada" note="As cores ficam salvas somente neste dispositivo."/>
     <div className="palette-controls">
      <label>Cor de destaque<input aria-label="Cor de destaque" type="color" value={customPalette.accent} onChange={event=>setCustomPalette(value=>({...value,accent:event.target.value}))}/></label>
@@ -101,6 +100,7 @@ export default function App() {
     <button className="button secondary" type="button" onClick={()=>setCustomPalette(DEFAULT_PALETTE)}>Restaurar cores padrão</button>
     <p className="muted">A personalização altera a aparência, não os dados financeiros. O contraste do texto dos botões de destaque é ajustado automaticamente.</p>
    </section>
+   <section className="panel">
     <PanelTitle title="Preferências regionais" note="Use um identificador de fuso horário IANA."/>
     <form onSubmit={saveTimezone} className="stack-form">
      <label>

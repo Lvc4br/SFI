@@ -275,6 +275,7 @@ def test_complete_web_financial_journey() -> None:
             theme_select.select_option("light")
             expect(page.locator(".app-shell")).to_have_attribute("data-theme", "light")
 
+            page.get_by_role("button", name="Configurações").click()
             accent_picker = page.get_by_label("Cor de destaque")
             accent_picker.evaluate(
                 "(element) => { element.value = '#4f46e5'; "

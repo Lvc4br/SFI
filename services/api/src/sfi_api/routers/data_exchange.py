@@ -14,6 +14,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from openpyxl import Workbook, load_workbook
+from pypdf import PdfReader
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -30,7 +31,7 @@ MAX_IMPORT_ROWS = 10000
 
 
 class ImportRequest(BaseModel):
-    format: Literal["csv", "json", "ofx", "xlsx"]
+    format: Literal["csv", "json", "ofx", "xlsx", "qif", "pdf"]
     content: str = Field(min_length=1)
     default_account_id: uuid.UUID | None = None
     default_category_id: uuid.UUID | None = None
@@ -72,6 +73,139 @@ def _date_value(value: str | date | datetime | None) -> datetime:
     return parsed.astimezone(UTC)
 
 
+
+def _parse_qif_date(value: str) -> str:
+    raw = value.strip()
+    for pattern in ("%m/%d'%y", "%m/%d/%y", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw, pattern).date().isoformat()
+        except ValueError:
+            continue
+    raise ValueError("Data QIF inválida ou ambígua; use MM/DD'AA ou DD/MM/AAAA.")
+
+
+def _parse_qif(content: str) -> list[dict]:
+    if not re.search(r"(?im)^!Type:(Bank|Cash|CCard|Oth A|Oth L)\s*$", content):
+        raise HTTPException(422, "Cabeçalho QIF não reconhecido.")
+    records = []
+    current: dict[str, str] = {}
+    line_number = 0
+    for raw_line in content.replace("\r", "").split("\n"):
+        line_number += 1
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line == "^":
+            if current:
+                amount_text = current.get("T", "").strip()
+                description = current.get("P") or current.get("M") or ""
+                if not amount_text or not description.strip() or not current.get("D"):
+                    records.append({
+                        "line": line_number,
+                        "error": "Registro QIF incompleto: exige data (D), valor (T) e favorecido/memo (P/M).",
+                    })
+                else:
+                    try:
+                        normalized = amount_text.replace("R$", "").replace(" ", "")
+                        if "," in normalized:
+                            normalized = normalized.replace(".", "").replace(",", ".")
+                        amount = Decimal(normalized)
+                        if amount == 0:
+                            raise ValueError("Valor zero.")
+                        records.append({
+                            "date": _parse_qif_date(current["D"]),
+                            "amount": str(abs(amount)),
+                            "type": "expense" if amount < 0 else "income",
+                            "description": description.strip(),
+                            "category": current.get("L", "").strip(),
+                            "external_id": "",
+                        })
+                    except (InvalidOperation, ValueError) as exc:
+                        records.append({"line": line_number, "error": f"Registro QIF inválido: {exc}"})
+                current = {}
+            continue
+        if line.startswith("!"):
+            continue
+        if len(line) >= 2 and line[0] in {"D", "T", "P", "M", "L", "N", "C", "A"}:
+            current[line[0]] = line[1:].strip()
+    if current:
+        records.append({
+            "line": line_number,
+            "error": "Registro QIF sem terminador ^; o último lançamento está incompleto.",
+        })
+    if not records:
+        raise HTTPException(422, "O arquivo QIF não contém registros de movimentação.")
+    return records
+
+
+def _parse_pdf_statement(binary: bytes) -> list[dict]:
+    try:
+        reader = PdfReader(io.BytesIO(binary), strict=True)
+        if reader.is_encrypted:
+            raise HTTPException(422, "PDF protegido por senha não é aceito.")
+        if len(reader.pages) > 100:
+            raise HTTPException(413, "O PDF excede o limite de 100 páginas.")
+        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(422, "PDF inválido ou sem camada de texto legível.") from exc
+    if len(text) > 2 * 1024 * 1024:
+        raise HTTPException(413, "O texto extraído do PDF excede o limite seguro.")
+    if not text.strip():
+        raise HTTPException(
+            422,
+            "O PDF não contém texto selecionável. PDFs digitalizados exigem OCR, ainda não disponível.",
+        )
+    date_pattern = r"(\d{2}/\d{2}/\d{4}|\d{4}-\d{2}-\d{2})"
+    amount_pattern = r"([+-]?(?:\d{1,3}(?:\.\d{3})*|\d+)(?:,\d{2}|\.\d{2}))(?:\s*([DC]))?$"
+    records = []
+    for line_number, raw_line in enumerate(text.splitlines(), start=1):
+        line = " ".join(raw_line.split())
+        date_match = re.match("^" + date_pattern + r"\s+(.+)$", line)
+        if not date_match:
+            continue
+        remainder = date_match.group(2).strip()
+        amount_match = re.search(amount_pattern, remainder, re.IGNORECASE)
+        if not amount_match:
+            records.append({
+                "line": line_number,
+                "error": "Linha iniciada por data sem valor reconhecível no final.",
+            })
+            continue
+        description = remainder[:amount_match.start()].strip(" -|")
+        amount_text = amount_match.group(1)
+        direction = (amount_match.group(2) or "").upper()
+        if not description:
+            records.append({"line": line_number, "error": "Descrição ausente na linha do PDF."})
+            continue
+        if direction:
+            transaction_type = "expense" if direction == "D" else "income"
+        elif amount_text.startswith("-"):
+            transaction_type = "expense"
+        elif amount_text.startswith("+"):
+            transaction_type = "income"
+        else:
+            records.append({
+                "line": line_number,
+                "error": "Valor sem sinal ou indicador D/C; não é seguro inferir receita ou despesa.",
+            })
+            continue
+        records.append({
+            "date": date_match.group(1),
+            "amount": amount_text.lstrip("+-"),
+            "type": transaction_type,
+            "description": description,
+            "external_id": "",
+        })
+    if not records:
+        raise HTTPException(
+            422,
+            "Nenhuma movimentação foi reconhecida. O PDF precisa ter linhas no formato data, descrição e valor assinado ou indicador D/C.",
+        )
+    return records
+
+
 def _normalize_row(row: dict, line: int, source_format: str) -> dict:
     lowered = {
         str(key).strip().lstrip("\ufeff").lower(): value
@@ -110,7 +244,7 @@ def _normalize_row(row: dict, line: int, source_format: str) -> dict:
         raise ValueError("O valor excede o limite de precisão financeira.")
     date_text = lowered.get("occurred_at", lowered.get("date", lowered.get("dtposted", "")))
     description = str(
-        lowered.get("description", lowered.get("name", lowered.get("memo", "")))
+        lowered.get("description", lowered.get("payee", lowered.get("name", lowered.get("memo", ""))))
     ).strip()
     if not description:
         raise ValueError("Descrição não informada.")
@@ -133,7 +267,19 @@ def _normalize_row(row: dict, line: int, source_format: str) -> dict:
 
 
 def _parse_content(payload: ImportRequest) -> list[dict]:
-    if payload.format == "xlsx":
+    if payload.format == "pdf":
+        try:
+            binary = base64.b64decode(payload.content, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise HTTPException(422, "O conteúdo PDF não está em Base64 válido.") from exc
+        if len(binary) > MAX_IMPORT_BYTES:
+            raise HTTPException(413, "O arquivo excede o limite de 5 MB.")
+        rows = _parse_pdf_statement(binary)
+    elif payload.format == "qif":
+        if len(payload.content.encode("utf-8")) > MAX_IMPORT_BYTES:
+            raise HTTPException(413, "O arquivo excede o limite de 5 MB.")
+        rows = _parse_qif(payload.content)
+    elif payload.format == "xlsx":
         try:
             binary = base64.b64decode(payload.content, validate=True)
         except (binascii.Error, ValueError) as exc:
@@ -220,6 +366,9 @@ def _parse_content(payload: ImportRequest) -> list[dict]:
     for index, row in enumerate(rows, start=2 if payload.format in {"csv", "xlsx"} else 1):
         if not isinstance(row, dict):
             normalized.append({"line": index, "error": "Registro precisa ser um objeto."})
+            continue
+        if "error" in row:
+            normalized.append({"line": row.get("line", index), "error": row["error"]})
             continue
         try:
             normalized.append(_normalize_row(row, index, payload.format))

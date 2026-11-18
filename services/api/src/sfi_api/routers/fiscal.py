@@ -11,14 +11,13 @@ import uuid
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Literal
 from pathlib import Path
+from typing import Literal
 from urllib.parse import unquote_plus
 
 import pypdfium2 as pdfium
-from PIL import Image
-
 from fastapi import APIRouter, Depends, HTTPException, status
+from PIL import Image
 from pydantic import BaseModel, Field
 from pypdf import PdfReader
 from sqlalchemy import select
@@ -167,7 +166,10 @@ def _ocr_image_bytes(image_bytes: bytes) -> str:
         if not found:
             raise HTTPException(
                 503,
-                "O mecanismo OCR não está disponível nesta instalação. Atualize o SFI para uma versão com OCR.",
+                (
+                    "O mecanismo OCR não está disponível nesta instalação. "
+                    "Atualize o SFI para uma versão com OCR."
+                ),
             )
         executable = Path(found)
         tessdata = os.environ.get("TESSDATA_PREFIX")
@@ -227,7 +229,10 @@ def _ocr_pdf_text(raw: bytes) -> str:
 
 def _parse_danfe_text(text: str, raw: bytes) -> dict:
     if not text.strip():
-        raise HTTPException(422, "Não foi possível reconhecer texto no DANFE. Confira a qualidade da imagem.")
+        raise HTTPException(
+            422,
+            "Não foi possível reconhecer texto no DANFE. Confira a qualidade da imagem.",
+        )
     normalized = re.sub(r"[ \t]+", " ", text)
     key_match = re.search(r"(?<!\d)((?:\d[\s.-]?){43}\d)(?!\d)", normalized)
     if not key_match:
@@ -253,7 +258,11 @@ def _parse_danfe_text(text: str, raw: bytes) -> dict:
     if not issuer_name:
         tax_position = normalized.find(tax_match.group(1))
         issuer_name = next(
-            (line.strip() for line in reversed(normalized[:tax_position].splitlines()) if line.strip()),
+            (
+                line.strip()
+                for line in reversed(normalized[:tax_position].splitlines())
+                if line.strip()
+            ),
             "",
         )
     issuer_name = re.sub(r"\s+", " ", issuer_name)[:160]
@@ -279,7 +288,10 @@ def _parse_danfe_text(text: str, raw: bytes) -> dict:
     if not date_match or not number_match or not series_match or not total_match:
         raise HTTPException(
             422,
-            "O layout do DANFE não foi reconhecido por completo. Confira o XML original ou revise os dados manualmente.",
+            (
+                "O layout do DANFE não foi reconhecido por completo. Confira o XML original "
+                "ou revise os dados manualmente."
+            ),
         )
     try:
         issued_date = datetime.strptime(date_match.group(1), "%d/%m/%Y").replace(tzinfo=UTC)
@@ -322,7 +334,9 @@ def parse_nfe_pdf(content_base64: str) -> dict:
             raise HTTPException(422, "O PDF deve conter entre 1 e 10 páginas.")
         extracted_pages = [page.extract_text() or "" for page in reader.pages]
         if sum(len(page_text) for page_text in extracted_pages) > MAX_PDF_TEXT_CHARS:
-            raise HTTPException(413, "O texto extraído do PDF excede o limite de 200 mil caracteres.")
+            raise HTTPException(
+                413, "O texto extraído do PDF excede o limite de 200 mil caracteres."
+            )
         text = "\n".join(extracted_pages)
     except HTTPException:
         raise

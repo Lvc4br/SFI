@@ -5,6 +5,7 @@ import io
 import pytest
 from fastapi.testclient import TestClient
 from openpyxl import Workbook, load_workbook
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from sfi_api.config import Settings
@@ -16,6 +17,12 @@ from sfi_api.models import Base
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'exchange.db'}")
+    @event.listens_for(engine.sync_engine, "connect")
+    def enable_foreign_keys(connection, _record):
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async def prepare():

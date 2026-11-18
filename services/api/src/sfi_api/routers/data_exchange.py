@@ -450,6 +450,11 @@ async def export_transactions(
         sheet.append(fields)
         for record in records:
             sheet.append([record[field] for field in fields])
+            for cell in sheet[sheet.max_row]:
+                if isinstance(cell.value, str):
+                    if cell.value.startswith(("=", "+", "-", "@", "\\t", "\\r")):
+                        cell.value = "'" + cell.value
+                    cell.data_type = "s"
         sheet.freeze_panes = "A2"
         sheet.auto_filter.ref = sheet.dimensions
         for column, width in {"A": 38, "B": 38, "C": 38, "D": 18, "E": 20, "F": 12, "G": 42, "H": 30}.items():
@@ -469,7 +474,13 @@ async def export_transactions(
     ]
     writer = csv.DictWriter(buffer, fieldnames=fields)
     writer.writeheader()
-    writer.writerows(records)
+    for record in records:
+        safe_record = dict(record)
+        for field in fields:
+            value = safe_record[field]
+            if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\\t", "\\r")):
+                safe_record[field] = "'" + value
+        writer.writerow(safe_record)
     return Response(
         content="\ufeff" + buffer.getvalue(),
         media_type="text/csv; charset=utf-8",

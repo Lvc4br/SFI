@@ -312,6 +312,8 @@ export type CetEstimateResult = {
   assumptions: string[];
 };
 export const calculatorApi = {
+  latePaymentEstimate: (data:{principal:string;due_date:string;payment_date:string;penalty_percent:string;monthly_interest_percent:string;interest_method:"simple"|"compound";index_correction_factor:string}) =>
+    request<LatePaymentEstimateResult>("/api/v1/calculators/late-payment-estimate",{method:"POST",body:JSON.stringify(data)}),
   cetEstimate: (data:{gross_credit_amount:string;upfront_costs:string;installment_amount:string;monthly_charges:string;installments:number;contract_date:string;first_due_date:string}) =>
     request<CetEstimateResult>("/api/v1/calculators/cet-estimate",{method:"POST",body:JSON.stringify(data)}),
   compoundInterest: (data:{principal:string;monthly_contribution:string;annual_rate_percent:string;months:number}) =>

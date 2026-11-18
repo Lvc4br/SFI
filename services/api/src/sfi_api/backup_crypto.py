@@ -102,7 +102,7 @@ def decrypt_backup(envelope: dict[str, Any], passphrase: str) -> dict[str, Any]:
     except (KeyError, TypeError, binascii.Error, ValueError) as exc:
         raise BackupEncryptionError("Dados Base64 do backup criptografado são inválidos.") from exc
     if len(salt) != SALT_BYTES or len(nonce) != NONCE_BYTES:
-        raise BackupEncryptionError("Salt ou nonce do backup criptografado possui tamanho inválido.")
+        raise BackupEncryptionError(\n            "Salt ou nonce do backup criptografado possui tamanho inválido."\n        )
     if len(ciphertext) < 16 or len(ciphertext) > MAX_PLAINTEXT_BYTES + 16:
         raise BackupEncryptionError("Tamanho do backup criptografado inválido.")
     key = _derive_key(passphrase, salt)

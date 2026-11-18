@@ -298,7 +298,8 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_role("columnheader", name="Prestação")).to_be_visible()
 
             page.get_by_role("button", name="Relatórios").click()
-            expect(page.get_by_text("Relatórios e análises")).to_be_visible()\n            expect(page.get_by_role("heading", name="Despesas por categoria")).to_be_visible()
+            expect(page.get_by_text("Relatórios e análises")).to_be_visible()
+            expect(page.get_by_role("heading", name="Despesas por categoria")).to_be_visible()
             expect(page.get_by_text(f"Consolidado de {datetime.now().year}")).to_be_visible()
 
             page.get_by_role("button", name="Orçamento").click()

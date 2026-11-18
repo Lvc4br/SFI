@@ -11,13 +11,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, func, insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.sqltypes import Date, DateTime, LargeBinary, Numeric, Uuid
 
 from sfi_api.database import get_session
 from sfi_api.models import Base, User
-from sfi_api.security import get_current_user
+from sfi_api.dependencies import get_current_user
 
 router = APIRouter(prefix="/backup", tags=["backup"])
 BACKUP_FORMAT = "sfi-personal-data"
@@ -203,7 +203,7 @@ async def preview_restore(
     current_counts = {}
     for table in _owned_tables():
         current_counts[table.name] = await session.scalar(
-            select(__import__("sqlalchemy").func.count()).select_from(table).where(
+            select(func.count()).select_from(table).where(
                 table.c.user_id == user.id
             )
         )
@@ -244,7 +244,7 @@ async def restore_backup(
             "A sincronização remota não é alterada por este recurso.",
         )
     try:
-        await session.execute(__import__("sqlalchemy").text("PRAGMA defer_foreign_keys=ON"))
+        await session.execute(text("PRAGMA defer_foreign_keys=ON"))
         ordered_tables = _owned_tables()
         for table in reversed(ordered_tables):
             await session.execute(delete(table).where(table.c.user_id == user.id))

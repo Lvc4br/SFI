@@ -44,10 +44,10 @@ def client(tmp_path, monkeypatch):
     asyncio.run(engine.dispose())
 
 
-def register(client):
+def register(client, email="encrypted-backup@example.com"):
     response = client.post(
         "/api/v1/auth/register",
-        json={"email": "encrypted-backup@example.com", "password": "senha-forte-teste-123"},
+        json={"email": email, "password": "senha-forte-teste-123"},
     )
     assert response.status_code == 201, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
@@ -132,3 +132,55 @@ def test_encrypted_backup_rejects_tampered_envelope(client):
         json={"passphrase": passphrase, "envelope": envelope},
     )
     assert response.status_code == 422
+
+
+
+def test_encrypted_restore_does_not_modify_another_users_data(client):
+    owner_headers = register(client, "backup-owner@example.com")
+    other_headers = register(client, "backup-other@example.com")
+
+    owner_account = client.post(
+        "/api/v1/finance/accounts",
+        headers=owner_headers,
+        json={"name": "Conta do proprietário", "account_type": "checking"},
+    )
+    other_account = client.post(
+        "/api/v1/finance/accounts",
+        headers=other_headers,
+        json={"name": "Conta de outro usuário", "account_type": "checking"},
+    )
+    assert owner_account.status_code == 201, owner_account.text
+    assert other_account.status_code == 201, other_account.text
+
+    passphrase = "senha-mestra-backup-segura-2026"
+    envelope_response = client.post(
+        "/api/v1/backup/encrypted/export",
+        headers=owner_headers,
+        json={"passphrase": passphrase},
+    )
+    assert envelope_response.status_code == 200, envelope_response.text
+
+    later_account = client.post(
+        "/api/v1/finance/accounts",
+        headers=owner_headers,
+        json={"name": "Conta posterior", "account_type": "checking"},
+    )
+    assert later_account.status_code == 201, later_account.text
+
+    restored = client.post(
+        "/api/v1/backup/encrypted/restore",
+        headers=owner_headers,
+        json={
+            "passphrase": passphrase,
+            "envelope": envelope_response.json(),
+            "confirmed": True,
+        },
+    )
+    assert restored.status_code == 200, restored.text
+
+    owner_accounts = client.get("/api/v1/finance/accounts", headers=owner_headers)
+    other_accounts = client.get("/api/v1/finance/accounts", headers=other_headers)
+    assert owner_accounts.status_code == 200
+    assert [item["name"] for item in owner_accounts.json()] == ["Conta do proprietário"]
+    assert other_accounts.status_code == 200
+    assert [item["name"] for item in other_accounts.json()] == ["Conta de outro usuário"]

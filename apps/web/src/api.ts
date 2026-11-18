@@ -299,7 +299,16 @@ export type LoanCalculatorResult = {
   installments: {number:number;due_date:string;opening_balance:string;amortization:string;interest:string;payment:string;closing_balance:string}[];
   principal_total:string;interest_total:string;payment_total:string;is_estimate:boolean;assumptions:string[];
 };
+export type CetEstimateResult = {
+  currency: string; net_disbursement: string; total_paid: string; upfront_costs: string;
+  monthly_charges_total: string; effective_annual_cost_percent: string;
+  effective_monthly_cost_percent: string; is_estimate: boolean;
+  cash_flows: { number: number; due_date: string; payment: string }[];
+  assumptions: string[];
+};
 export const calculatorApi = {
+  cetEstimate: (data:{gross_credit_amount:string;upfront_costs:string;installment_amount:string;monthly_charges:string;installments:number;contract_date:string;first_due_date:string}) =>
+    request<CetEstimateResult>("/api/v1/calculators/cet-estimate",{method:"POST",body:JSON.stringify(data)}),
   compoundInterest: (data:{principal:string;monthly_contribution:string;annual_rate_percent:string;months:number}) =>
     request<CompoundInterestResult>("/api/v1/calculators/compound-interest",{method:"POST",body:JSON.stringify(data)}),
   loanSchedule: (data:{principal:string;annual_rate_percent:string;installments:number;first_due_date:string;method:"price"|"sac"}) =>

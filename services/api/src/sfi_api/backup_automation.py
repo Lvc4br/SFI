@@ -51,6 +51,8 @@ def _dpapi_transform(value: bytes, *, protect: bool) -> bytes:
     destination = DataBlob()
     crypt = ctypes.WinDLL("Crypt32", use_last_error=True)
     kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+    kernel.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel.LocalFree.restype = ctypes.c_void_p
     function = crypt.CryptProtectData if protect else crypt.CryptUnprotectData
     function.argtypes = [
         ctypes.POINTER(DataBlob),
@@ -125,6 +127,9 @@ def configure_automatic_backup(
         raise BackupAutomationError("Horário inválido; use HH:MM.") from exc
     protected = protect_passphrase(passphrase)
     with _CONFIG_LOCK:
+        existing = _read_config()
+        if existing and existing.get("user_id") != str(user_id):
+            raise BackupAutomationError("Outro usuário já possui um agendamento de backup nesta instalação.")
         _write_config({
             "version": 1,
             "enabled": True,
@@ -137,18 +142,21 @@ def configure_automatic_backup(
     return {"enabled": True, "cadence": cadence, "local_time": local_time, "retention": _RETENTION_COUNT}
 
 
-def disable_automatic_backup() -> None:
+def disable_automatic_backup(user_id: UUID) -> None:
     with _CONFIG_LOCK:
+        config = _read_config()
+        if config and config.get("user_id") != str(user_id):
+            raise BackupAutomationError("Configuração de backup pertence a outro usuário.")
         path = _config_path()
         if path.exists():
             path.unlink()
 
 
-def automatic_backup_status() -> dict[str, Any]:
+def automatic_backup_status(user_id: UUID) -> dict[str, Any]:
     with _CONFIG_LOCK:
         config = _read_config()
-    if not config or not config.get("enabled"):
-        return {"enabled": False, "retention": _RETENTION_COUNT, "history": _backup_history()}
+    if not config or not config.get("enabled") or config.get("user_id") != str(user_id):
+        return {"enabled": False, "retention": _RETENTION_COUNT, "history": []}
     return {
         "enabled": True,
         "cadence": config.get("cadence"),
@@ -186,9 +194,10 @@ def _is_due(config: dict[str, Any], now: datetime) -> bool:
         return False
     if last_run is None:
         return True
-    if now.date() == last_run.astimezone().date():
-        return False
-    return cadence == "daily" or (cadence == "weekly" and now.weekday() == 0)
+    elapsed = now - last_run.astimezone(now.tzinfo)
+    if cadence == "daily":
+        return elapsed >= timedelta(days=1)
+    return cadence == "weekly" and elapsed >= timedelta(days=7)
 
 
 async def _create_scheduled_backup(config: dict[str, Any]) -> None:

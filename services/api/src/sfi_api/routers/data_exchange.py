@@ -197,6 +197,7 @@ def _parse_pdf_statement(binary: bytes) -> list[dict]:
             }
         elif current is not None and current["continuations"] < 2:
             if re.match(r"^(saldo|total|extrato|página|pagina|lançamentos|lancamentos)\b", line, re.I):
+                groups.append(current)
                 current = None
                 continue
             if not re.search(amount_pattern, current["remainder"], re.IGNORECASE):

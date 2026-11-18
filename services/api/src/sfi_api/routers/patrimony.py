@@ -1,10 +1,10 @@
 import uuid
 from collections import defaultdict
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -81,7 +81,7 @@ class ValuationCreate(BaseModel):
     def require_timezone(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("A data da avaliação precisa conter fuso horário.")
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
 
 class ValuationResponse(BaseModel):

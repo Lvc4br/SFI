@@ -1,6 +1,8 @@
 import asyncio
 import base64
 import io
+import hashlib
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -383,6 +385,11 @@ def test_backup_restore_rolls_back_when_referential_integrity_fails(client):
     assert imported.status_code == 201
     backup = client.get("/api/v1/backup/export", headers=headers).json()
     backup["tables"]["accounts"][0]["id"] = "00000000-0000-0000-0000-000000000001"
+    unsigned = {key: value for key, value in backup.items() if key != "integrity"}
+    canonical = json.dumps(
+        unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    backup["integrity"]["digest"] = hashlib.sha256(canonical).hexdigest()
 
     response = client.post(
         "/api/v1/backup/restore",

@@ -401,3 +401,128 @@ def test_backup_restore_rolls_back_when_referential_integrity_fails(client):
     assert transactions.status_code == 200
     assert len(transactions.json()) == 1
     assert transactions.json()[0]["description"] == "Registro válido"
+
+
+def test_qif_preview_import_and_idempotent_reimport(client):
+    headers = register(client, "exchange-qif@example.com")
+    account, category = setup_account(client, headers)
+    qif = (
+        "!Type:Bank\n"
+        "D11/18'26\n"
+        "T-35.90\n"
+        "PMercado Central\n"
+        "MCompra semanal\n"
+        "^\n"
+    )
+    payload = {
+        "format": "qif",
+        "content": qif,
+        "default_account_id": account["id"],
+        "default_category_id": category["id"],
+    }
+    preview = client.post(
+        "/api/v1/exchange/transactions/preview", headers=headers, json=payload
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["valid"] == 1
+    assert preview.json()["rows"][0]["description"] == "Mercado Central"
+
+    imported = client.post(
+        "/api/v1/exchange/transactions/import",
+        headers=headers,
+        json={**payload, "confirmed": True},
+    )
+    assert imported.status_code == 201, imported.text
+    assert imported.json()["created"] == 1
+
+    repeated = client.post(
+        "/api/v1/exchange/transactions/preview", headers=headers, json=payload
+    )
+    assert repeated.status_code == 200
+    assert repeated.json()["duplicates"] == 1
+
+
+def test_qif_incomplete_record_is_reported_without_importing(client):
+    headers = register(client, "exchange-qif-invalid@example.com")
+    account, category = setup_account(client, headers)
+    qif = "!Type:Bank\nD11/18'26\nT-20.00\nPRegistro sem terminador"
+    payload = {
+        "format": "qif",
+        "content": qif,
+        "default_account_id": account["id"],
+        "default_category_id": category["id"],
+    }
+    preview = client.post(
+        "/api/v1/exchange/transactions/preview", headers=headers, json=payload
+    )
+    assert preview.status_code == 200
+    assert preview.json()["invalid"] == 1
+    imported = client.post(
+        "/api/v1/exchange/transactions/import",
+        headers=headers,
+        json={**payload, "confirmed": True},
+    )
+    assert imported.status_code == 422
+    assert client.get("/api/v1/finance/transactions", headers=headers).json() == []
+
+
+def test_pdf_text_preview_requires_unambiguous_signed_or_marked_amount(client, monkeypatch):
+    from types import SimpleNamespace
+
+    headers = register(client, "exchange-pdf@example.com")
+    account, _ = setup_account(client, headers)
+
+    class FakePdfReader:
+        def __init__(self, _stream, strict=True):
+            self.is_encrypted = False
+            self.pages = [
+                SimpleNamespace(
+                    extract_text=lambda: (
+                        "Extrato da conta\n"
+                        "18/11/2026 Mercado Central -25,90\n"
+                        "18/11/2026 Salário 1500,00 C\n"
+                    )
+                )
+            ]
+
+    monkeypatch.setattr("sfi_api.routers.data_exchange.PdfReader", FakePdfReader)
+    payload = {
+        "format": "pdf",
+        "content": base64.b64encode(b"fake-pdf-bytes").decode("ascii"),
+        "default_account_id": account["id"],
+    }
+    preview = client.post(
+        "/api/v1/exchange/transactions/preview", headers=headers, json=payload
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["total"] == 2
+    assert preview.json()["valid"] == 2
+    assert preview.json()["rows"][0]["description"] == "Mercado Central"
+    assert preview.json()["rows"][1]["amount"] == "1500.00"
+
+
+def test_pdf_text_preview_rejects_unsigned_amount_as_ambiguous(client, monkeypatch):
+    from types import SimpleNamespace
+
+    headers = register(client, "exchange-pdf-ambiguous@example.com")
+    account, _ = setup_account(client, headers)
+
+    class FakePdfReader:
+        def __init__(self, _stream, strict=True):
+            self.is_encrypted = False
+            self.pages = [
+                SimpleNamespace(extract_text=lambda: "18/11/2026 Compra 25,90")
+            ]
+
+    monkeypatch.setattr("sfi_api.routers.data_exchange.PdfReader", FakePdfReader)
+    payload = {
+        "format": "pdf",
+        "content": base64.b64encode(b"fake-pdf-bytes").decode("ascii"),
+        "default_account_id": account["id"],
+    }
+    preview = client.post(
+        "/api/v1/exchange/transactions/preview", headers=headers, json=payload
+    )
+    assert preview.status_code == 200
+    assert preview.json()["invalid"] == 1
+    assert "não é seguro inferir" in preview.json()["rows"][0]["error"]

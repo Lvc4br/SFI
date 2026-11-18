@@ -65,6 +65,13 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
   catch(e){setAutomaticError(e instanceof Error?e.message:"Não foi possível configurar o backup automático.");}
   finally{setBusy(false);}
  }
+
+ async function downloadAutomaticBackup(filename:string){
+  setBusy(true);setAutomaticError("");
+  try{const blob=await api.downloadAutomaticBackup(filename);const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);setAutomaticNotice("Backup automático baixado. Use a senha configurada para validar e restaurar o arquivo.");}
+  catch(e){setAutomaticError(e instanceof Error?e.message:"Não foi possível baixar o backup.");}
+  finally{setBusy(false);}
+ }
  async function removeAutomaticBackup(){
   setBusy(true);setAutomaticError("");setAutomaticNotice("");
   try{await api.disableAutomaticBackup();setAutomaticStatus(await api.automaticBackupStatus());setAutomaticNotice("Agendamento automático desativado. Os backups já criados foram preservados.");}
@@ -131,7 +138,7 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
    <label>Frequência<select value={automaticCadence} onChange={e=>setAutomaticCadence(e.target.value as "daily"|"weekly")}><option value="daily">Todos os dias</option><option value="weekly">A cada 7 dias</option></select></label>
    <label>Horário local<input type="time" value={automaticTime} onChange={e=>setAutomaticTime(e.target.value)}/></label>
    <div className="button-row"><button className="button primary" type="button" disabled={busy||backupPassphrase.length<12} onClick={()=>void saveAutomaticBackup()}>{automaticStatus?.enabled?"Atualizar agendamento":"Ativar backup automático"}</button>{automaticStatus?.enabled&&<button className="button secondary" type="button" disabled={busy} onClick={()=>void removeAutomaticBackup()}>Desativar</button>}</div>
-   {automaticStatus&&<><p className="muted">Status: {automaticStatus.enabled?"Ativo":"Desativado"} · Retenção: {automaticStatus.retention} versões · Último backup: {automaticStatus.last_run?new Date(automaticStatus.last_run).toLocaleString():"Ainda não executado"}</p>{automaticStatus.last_error&&<p className="form-error">Última tentativa falhou ({automaticStatus.last_error}). O SFI tentará novamente no próximo ciclo.</p>}<div className="table-wrap"><table><thead><tr><th>Arquivo</th><th>Data</th><th>Tamanho</th></tr></thead><tbody>{automaticStatus.history.map(item=><tr key={item.filename}><td>{item.filename}</td><td>{new Date(item.created_at).toLocaleString()}</td><td>{(item.size_bytes/1024/1024).toFixed(2)} MB</td></tr>)}</tbody></table></div></>}
+   {automaticStatus&&<><p className="muted">Status: {automaticStatus.enabled?"Ativo":"Desativado"} · Retenção: {automaticStatus.retention} versões · Último backup: {automaticStatus.last_run?new Date(automaticStatus.last_run).toLocaleString():"Ainda não executado"}</p>{automaticStatus.last_error&&<p className="form-error">Última tentativa falhou ({automaticStatus.last_error}). O SFI tentará novamente no próximo ciclo.</p>}<div className="table-wrap"><table><thead><tr><th>Arquivo</th><th>Data</th><th>Tamanho</th><th>Ação</th></tr></thead><tbody>{automaticStatus.history.map(item=><tr key={item.filename}><td>{item.filename}</td><td>{new Date(item.created_at).toLocaleString()}</td><td>{(item.size_bytes/1024/1024).toFixed(2)} MB</td><td><button className="button secondary" type="button" disabled={busy} onClick={()=>void downloadAutomaticBackup(item.filename)}>Baixar</button></td></tr>)}</tbody></table></div></>}
   </section>}
   <section className="panel"><h3>Regras de segurança</h3><ul className="muted"><li>Prévia não grava dados.</li><li>Confirmação é obrigatória; arquivos com linhas inválidas são rejeitados por inteiro.</li><li>Contas e categorias precisam pertencer à sua conta SFI.</li><li>Duplicatas são detectadas por chave determinística e ignoradas em reimportações.</li><li>Limite de 5 MB e 10.000 movimentações por arquivo. Planilhas XLSX usam a primeira aba e a primeira linha como cabeçalho.</li></ul></section>
  </div>;

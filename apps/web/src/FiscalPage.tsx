@@ -9,7 +9,7 @@ type BarcodeDetectorConstructor=new(options?:{formats:string[]})=>BarcodeDetecto
 const money=(value:string,currency="BRL")=>new Intl.NumberFormat("pt-BR",{style:"currency",currency}).format(Number(value));
 
 export default function FiscalPage({accounts,categories}:{accounts:Account[];categories:Category[]}){
- const [content,setContent]=useState(""),[filename,setFilename]=useState(""),[format,setFormat]=useState<"xml"|"pdf">("xml"),[qrPayload,setQrPayload]=useState("");
+ const [content,setContent]=useState(""),[filename,setFilename]=useState(""),[format,setFormat]=useState<"xml"|"pdf"|"image">("xml"),[qrPayload,setQrPayload]=useState("");
  const [preview,setPreview]=useState<FiscalPreview|null>(null),[documents,setDocuments]=useState<SavedDocument[]>([]);
  const [accountId,setAccountId]=useState(accounts[0]?.id??""),[categoryId,setCategoryId]=useState("");
  const [createExpense,setCreateExpense]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
@@ -69,19 +69,19 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
     for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,offset+0x8000));
     setContent(btoa(binary));
    }
-   setFormat(selectedFormat);setFilename(file.name);setNotice((selectedFormat==="pdf"?"PDF":"XML")+" carregado. Gere a prévia para conferir os dados.");
+   setFormat(selectedFormat);setFilename(file.name);setNotice((selectedFormat==="pdf"?"PDF":selectedFormat==="image"?"Imagem":"XML")+" carregado. Gere a prévia para conferir os dados.");
   }
   catch{setError("Não foi possível ler o arquivo.");}
  }
- async function makePreview(){setBusy(true);setError("");setNotice("");try{setPreview(await api.fiscalPreview(content,format,qrPayload));setNotice("Prévia pronta. Nenhuma nota ou despesa foi gravada.");}catch(e){setError(e instanceof Error?e.message:"Falha ao analisar o XML.");}finally{setBusy(false);}}
+ async function makePreview(){setBusy(true);setError("");setNotice("");try{setPreview(await api.fiscalPreview(content,format,qrPayload));setNotice("Prévia pronta. Nenhuma nota ou despesa foi gravada.");}catch(e){setError(e instanceof Error?e.message:"Falha ao analisar o documento.");}finally{setBusy(false);}}
  async function confirm(){if(!preview)return;setBusy(true);setError("");setNotice("");try{await api.fiscalConfirm({content,format,qr_code_payload:qrPayload||null,create_expense:createExpense,account_id:createExpense?accountId:null,category_id:createExpense?(categoryId||null):null});setNotice(createExpense? "Nota importada e despesa registrada.":"Nota importada sem criar movimentação.");setPreview(null);setContent("");setFilename("");setQrPayload("");await reload();}catch(e){setError(e instanceof Error?e.message:"Falha ao importar a nota.");}finally{setBusy(false);}}
  return <div className="content-grid">
   <section className="panel">
    <h3>Importar NF-e / NFC-e</h3>
-   <p className="muted">Leia XMLs oficiais ou DANFEs em PDF com texto selecionável. O SFI guarda os dados extraídos e o hash, não o arquivo original. PDF digitalizado/OCR ainda não é suportado.</p>
+   <p className="muted">Leia XMLs oficiais, DANFEs em PDF e imagens. PDFs digitalizados e imagens passam por OCR local com revisão humana; o SFI guarda os dados extraídos e o hash, não o arquivo original.</p>
    {error&&<p className="form-error" role="alert">{error}</p>}{notice&&<p className="form-hint" role="status">{notice}</p>}
    <div className="form-stack">
-    <label>Arquivo XML ou PDF<input type="file" accept=".xml,.pdf,application/xml,text/xml,application/pdf" onChange={chooseFile}/></label>
+    <label>Arquivo XML, PDF ou imagem<input type="file" accept=".xml,.pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff,application/xml,text/xml,application/pdf,image/png,image/jpeg,image/webp,image/tiff" onChange={chooseFile}/></label>
     {filename&&<small className="muted">{filename}</small>}
     <div className="form-stack">
      <div className="panel-heading"><strong>QR Code da nota (opcional)</strong><button className="button secondary" type="button" onClick={()=>cameraActive?stopCamera():void startCamera()}>{cameraActive?"Desligar câmera":"Ler com câmera"}</button></div>

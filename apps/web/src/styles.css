@@ -327,3 +327,14 @@ html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:
 .auth-layout[data-custom-palette="true"]{background:var(--custom-background)}
 .auth-layout[data-custom-palette="true"] .auth-panel{background:var(--custom-background)}
 @media(max-width:640px){.palette-controls{grid-template-columns:1fr}}
+
+
+/* Preserve dark and high-contrast guarantees when a custom palette is active. */
+.app-shell[data-theme="dark"][data-custom-palette="true"]{background:#101a14}
+.auth-layout[data-theme="dark"][data-custom-palette="true"]{background:#101a14}
+.app-shell[data-theme="contrast"][data-custom-palette="true"]{background:#fff;color:#000;--ink:#000;--muted:#292929;--line:#000;--surface:#fff}
+.app-shell[data-theme="contrast"][data-custom-palette="true"] .button.primary{background:#000;color:#ff0;border:2px solid #000}
+.app-shell[data-theme="contrast"][data-custom-palette="true"] .nav-item:hover,
+.app-shell[data-theme="contrast"][data-custom-palette="true"] .nav-item.active{background:#ff0;color:#000;outline:2px solid #000}
+.app-shell[data-theme="contrast"][data-custom-palette="true"] .panel,
+.app-shell[data-theme="contrast"][data-custom-palette="true"] .metric-card{background:#fff;border:2px solid #000}

@@ -58,7 +58,11 @@ def _date_value(value: str) -> datetime:
 
 
 def _normalize_row(row: dict, line: int, source_format: str) -> dict:
-    lowered = {str(key).strip().lstrip("\ufeff").lower(): value for key, value in row.items() if key}
+    lowered = {
+        str(key).strip().lstrip("\ufeff").lower(): value
+        for key, value in row.items()
+        if key
+    }
     raw_amount = str(lowered.get("amount", lowered.get("trnamt", ""))).strip()
     normalized_amount = raw_amount.replace("R$", "").replace(" ", "")
     if "," in normalized_amount and "." in normalized_amount:
@@ -104,9 +108,13 @@ def _normalize_row(row: dict, line: int, source_format: str) -> dict:
         "occurred_at": _date_value(date_text),
         "description": description[:160],
         "account_id": str(lowered.get("account_id", "")).strip() or None,
-        "account_name": str(lowered.get("account_name", lowered.get("account", ""))).strip() or None,
+        "account_name": (
+            str(lowered.get("account_name", lowered.get("account", ""))).strip() or None
+        ),
         "category_id": str(lowered.get("category_id", "")).strip() or None,
-        "category_name": str(lowered.get("category_name", lowered.get("category", ""))).strip() or None,
+        "category_name": (
+            str(lowered.get("category_name", lowered.get("category", ""))).strip() or None
+        ),
         "external_id": str(lowered.get("external_id", lowered.get("fitid", ""))).strip(),
     }
 
@@ -136,7 +144,8 @@ def _parse_content(payload: ImportRequest) -> list[dict]:
             raise HTTPException(422, "O JSON deve conter uma lista de transações.")
     else:
         rows = []
-        for match in re.finditer(r"<STMTTRN>(.*?)(?:</STMTTRN>|(?=<STMTTRN>|</BANKTRANLIST>))", payload.content, re.I | re.S):
+        pattern = r"<STMTTRN>(.*?)(?:</STMTTRN>|(?=<STMTTRN>|</BANKTRANLIST>))"
+        for match in re.finditer(pattern, payload.content, re.I | re.S):
             block = match.group(1)
             values = {
                 key.lower(): value.strip()
@@ -223,7 +232,9 @@ async def _resolve_category(
     return category
 
 
-def _idempotency_key(user_id: uuid.UUID, account: Account, category: Category | None, row: dict) -> str:
+def _idempotency_key(
+    user_id: uuid.UUID, account: Account, category: Category | None, row: dict
+) -> str:
     material = "|".join(
         [
             str(user_id), str(account.id), str(category.id if category else ""),
@@ -342,7 +353,9 @@ async def import_transactions(
         await session.commit()
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(409, "Conflito de idempotência; atualize a prévia e tente novamente.") from None
+        raise HTTPException(
+            409, "Conflito de idempotência; atualize a prévia e tente novamente."
+        ) from None
     return {
         "created": valid_count,
         "duplicates_skipped": duplicate_count,

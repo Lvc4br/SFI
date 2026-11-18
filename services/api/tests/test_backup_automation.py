@@ -8,6 +8,7 @@ from sfi_api.backup_automation import (
     _is_due,
     automatic_backup_status,
     configure_automatic_backup,
+    _backup_history,
 )
 
 
@@ -42,3 +43,18 @@ def test_automatic_schedule_requires_windows_dpapi(monkeypatch):
     monkeypatch.setattr("sfi_api.backup_automation.sys.platform", "linux")
     with pytest.raises(BackupAutomationError, match="Windows"):
         configure_automatic_backup(uuid4(), "daily", "08:00", "senha-forte-backup-2026")
+
+
+def test_automatic_backup_history_isolated_per_user(tmp_path, monkeypatch):
+    monkeypatch.setenv("SFI_DATA_DIR", str(tmp_path))
+    owner_id = uuid4()
+    other_id = uuid4()
+    owner_dir = tmp_path / "backups" / str(owner_id)
+    other_dir = tmp_path / "backups" / str(other_id)
+    owner_dir.mkdir(parents=True)
+    other_dir.mkdir(parents=True)
+    (owner_dir / "owner.sfi-backup.json").write_text("encrypted", encoding="utf-8")
+    (other_dir / "other.sfi-backup.json").write_text("encrypted", encoding="utf-8")
+
+    assert [item["filename"] for item in _backup_history(owner_id)] == ["owner.sfi-backup.json"]
+    assert [item["filename"] for item in _backup_history(other_id)] == ["other.sfi-backup.json"]

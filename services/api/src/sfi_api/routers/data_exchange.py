@@ -6,7 +6,8 @@ import io
 import json
 import re
 import uuid
-from datetime import UTC, datetime
+import zipfile
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 
@@ -39,10 +40,12 @@ class ConfirmedImportRequest(ImportRequest):
     confirmed: bool
 
 
-def _date_value(value: str | datetime) -> datetime:
+def _date_value(value: str | date | datetime) -> datetime:
     if isinstance(value, datetime):
         parsed = value.replace(tzinfo=UTC) if value.tzinfo is None else value
         return parsed.astimezone(UTC)
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day, 12, tzinfo=UTC)
     raw = value.strip()
     if not raw:
         raise ValueError("Data não informada.")
@@ -132,6 +135,15 @@ def _parse_content(payload: ImportRequest) -> list[dict]:
         if len(binary) > MAX_IMPORT_BYTES:
             raise HTTPException(413, "O arquivo excede o limite de 5 MB.")
         try:
+            with zipfile.ZipFile(io.BytesIO(binary)) as archive:
+                members = archive.infolist()
+                expanded_size = sum(member.file_size for member in members)
+                if expanded_size > 25 * 1024 * 1024 or any(
+                    member.file_size > 1024 * 1024 and member.compress_size == 0
+                    or member.compress_size > 0 and member.file_size / member.compress_size > 200
+                    for member in members
+                ):
+                    raise HTTPException(413, "A planilha possui conteúdo compactado acima do limite seguro.")
             workbook = load_workbook(io.BytesIO(binary), read_only=True, data_only=True)
             sheet = workbook.active
             iterator = sheet.iter_rows(values_only=True)
@@ -141,7 +153,12 @@ def _parse_content(payload: ImportRequest) -> list[dict]:
             names = [str(value).strip() if value is not None else "" for value in headers]
             if any(not name for name in names) or len(set(name.lower() for name in names)) != len(names):
                 raise HTTPException(422, "Os cabeçalhos da planilha devem ser preenchidos e únicos.")
-            rows = [dict(zip(names, values, strict=False)) for values in iterator if any(value is not None for value in values)]
+            rows = []
+            for values in iterator:
+                if any(value is not None for value in values):
+                    rows.append(dict(zip(names, values, strict=False)))
+                    if len(rows) > MAX_IMPORT_ROWS:
+                        raise HTTPException(413, "O arquivo excede 10.000 movimentações.")
             workbook.close()
         except HTTPException:
             raise

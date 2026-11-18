@@ -197,7 +197,11 @@ def _parse_pdf_statement(binary: bytes) -> list[dict]:
                 "continuations": 0,
             }
         elif current is not None and current["continuations"] < 2:
-            if re.match(r"^(saldo|total|extrato|página|pagina|lançamentos|lancamentos)\b", line, re.I):
+            if re.match(
+                r"^(saldo|total|extrato|página|pagina|lançamentos|lancamentos)\b",
+                line,
+                re.I,
+            ):
                 groups.append(current)
                 current = None
                 continue
@@ -669,7 +673,15 @@ async def export_transactions(
         account = await session.scalar(
             select(Account).where(Account.id == account_id, Account.user_id == user.id)
         )
-        output = ["!Type:CCard" if account.account_type == "credit" else "!Type:Cash" if account.account_type == "cash" else "!Type:Bank"]
+        account_type = account.account_type
+        qif_type = (
+            "!Type:CCard"
+            if account_type == "credit"
+            else "!Type:Cash"
+            if account_type == "cash"
+            else "!Type:Bank"
+        )
+        output = [qif_type]
         for record in records:
             parsed_date = datetime.fromisoformat(record["occurred_at"])
             occurred = (
@@ -683,7 +695,8 @@ async def export_transactions(
                 "P" + record["description"].replace(chr(13), " ").replace(chr(10), " "),
             ])
             if record["category_name"]:
-                output.append("L" + record["category_name"].replace(chr(13), " ").replace(chr(10), " "))
+                category = record["category_name"].replace(chr(13), " ").replace(chr(10), " ")
+                output.append("L" + category)
             output.append("^")
         content = chr(10).join(output) + chr(10)
         return Response(
@@ -718,11 +731,30 @@ async def export_transactions(
             occurred = (
                 parsed_date.replace(tzinfo=UTC) if parsed_date.tzinfo is None else parsed_date
             ).astimezone(ZoneInfo(user.timezone))
-            description = Paragraph(escape(record["description"].encode("cp1252", errors="replace").decode("cp1252")), styles["BodyText"])
+            description_text = record["description"].encode(
+                "cp1252", errors="replace"
+            ).decode("cp1252")
+            description = Paragraph(escape(description_text), styles["BodyText"])
             table_rows.append([
-                occurred.strftime("%d/%m/%Y"), Paragraph(escape(record["account_name"].encode("cp1252", errors="replace").decode("cp1252")), styles["BodyText"]),
+                occurred.strftime("%d/%m/%Y"),
+                Paragraph(
+                    escape(
+                        record["account_name"].encode(
+                            "cp1252", errors="replace"
+                        ).decode("cp1252")
+                    ),
+                    styles["BodyText"],
+                ),
                 "Despesa" if record["transaction_type"] == "expense" else "Receita",
-                description, Paragraph(escape(record["category_name"].encode("cp1252", errors="replace").decode("cp1252")), styles["BodyText"]),
+                description,
+                Paragraph(
+                    escape(
+                        record["category_name"].encode(
+                            "cp1252", errors="replace"
+                        ).decode("cp1252")
+                    ),
+                    styles["BodyText"],
+                ),
                 record["amount"], record["currency"],
             ])
         table = Table(
@@ -794,7 +826,7 @@ async def export_transactions(
             value = safe_record[field]
             if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")):
                 safe_record[field] = "'" + value
-        writer.writerow(safe_record)
+        writer.writerow({field: safe_record[field] for field in fields})
     return Response(
         content="\ufeff" + buffer.getvalue(),
         media_type="text/csv; charset=utf-8",

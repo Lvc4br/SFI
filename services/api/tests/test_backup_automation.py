@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta, timezone
 import sys
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -63,8 +63,6 @@ def test_automatic_backup_history_isolated_per_user(tmp_path, monkeypatch):
 
 
 def test_user_cannot_replace_or_disable_another_users_schedule(tmp_path, monkeypatch):
-    from sfi_api.backup_automation import BackupAutomationError
-
     monkeypatch.setenv("SFI_DATA_DIR", str(tmp_path))
     monkeypatch.setattr("sfi_api.backup_automation.sys.platform", "win32")
     monkeypatch.setattr("sfi_api.backup_automation.protect_passphrase", lambda value: "dpapi-protected")

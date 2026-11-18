@@ -1,7 +1,10 @@
 import asyncio
+import base64
+import io
 
 import pytest
 from fastapi.testclient import TestClient
+from openpyxl import Workbook, load_workbook
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from sfi_api.config import Settings
@@ -188,3 +191,72 @@ def test_import_rejects_foreign_account_and_file_size_limit(client):
         json={"format": "csv", "content": "x" * (5 * 1024 * 1024 + 1)},
     )
     assert too_large.status_code == 413
+
+
+def test_xlsx_preview_import_and_export_round_trip(client):
+    headers = register(client, "exchange-xlsx@example.com")
+    account, category = setup_account(client, headers)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["date", "type", "amount", "description", "account_id", "category_id"])
+    sheet.append([
+        "2026-11-16T12:00:00Z", "expense", "48.90", "Compra em planilha",
+        account["id"], category["id"],
+    ])
+    stream = io.BytesIO()
+    workbook.save(stream)
+    workbook.close()
+    payload = {
+        "format": "xlsx",
+        "content": base64.b64encode(stream.getvalue()).decode("ascii"),
+    }
+
+    preview = client.post(
+        "/api/v1/exchange/transactions/preview", headers=headers, json=payload
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["valid"] == 1
+    assert preview.json()["rows"][0]["description"] == "Compra em planilha"
+
+    imported = client.post(
+        "/api/v1/exchange/transactions/import",
+        headers=headers,
+        json={**payload, "confirmed": True},
+    )
+    assert imported.status_code == 201, imported.text
+    assert imported.json()["created"] == 1
+
+    exported = client.get(
+        "/api/v1/exchange/transactions/export?format=xlsx", headers=headers
+    )
+    assert exported.status_code == 200
+    restored = load_workbook(io.BytesIO(exported.content), read_only=True, data_only=True)
+    rows = list(restored.active.iter_rows(values_only=True))
+    restored.close()
+    assert rows[0][0] == "id"
+    assert rows[1][6] == "Compra em planilha"
+    assert rows[1][4] == "48.90"
+
+
+def test_xlsx_import_rejects_invalid_base64_and_empty_workbook(client):
+    headers = register(client, "exchange-xlsx-invalid@example.com")
+    invalid = client.post(
+        "/api/v1/exchange/transactions/preview",
+        headers=headers,
+        json={"format": "xlsx", "content": "not-base64!?"},
+    )
+    assert invalid.status_code == 422
+
+    workbook = Workbook()
+    stream = io.BytesIO()
+    workbook.save(stream)
+    workbook.close()
+    empty = client.post(
+        "/api/v1/exchange/transactions/preview",
+        headers=headers,
+        json={
+            "format": "xlsx",
+            "content": base64.b64encode(stream.getvalue()).decode("ascii"),
+        },
+    )
+    assert empty.status_code == 422

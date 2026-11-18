@@ -7,8 +7,8 @@ from sfi_api.config import get_settings
 from sfi_api.database import check_database, dispose_database
 from sfi_api.routers.auth import router as auth_router
 from sfi_api.routers.credit import router as credit_router
-from sfi_api.routers.data_exchange import router as data_exchange_router
 from sfi_api.routers.dashboard import router as dashboard_router
+from sfi_api.routers.data_exchange import router as data_exchange_router
 from sfi_api.routers.debts import router as debts_router
 from sfi_api.routers.finance import router as finance_router
 from sfi_api.routers.goals import router as goals_router

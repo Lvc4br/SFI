@@ -43,6 +43,42 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sfi/web build
 
+  postgres-financial-precision:
+    name: PostgreSQL financial precision
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sfi
+          POSTGRES_PASSWORD: sfi-test-only
+          POSTGRES_DB: sfi_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sfi -d sfi_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    defaults:
+      run:
+        working-directory: services/api
+    env:
+      SFI_TEST_POSTGRES_URL: postgresql+asyncpg://sfi:sfi-test-only@127.0.0.1:5432/sfi_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Verify Numeric(18,2) persistence and overflow on PostgreSQL
+        run: pytest -q tests/test_postgres_precision.py
+
   backup-automation-windows:
     runs-on: windows-latest
     defaults:

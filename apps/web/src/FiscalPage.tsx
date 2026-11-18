@@ -58,9 +58,9 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
   const file=event.target.files?.[0];if(!file)return;
   setPreview(null);setQrPayload("");setError("");setNotice("");
   const extension=file.name.toLowerCase().split(".").pop();
-  if(extension!=="xml"&&extension!=="pdf"){setError("Selecione um XML ou PDF de NF-e/NFC-e.");return;}
-  const selectedFormat=extension==="pdf"?"pdf":"xml";
-  if(file.size>(selectedFormat==="pdf"?10:2)*1024*1024){setError(selectedFormat==="pdf"?"O PDF excede o limite de 10 MB.":"O XML excede o limite de 2 MB.");return;}
+  if(!["xml","pdf","png","jpg","jpeg","webp","tif","tiff"].includes(extension??"")){setError("Selecione um XML, PDF ou imagem de DANFE (PNG, JPG, WEBP ou TIFF).");return;}
+  const selectedFormat: "xml"|"pdf"|"image"=extension==="pdf"?"pdf":["png","jpg","jpeg","webp","tif","tiff"].includes(extension??"")?"image":"xml";
+  if(file.size>(selectedFormat==="xml"?2:10)*1024*1024){setError(selectedFormat==="xml"?"O XML excede o limite de 2 MB.":"O PDF/imagem excede o limite de 10 MB.");return;}
   try{
    if(selectedFormat==="xml")setContent(await file.text());
    else{

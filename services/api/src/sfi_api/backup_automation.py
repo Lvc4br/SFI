@@ -65,7 +65,7 @@ def _dpapi_transform(value: bytes, *, protect: bool) -> bytes:
         ctypes.POINTER(DataBlob),
     ]
     function.restype = ctypes.wintypes.BOOL
-    description = ctypes.c_wchar_p("SFI automatic backup")
+    description = ctypes.c_wchar_p("SFI automatic backup") if protect else ctypes.c_wchar_p()
     description_pointer = ctypes.byref(description) if not protect else ctypes.cast(description, ctypes.c_void_p)
     if not function(ctypes.byref(source), description_pointer, None, None, None, 0, ctypes.byref(destination)):
         raise ctypes.WinError(ctypes.get_last_error())

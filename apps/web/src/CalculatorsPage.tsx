@@ -55,7 +55,9 @@ export default function CalculatorsPage() {
         <button className={mode==="compound"?"button primary":"button secondary"} type="button" onClick={()=>setMode("compound")}>Juros compostos</button>
         <button className={mode==="loan"?"button primary":"button secondary"} type="button" onClick={()=>setMode("loan")}>Price / SAC</button>
         <button className={mode==="real"?"button primary":"button secondary"} type="button" onClick={()=>setMode("real")}>Rentabilidade real</button>
-        <button className={mode==="equivalent"?"button primary":"button secondary"} type="button" onClick={()=>setMode("equivalent")}>Taxas equivalentes</button>\n        <button className={mode==="cet"?"button primary":"button secondary"} type="button" onClick={()=>setMode("cet")}>CET estimado</button>\n        <button className={mode==="late"?"button primary":"button secondary"} type="button" onClick={()=>setMode("late")}>Encargos por atraso</button>
+        <button className={mode==="equivalent"?"button primary":"button secondary"} type="button" onClick={()=>setMode("equivalent")}>Taxas equivalentes</button>
+        <button className={mode==="cet"?"button primary":"button secondary"} type="button" onClick={()=>setMode("cet")}>CET estimado</button>
+        <button className={mode==="late"?"button primary":"button secondary"} type="button" onClick={()=>setMode("late")}>Encargos por atraso</button>
       </div>
       <form className="form-stack" onSubmit={submit}>
         {(mode==="compound"||mode==="loan"||mode==="cet"||mode==="late")&&<label className="field">{mode==="cet"?"Crédito bruto contratado (R$)":mode==="late"?"Principal em atraso (R$)":"Capital inicial (R$)"}<input inputMode="decimal" value={principal} onChange={e=>setPrincipal(e.target.value)} required/></label>}

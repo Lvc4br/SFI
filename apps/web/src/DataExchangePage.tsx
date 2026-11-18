@@ -7,7 +7,9 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
  const [format,setFormat]=useState<ImportFormat>("csv"),[content,setContent]=useState(""),[filename,setFilename]=useState("");
  const [accountId,setAccountId]=useState(accounts[0]?.id??""),[categoryId,setCategoryId]=useState("");
  const [preview,setPreview]=useState<ExchangePreview|null>(null),[error,setError]=useState(""),[notice,setNotice]=useState("");
- const [busy,setBusy]=useState(false);\n const [backup,setBackup]=useState<BackupDocument|null>(null),[backupPreview,setBackupPreview]=useState<BackupPreview|null>(null);\n const [backupFilename,setBackupFilename]=useState(""),[backupError,setBackupError]=useState(""),[backupNotice,setBackupNotice]=useState("");
+ const [busy,setBusy]=useState(false);
+ const [backup,setBackup]=useState<BackupDocument|null>(null),[backupPreview,setBackupPreview]=useState<BackupPreview|null>(null);
+ const [backupFilename,setBackupFilename]=useState(""),[backupError,setBackupError]=useState(""),[backupNotice,setBackupNotice]=useState("");
  async function chooseFile(event:ChangeEvent<HTMLInputElement>){
   const file=event.target.files?.[0];if(!file)return;
   setError("");setNotice("");setPreview(null);
@@ -78,7 +80,8 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
   catch(e){setBackupError(e instanceof Error?e.message:"Falha ao restaurar o backup.");}
   finally{setBusy(false);}
  }
-\n const validRows=preview?.rows.filter(row=>row.status==="valid")??[];
+
+ const validRows=preview?.rows.filter(row=>row.status==="valid")??[];
  return <div className="content-grid exchange-page">
   <section className="panel"><h3>Importar movimentações</h3><p className="muted">Carregue um extrato, confira a prévia e só então confirme. O sistema não altera nem apaga lançamentos existentes.</p>
    {error&&<p className="form-error" role="alert">{error}</p>}{notice&&<p className="form-hint" role="status">{notice}</p>}
@@ -105,6 +108,7 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
    {backup&&<button className="button secondary" type="button" disabled={busy} onClick={()=>void previewBackup()}>Validar e visualizar restauração</button>}
    {backupPreview&&<><div className="metric-grid"><article className="metric-card"><span className="eyebrow">REGISTROS NO BACKUP</span><strong>{backupPreview.records_in_backup}</strong></article><article className="metric-card"><span className="eyebrow">REGISTROS ATUAIS</span><strong>{backupPreview.records_current}</strong></article></div><p className="muted">A restauração substitui os registros financeiros atuais deste usuário. O perfil de autenticação e os dados de outros usuários não são substituídos.</p><div className="table-wrap"><table><thead><tr><th>Módulo/tabela</th><th>No backup</th><th>Atuais</th></tr></thead><tbody>{backupPreview.tables.filter(row=>row.backup_records||row.current_records).map(row=><tr key={row.name}><td>{row.name}</td><td>{row.backup_records}</td><td>{row.current_records}</td></tr>)}</tbody></table></div><button className="button danger" type="button" disabled={busy} onClick={()=>void restoreBackup()}>Substituir dados pelos do backup</button></>}
    <small className="muted">Limite de 50 MB e 250.000 registros. Restauração integral disponível no SQLite local; backups incompatíveis com o esquema atual são rejeitados. Faça um backup atual antes de restaurar.</small>
-  </section>\n  <section className="panel"><h3>Regras de segurança</h3><ul className="muted"><li>Prévia não grava dados.</li><li>Confirmação é obrigatória; arquivos com linhas inválidas são rejeitados por inteiro.</li><li>Contas e categorias precisam pertencer à sua conta SFI.</li><li>Duplicatas são detectadas por chave determinística e ignoradas em reimportações.</li><li>Limite de 5 MB e 10.000 movimentações por arquivo. Planilhas XLSX usam a primeira aba e a primeira linha como cabeçalho.</li></ul></section>
+  </section>
+  <section className="panel"><h3>Regras de segurança</h3><ul className="muted"><li>Prévia não grava dados.</li><li>Confirmação é obrigatória; arquivos com linhas inválidas são rejeitados por inteiro.</li><li>Contas e categorias precisam pertencer à sua conta SFI.</li><li>Duplicatas são detectadas por chave determinística e ignoradas em reimportações.</li><li>Limite de 5 MB e 10.000 movimentações por arquivo. Planilhas XLSX usam a primeira aba e a primeira linha como cabeçalho.</li></ul></section>
  </div>;
 }

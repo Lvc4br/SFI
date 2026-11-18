@@ -67,6 +67,7 @@ def test_csv_preview_import_and_idempotent_reimport(client):
         "date,type,amount,description,account_id,category_id,external_id\n"
         f"2026-11-16T12:00:00Z,expense,35.50,Compra mercado,{account['id']},{category['id']},bank-001\n"
         f"2026-11-17T12:00:00Z,expense,12.00,Café,{account['id']},{category['id']},bank-002\n"
+        f"2026-11-17T12:00:00Z,expense,12.00,Café,{account['id']},{category['id']},bank-002\n"
     )
     payload = {
         "format": "csv",
@@ -74,8 +75,9 @@ def test_csv_preview_import_and_idempotent_reimport(client):
     }
     preview = client.post("/api/v1/exchange/transactions/preview", headers=headers, json=payload)
     assert preview.status_code == 200, preview.text
-    assert preview.json()["total"] == 2
+    assert preview.json()["total"] == 3
     assert preview.json()["valid"] == 2
+    assert preview.json()["duplicates"] == 1
     assert preview.json()["invalid"] == 0
 
     imported = client.post(
@@ -85,10 +87,11 @@ def test_csv_preview_import_and_idempotent_reimport(client):
     )
     assert imported.status_code == 201, imported.text
     assert imported.json()["created"] == 2
+    assert imported.json()["duplicates_skipped"] == 1
 
     repeated = client.post("/api/v1/exchange/transactions/preview", headers=headers, json=payload)
     assert repeated.json()["valid"] == 0
-    assert repeated.json()["duplicates"] == 2
+    assert repeated.json()["duplicates"] == 3
 
     replay = client.post(
         "/api/v1/exchange/transactions/import",
@@ -97,7 +100,7 @@ def test_csv_preview_import_and_idempotent_reimport(client):
     )
     assert replay.status_code == 201
     assert replay.json()["created"] == 0
-    assert replay.json()["duplicates_skipped"] == 2
+    assert replay.json()["duplicates_skipped"] == 3
     assert len(client.get("/api/v1/finance/transactions", headers=headers).json()) == 2
 
 

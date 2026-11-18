@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+from sqlalchemy.exc import DataError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from sfi_api.models import Account, Base, Transaction, User
@@ -66,7 +67,7 @@ def test_postgresql_numeric_18_2_round_trip_and_overflow():
                     occurred_at=datetime.now(UTC),
                 )
                 session.add(overflow)
-                with pytest.raises(Exception):
+                with pytest.raises(DataError):
                     await session.commit()
                 await session.rollback()
         finally:

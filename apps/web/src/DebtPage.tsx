@@ -153,7 +153,7 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
         </table></div>
         <ul className="muted">{schedule.assumptions.map(item => <li key={item}>{item}</li>)}</ul>
       </section>}
-      {selectedDebt&&<section className="panel">
+      {selectedDebt&&selectedDebt.amortization_method!=="manual"&&selectedDebt.installment_count&&<section className="panel">
         <h3>Simular refinanciamento</h3>
         <p className="muted">Compare o custo estimado atual com uma nova proposta. Nenhum contrato, saldo ou lançamento será alterado.</p>
         <div className="form-row">

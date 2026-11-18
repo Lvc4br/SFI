@@ -14,7 +14,7 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
  useEffect(()=>{void reload();},[]);
  async function chooseFile(event:ChangeEvent<HTMLInputElement>){
   const file=event.target.files?.[0];if(!file)return;
-  setPreview(null);setError("");setNotice("");
+  setPreview(null);setQrPayload("");setError("");setNotice("");
   const extension=file.name.toLowerCase().split(".").pop();
   if(extension!=="xml"&&extension!=="pdf"){setError("Selecione um XML ou PDF de NF-e/NFC-e.");return;}
   const selectedFormat=extension==="pdf"?"pdf":"xml";

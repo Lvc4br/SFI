@@ -641,7 +641,7 @@ async def export_transactions(
         account = await session.scalar(
             select(Account).where(Account.id == account_id, Account.user_id == user.id)
         )
-        output = ["!Type:Bank"]
+        output = ["!Type:CCard" if account.account_type == "credit" else "!Type:Cash" if account.account_type == "cash" else "!Type:Bank"]
         for record in records:
             occurred = datetime.fromisoformat(record["occurred_at"])
             amount = Decimal(record["amount"])
@@ -684,11 +684,11 @@ async def export_transactions(
         ]]
         for record in records:
             occurred = datetime.fromisoformat(record["occurred_at"])
-            description = Paragraph(escape(record["description"]), styles["BodyText"])
+            description = Paragraph(escape(record["description"].encode("cp1252", errors="replace").decode("cp1252")), styles["BodyText"])
             table_rows.append([
-                occurred.strftime("%d/%m/%Y"), Paragraph(escape(record["account_name"]), styles["BodyText"]),
+                occurred.strftime("%d/%m/%Y"), Paragraph(escape(record["account_name"].encode("cp1252", errors="replace").decode("cp1252")), styles["BodyText"]),
                 "Despesa" if record["transaction_type"] == "expense" else "Receita",
-                description, Paragraph(escape(record["category_name"]), styles["BodyText"]),
+                description, Paragraph(escape(record["category_name"].encode("cp1252", errors="replace").decode("cp1252")), styles["BodyText"]),
                 record["amount"], record["currency"],
             ])
         table = Table(

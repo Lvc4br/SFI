@@ -59,7 +59,7 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
  async function chooseBackup(event:ChangeEvent<HTMLInputElement>){
   const file=event.target.files?.[0];if(!file)return;
   setBackup(null);setEncryptedEnvelope(null);setBackupPreview(null);setBackupError("");setBackupNotice("");
-  if(file.size>50*1024*1024){setBackupError("O backup excede o limite de 50 MB.");return;}
+  if(file.size>70*1024*1024){setBackupError("O backup excede o limite de 70 MB.");return;}
   try{
    const parsed=JSON.parse(await file.text()) as Record<string,unknown>;
    if(parsed.format==="sfi-encrypted-backup"){setEncryptedEnvelope(parsed);setBackup(null);setBackupFilename(file.name);setBackupNotice("Backup criptografado carregado. Informe a senha e valide a prévia.");}

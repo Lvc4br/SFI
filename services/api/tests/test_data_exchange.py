@@ -611,3 +611,40 @@ def test_pdf_export_is_valid_and_isolated_by_user(client):
         page.extract_text() or "" for page in PdfReader(io.BytesIO(other_pdf.content)).pages
     )
     assert "Farm" not in other_text
+
+
+def test_pdf_import_supports_wrapped_descriptions_and_trailing_debit_sign(client, monkeypatch):
+    from types import SimpleNamespace
+
+    headers = register(client, "exchange-pdf-multiline@example.com")
+    account, _ = setup_account(client, headers)
+
+    class FakePdfReader:
+        def __init__(self, _stream, strict=True):
+            self.is_encrypted = False
+            self.pages = [
+                SimpleNamespace(
+                    extract_text=lambda: (
+                        "18/11/2026 Mercado Central\n"
+                        "Compra semanal\n"
+                        "25,90-\n"
+                        "18/11/2026 Salário\n"
+                        "1.500,00 C\n"
+                    )
+                )
+            ]
+
+    monkeypatch.setattr("sfi_api.routers.data_exchange.PdfReader", FakePdfReader)
+    payload = {
+        "format": "pdf",
+        "content": base64.b64encode(b"fake-pdf-bytes").decode("ascii"),
+        "default_account_id": account["id"],
+    }
+    preview = client.post(
+        "/api/v1/exchange/transactions/preview", headers=headers, json=payload
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["valid"] == 2
+    assert preview.json()["rows"][0]["description"] == "Mercado Central Compra semanal"
+    assert preview.json()["rows"][0]["amount"] == "25.90"
+    assert preview.json()["rows"][1]["amount"] == "1500.00"

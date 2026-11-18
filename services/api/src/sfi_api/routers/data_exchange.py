@@ -40,12 +40,16 @@ class ConfirmedImportRequest(ImportRequest):
     confirmed: bool
 
 
-def _date_value(value: str | date | datetime) -> datetime:
+def _date_value(value: str | date | datetime | None) -> datetime:
+    if value is None:
+        raise ValueError("Data não informada.")
     if isinstance(value, datetime):
         parsed = value.replace(tzinfo=UTC) if value.tzinfo is None else value
         return parsed.astimezone(UTC)
     if isinstance(value, date):
         return datetime(value.year, value.month, value.day, 12, tzinfo=UTC)
+    if not isinstance(value, str):
+        raise ValueError("Data inválida; informe uma data reconhecida pelo Excel ou texto ISO 8601.")
     raw = value.strip()
     if not raw:
         raise ValueError("Data não informada.")

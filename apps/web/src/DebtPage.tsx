@@ -43,7 +43,7 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
         creditor, debt_type: kind, description, currency: "BRL",
         original_amount: amount, annual_interest_rate: rate,
         amortization_method: method, contracted_at: contractedAt,
-        first_due_date: firstDue,
+        first_due_date: firstDue, installment_count: method === "manual" ? null : Number(installmentCount),
       });
       setCreditor(""); setDescription(""); setAmount(""); setRate("0"); setSchedule(null);
       setNotice("Dívida cadastrada."); await reload();
@@ -124,6 +124,18 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
         <p className="muted">Total da saída: {money((Number(principal || 0) + Number(interest || 0)).toFixed(2), selectedDebt?.currency ?? "BRL")}</p>
         <button className="button primary" disabled={busy || !selected || !accountId || !principal || Number(principal) <= 0}>Registrar pagamento</button>
       </form>
+      {schedule && <section aria-live="polite">
+        <h3>Projeção {schedule.method.toUpperCase()} — estimativa</h3>
+        <div className="metric-grid">
+          <article className="metric-card"><span className="eyebrow">PRINCIPAL</span><strong>{money(schedule.principal_total, schedule.currency)}</strong></article>
+          <article className="metric-card"><span className="eyebrow">JUROS ESTIMADOS</span><strong>{money(schedule.interest_total, schedule.currency)}</strong></article>
+          <article className="metric-card"><span className="eyebrow">TOTAL ESTIMADO</span><strong>{money(schedule.payment_total, schedule.currency)}</strong></article>
+        </div>
+        <div className="table-wrap"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Amortização</th><th>Juros</th><th>Prestação</th><th>Saldo</th></tr></thead>
+          <tbody>{schedule.installments.map(item => <tr key={item.number}><td>{item.number}</td><td>{new Date(item.due_date + "T12:00:00").toLocaleDateString("pt-BR")}</td><td>{money(item.principal, schedule.currency)}</td><td>{money(item.interest, schedule.currency)}</td><td>{money(item.payment, schedule.currency)}</td><td>{money(item.closing_balance, schedule.currency)}</td></tr>)}</tbody>
+        </table></div>
+        <ul className="muted">{schedule.assumptions.map(item => <li key={item}>{item}</li>)}</ul>
+      </section>}
     </section>
   </section>;
 }

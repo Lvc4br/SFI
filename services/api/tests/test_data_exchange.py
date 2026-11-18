@@ -260,3 +260,98 @@ def test_xlsx_import_rejects_invalid_base64_and_empty_workbook(client):
         },
     )
     assert empty.status_code == 422
+
+
+def test_full_backup_preview_restore_and_user_isolation(client):
+    owner = register(client, "backup-owner@example.com")
+    other = register(client, "backup-other@example.com")
+    account, category = setup_account(client, owner)
+    transaction_payload = {
+        "format": "csv",
+        "content": (
+            "date,type,amount,description,account_id,category_id\\n"
+            f"2026-11-16T12:00:00Z,expense,73.25,Registro preservado,{account['id']},{category['id']}\\n"
+        ),
+    }
+    imported = client.post(
+        "/api/v1/exchange/transactions/import",
+        headers=owner,
+        json={**transaction_payload, "confirmed": True},
+    )
+    assert imported.status_code == 201, imported.text
+
+    exported = client.get("/api/v1/backup/export", headers=owner)
+    assert exported.status_code == 200, exported.text
+    backup = exported.json()
+    assert backup["format"] == "sfi-personal-data"
+    assert backup["version"] == 1
+    assert "transactions" in backup["tables"]
+    assert len(backup["tables"]["transactions"]) == 1
+    assert "refresh_tokens" not in backup["tables"]
+    assert "security_events" not in backup["tables"]
+
+    extra = client.post(
+        "/api/v1/finance/transactions",
+        headers=owner,
+        json={
+            "account_id": account["id"],
+            "category_id": category["id"],
+            "transaction_type": "expense",
+            "amount": "12.00",
+            "currency": "BRL",
+            "description": "Registro posterior ao backup",
+            "occurred_at": "2026-11-17T12:00:00Z",
+            "idempotency_key": "backup-after-snapshot-001",
+        },
+    )
+    assert extra.status_code == 201, extra.text
+
+    preview = client.post(
+        "/api/v1/backup/preview", headers=owner, json={"backup": backup}
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["records_in_backup"] < preview.json()["records_current"]
+    assert preview.json()["restore_mode"] == "replace"
+    assert preview.json()["requires_confirmation"] is True
+
+    no_confirmation = client.post(
+        "/api/v1/backup/restore",
+        headers=owner,
+        json={"backup": backup, "confirmed": False},
+    )
+    assert no_confirmation.status_code == 409
+    assert len(client.get("/api/v1/finance/transactions", headers=owner).json()) == 2
+
+    restored = client.post(
+        "/api/v1/backup/restore",
+        headers=owner,
+        json={"backup": backup, "confirmed": True},
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["records_restored"] >= 3
+    owner_transactions = client.get("/api/v1/finance/transactions", headers=owner)
+    assert owner_transactions.status_code == 200
+    assert len(owner_transactions.json()) == 1
+    assert owner_transactions.json()[0]["description"] == "Registro preservado"
+    assert client.get("/api/v1/finance/transactions", headers=other).json() == []
+
+
+def test_backup_restore_rejects_incomplete_or_unsupported_backup(client):
+    headers = register(client, "backup-invalid@example.com")
+    exported = client.get("/api/v1/backup/export", headers=headers)
+    assert exported.status_code == 200
+    backup = exported.json()
+
+    incomplete = dict(backup)
+    incomplete["tables"] = dict(backup["tables"])
+    incomplete["tables"].pop("transactions")
+    response = client.post(
+        "/api/v1/backup/preview", headers=headers, json={"backup": incomplete}
+    )
+    assert response.status_code == 422
+
+    unsupported = {**backup, "version": 999}
+    response = client.post(
+        "/api/v1/backup/preview", headers=headers, json={"backup": unsupported}
+    )
+    assert response.status_code == 422

@@ -169,7 +169,10 @@ def parse_nfe_pdf(content_base64: str) -> dict:
     if not text.strip():
         raise HTTPException(
             422,
-            "O PDF não contém texto selecionável. OCR de documentos digitalizados ainda não está disponível.",
+            (
+                "O PDF não contém texto selecionável. OCR de documentos digitalizados "
+                "ainda não está disponível."
+            ),
         )
 
     normalized = re.sub(r"[ \t]+", " ", text)
@@ -197,7 +200,11 @@ def parse_nfe_pdf(content_base64: str) -> dict:
     if not issuer_name:
         tax_position = normalized.find(tax_match.group(1))
         issuer_name = next(
-            (line.strip() for line in reversed(normalized[:tax_position].splitlines()) if line.strip()),
+            (
+                line.strip()
+                for line in reversed(normalized[:tax_position].splitlines())
+                if line.strip()
+            ),
             "",
         )
     issuer_name = re.sub(r"\s+", " ", issuer_name)[:160]
@@ -223,12 +230,19 @@ def parse_nfe_pdf(content_base64: str) -> dict:
     if not date_match or not number_match or not series_match or not total_match:
         raise HTTPException(
             422,
-            "O layout do DANFE não foi reconhecido por completo. Confira o XML original ou informe os dados manualmente.",
+            (
+                "O layout do DANFE não foi reconhecido por completo. Confira o XML "
+                "original ou informe os dados manualmente."
+            ),
         )
     try:
         issued_date = datetime.strptime(date_match.group(1), "%d/%m/%Y").replace(tzinfo=UTC)
         raw_amount = total_match.group(1)
-        amount = Decimal(raw_amount.replace(".", "").replace(",", ".")) if "," in raw_amount else Decimal(raw_amount)
+        amount = (
+            Decimal(raw_amount.replace(".", "").replace(",", "."))
+            if "," in raw_amount
+            else Decimal(raw_amount)
+        )
     except (ValueError, InvalidOperation) as exc:
         raise HTTPException(422, "Data ou valor total inválido no DANFE.") from exc
     if not amount.is_finite() or amount <= 0 or amount > Decimal("9999999999999999.99"):

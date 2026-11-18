@@ -132,7 +132,7 @@ def _build_amortization_schedule(debt: Debt) -> dict:
                 principal_part = balance if index == count else _money(principal / Decimal(count))
             else:
                 principal_part = balance if index == count else min(
-                    balance, _money(fixed_payment - interest)
+                    balance, max(Decimal("0.00"), _money(fixed_payment - interest))
                 )
             payment = _money(principal_part + interest)
             balance = _money(max(Decimal("0"), balance - principal_part))

@@ -76,7 +76,7 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
   const confirmed=window.confirm("A restauração substituirá os dados financeiros atuais deste usuário pelos dados do backup. Faça um backup atual antes de continuar. Deseja prosseguir?");
   if(!confirmed)return;
   setBusy(true);setBackupError("");setBackupNotice("");
-  try{const result=await api.restoreFullBackup(backup);setBackupNotice(`Restauração concluída: ${result.records_restored} registros em ${result.tables_restored} tabelas.`);setBackup(null);setBackupPreview(null);setBackupFilename("");}
+  try{const result=await api.restoreFullBackup(backup);setBackupNotice(`Restauração concluída: ${result.records_restored} registros em ${result.tables_restored} tabelas.`);window.location.reload();}
   catch(e){setBackupError(e instanceof Error?e.message:"Falha ao restaurar o backup.");}
   finally{setBusy(false);}
  }

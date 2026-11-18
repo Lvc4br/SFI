@@ -93,6 +93,29 @@ async function renewSession(): Promise<Session> {
   return refreshInFlight;
 }
 
+async function requestBlob(path: string, authenticated = true, retry = true): Promise<Blob> {
+  const headers = new Headers();
+  headers.set("X-SFI-Client", DESKTOP ? "desktop" : "web");
+  const token = authenticated ? readToken() : null;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  let response: Response;
+  try {
+    response = await fetch(getApiBaseUrl() + path, { headers, credentials: "include" });
+  } catch {
+    throw new Error("Não foi possível conectar à API. Verifique se o backend está em execução.");
+  }
+  if (response.status === 401 && authenticated && retry) {
+    try { await renewSession(); return requestBlob(path, true, false); }
+    catch { clearSession(); }
+  }
+  if (!response.ok) {
+    let message = `Erro HTTP ${response.status}`;
+    try { const payload = await response.json(); if (typeof payload.detail === "string") message = payload.detail; } catch { /* empty body */ }
+    throw new Error(message);
+  }
+  return response.blob();
+}
+
 async function request<T>(path: string, options: RequestInit = {}, authenticated = true, retry = true): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("X-SFI-Client", DESKTOP ? "desktop" : "web");
@@ -193,7 +216,7 @@ export const api = {
   createGoalEntry: (id:string,data:{entry_type:GoalEntry["entry_type"];amount:string;description?:string|null;occurred_at:string;idempotency_key:string}) => request<GoalEntry>(`/api/v1/goals/${id}/entries`,{method:"POST",body:JSON.stringify(data)}),
   exchangePreview: (data:{format:"csv"|"json"|"ofx";content:string;default_account_id?:string|null;default_category_id?:string|null}) => request<ExchangePreview>("/api/v1/exchange/transactions/preview",{method:"POST",body:JSON.stringify(data)}),
   exchangeImport: (data:{format:"csv"|"json"|"ofx";content:string;default_account_id?:string|null;default_category_id?:string|null;confirmed:true}) => request<ExchangeImportResult>("/api/v1/exchange/transactions/import",{method:"POST",body:JSON.stringify(data)}),
-  exchangeExport: (format:"csv"|"json") => request<unknown>(`/api/v1/exchange/transactions/export?format=${format}`),
+  exportTransactions: (format:"csv"|"json") => requestBlob(`/api/v1/exchange/transactions/export?format=${format}`),
   patrimonyItems: (includeArchived=false) => request<PatrimonyItem[]>(`/api/v1/patrimony${includeArchived?"?include_archived=true":""}`),
   createPatrimonyItem: (data:{name:string;item_kind:PatrimonyItem["item_kind"];category:string;currency?:string;description?:string|null}) => request<PatrimonyItem>("/api/v1/patrimony",{method:"POST",body:JSON.stringify(data)}),
   updatePatrimonyItem: (id:string,data:{archived:boolean}) => request<PatrimonyItem>(`/api/v1/patrimony/${id}`,{method:"PATCH",body:JSON.stringify(data)}),

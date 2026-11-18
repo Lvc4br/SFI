@@ -17,6 +17,8 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
   const [kind, setKind] = useState<Debt["debt_type"]>("other");
   const [amount, setAmount] = useState("");
   const [rate, setRate] = useState("0");
+  const [installmentCount, setInstallmentCount] = useState("12");
+  const [schedule, setSchedule] = useState<Awaited<ReturnType<typeof api.debtSchedule>> | null>(null);
   const [contractedAt, setContractedAt] = useState(today());
   const [firstDue, setFirstDue] = useState(today());
   const [method, setMethod] = useState<Debt["amortization_method"]>("manual");
@@ -43,7 +45,7 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
         amortization_method: method, contracted_at: contractedAt,
         first_due_date: firstDue,
       });
-      setCreditor(""); setDescription(""); setAmount(""); setRate("0");
+      setCreditor(""); setDescription(""); setAmount(""); setRate("0"); setSchedule(null);
       setNotice("Dívida cadastrada."); await reload();
     } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível cadastrar."); }
     finally { setBusy(false); }
@@ -59,14 +61,14 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
         interest_amount: interest, paid_at: new Date().toISOString(),
         next_due_date: nextDue || null, idempotency_key: crypto.randomUUID(),
       });
-      setPrincipal(""); setInterest("0.00"); setNextDue("");
+      setPrincipal(""); setInterest("0.00"); setNextDue(""); setSchedule(null);
       setNotice("Pagamento registrado e despesa lançada na conta."); await reload();
     } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível registrar o pagamento."); }
     finally { setBusy(false); }
   }
 
   const active = debts.filter(debt => debt.status === "active");
-  const selectedDebt = active.find(debt => debt.id === selected);
+  const selectedDebt = active.find(debt => debt.id === selected);\n  async function loadSchedule() {\n    if (!selected) return;\n    setBusy(true); setError(""); setSchedule(null);\n    try { setSchedule(await api.debtSchedule(selected)); }\n    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível calcular a projeção."); }\n    finally { setBusy(false); }\n  }
   const paymentAccounts = accounts.filter(account => !account.archived_at && account.account_type !== "credit" && account.currency === (selectedDebt?.currency ?? "BRL"));
 
   return <section className="content-grid">
@@ -79,7 +81,7 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
         <label>Descrição<input value={description} onChange={e => setDescription(e.target.value)} maxLength={160} required /></label>
         <div className="form-row">
           <label>Tipo<select value={kind} onChange={e => setKind(e.target.value as Debt["debt_type"])}><option value="other">Outro</option><option value="loan">Empréstimo</option><option value="financing">Financiamento</option><option value="personal">Pessoal</option><option value="mortgage">Imobiliário</option><option value="vehicle">Veículo</option></select></label>
-          <label>Amortização informada<select value={method} onChange={e => setMethod(e.target.value as Debt["amortization_method"])}><option value="manual">Manual</option><option value="price">Price</option><option value="sac">SAC</option></select></label>
+          <label>Amortização informada<select value={method} onChange={e => { setMethod(e.target.value as Debt["amortization_method"]); setSchedule(null); }}><option value="manual">Manual</option><option value="price">Price</option><option value="sac">SAC</option></select></label>
         </div>
         <div className="form-row">
           <label>Valor original (R$)<input type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required /></label>
@@ -104,8 +106,8 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
     <section className="panel">
       <div className="panel-heading"><div><h2>Registrar pagamento</h2><p className="muted">Separe amortização e juros para preservar a composição.</p></div></div>
       <form className="form-stack" onSubmit={pay}>
-        <label>Dívida<select value={selected} onChange={e => setSelected(e.target.value)} required><option value="">Selecione</option>{active.map(debt => <option key={debt.id} value={debt.id}>{debt.description} · saldo {money(debt.outstanding_principal, debt.currency)}</option>)}</select></label>
-        <label>Conta de origem<select value={accountId} onChange={e => setAccountId(e.target.value)} required><option value="">Selecione</option>{paymentAccounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+        <label>Dívida<select value={selected} onChange={e => { setSelected(e.target.value); setSchedule(null); }} required><option value="">Selecione</option>{active.map(debt => <option key={debt.id} value={debt.id}>{debt.description} · saldo {money(debt.outstanding_principal, debt.currency)}</option>)}</select></label>
+        {selectedDebt && selectedDebt.amortization_method !== "manual" && <button className="button secondary" type="button" disabled={busy} onClick={() => void loadSchedule()}>Calcular cronograma estimado</button>}\n        <label>Conta de origem<select value={accountId} onChange={e => setAccountId(e.target.value)} required><option value="">Selecione</option>{paymentAccounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
         <div className="form-row">
           <label>Amortização (R$)<input type="number" min="0.01" step="0.01" value={principal} onChange={e => setPrincipal(e.target.value)} required /></label>
           <label>Juros (R$)<input type="number" min="0" step="0.01" value={interest} onChange={e => setInterest(e.target.value)} required /></label>

@@ -184,3 +184,19 @@ def test_encrypted_restore_does_not_modify_another_users_data(client):
     assert [item["name"] for item in owner_accounts.json()] == ["Conta do proprietário"]
     assert other_accounts.status_code == 200
     assert [item["name"] for item in other_accounts.json()] == ["Conta de outro usuário"]
+
+
+def test_automatic_backup_controls_are_desktop_windows_only(client):
+    headers = register(client)
+    status = client.get("/api/v1/backup/automatic", headers=headers)
+    assert status.status_code == 409
+    configured = client.put(
+        "/api/v1/backup/automatic",
+        headers=headers,
+        json={
+            "cadence": "daily",
+            "local_time": "08:00",
+            "passphrase": "senha-mestra-backup-segura-2026",
+        },
+    )
+    assert configured.status_code == 409

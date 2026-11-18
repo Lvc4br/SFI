@@ -173,43 +173,70 @@ def _parse_pdf_statement(binary: bytes) -> list[dict]:
             422,
             "PDF sem texto selecionável; OCR para documentos digitalizados ainda não disponível.",
         )
+
     date_pattern = r"(\d{2}/\d{2}/\d{4}|\d{4}-\d{2}-\d{2})"
-    amount_pattern = r"([+-]?(?:\d{1,3}(?:\.\d{3})*|\d+)(?:,\d{2}|\.\d{2}))(?:\s*([DC]))?$"
-    records = []
+    amount_pattern = (
+        r"([+-]?(?:\d{1,3}(?:\.\d{3})*|\d+)(?:,\d{2}|\.\d{2}))"
+        r"(?:\s*([DC])|([+-]))?$"
+    )
+    groups: list[dict] = []
+    current: dict | None = None
     for line_number, raw_line in enumerate(text.splitlines(), start=1):
         line = " ".join(raw_line.split())
-        date_match = re.match("^" + date_pattern + r"\s+(.+)$", line)
-        if not date_match:
+        if not line:
             continue
-        remainder = date_match.group(2).strip()
+        date_match = re.match("^" + date_pattern + r"\s+(.+)$", line)
+        if date_match:
+            if current is not None:
+                groups.append(current)
+            current = {
+                "line": line_number,
+                "date": date_match.group(1),
+                "remainder": date_match.group(2).strip(),
+                "continuations": 0,
+            }
+        elif current is not None and current["continuations"] < 2:
+            if re.match(r"^(saldo|total|extrato|página|pagina|lançamentos|lancamentos)\b", line, re.I):
+                current = None
+                continue
+            if not re.search(amount_pattern, current["remainder"], re.IGNORECASE):
+                current["remainder"] += " " + line
+                current["continuations"] += 1
+    if current is not None:
+        groups.append(current)
+
+    records = []
+    for group in groups:
+        remainder = group["remainder"]
         amount_match = re.search(amount_pattern, remainder, re.IGNORECASE)
         if not amount_match:
             records.append({
-                "line": line_number,
+                "line": group["line"],
                 "error": "Linha iniciada por data sem valor reconhecível no final.",
             })
             continue
         description = remainder[:amount_match.start()].strip(" -|")
         amount_text = amount_match.group(1)
         direction = (amount_match.group(2) or "").upper()
+        trailing_sign = amount_match.group(3) or ""
         if not description:
-            records.append({"line": line_number, "error": "Descrição ausente na linha do PDF."})
+            records.append({"line": group["line"], "error": "Descrição ausente na linha do PDF."})
             continue
         if direction:
             transaction_type = "expense" if direction == "D" else "income"
-        elif amount_text.startswith("-"):
+        elif amount_text.startswith("-") or trailing_sign == "-":
             transaction_type = "expense"
-        elif amount_text.startswith("+"):
+        elif amount_text.startswith("+") or trailing_sign == "+":
             transaction_type = "income"
         else:
             records.append({
-                "line": line_number,
+                "line": group["line"],
                 "error": (
                     "Valor sem sinal ou indicador D/C; não é seguro inferir receita ou despesa."
                 ),
             })
             continue
-        date_text = date_match.group(1)
+        date_text = group["date"]
         try:
             parsed_date = datetime.strptime(date_text, "%d/%m/%Y").replace(
                 hour=12, tzinfo=UTC
@@ -229,7 +256,6 @@ def _parse_pdf_statement(binary: bytes) -> list[dict]:
             "PDF sem linhas reconhecidas no formato data, descrição e valor assinado ou D/C.",
         )
     return records
-
 
 def _normalize_row(row: dict, line: int, source_format: str) -> dict:
     lowered = {

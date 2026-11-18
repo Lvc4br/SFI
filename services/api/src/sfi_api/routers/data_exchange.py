@@ -14,8 +14,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from openpyxl import Workbook, load_workbook
-from pypdf import PdfReader
 from pydantic import BaseModel, Field
+from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession

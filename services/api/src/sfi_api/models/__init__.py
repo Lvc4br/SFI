@@ -9,6 +9,7 @@ from sfi_api.models.debt import Debt, DebtPayment
 from sfi_api.models.finance import Account, Budget, Category, Transaction, Transfer
 from sfi_api.models.goals import FinancialGoal, GoalEntry
 from sfi_api.models.investments import InvestmentAsset, InvestmentOperation
+from sfi_api.models.patrimony import PatrimonyItem, PatrimonyValuation
 from sfi_api.models.login_attempt import LoginAttempt
 from sfi_api.models.product import ProductPriceObservation, ShoppingProduct
 from sfi_api.models.recurrence import Recurrence
@@ -36,6 +37,8 @@ __all__ = [
     "InvestmentAsset",
     "InvestmentOperation",
     "LoginAttempt",
+    "PatrimonyItem",
+    "PatrimonyValuation",
     "ProductPriceObservation",
     "Recurrence",
     "RefreshToken",

@@ -297,6 +297,23 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_role("button", name="Calcular").click()
             expect(page.get_by_role("columnheader", name="Prestação")).to_be_visible()
 
+            page.get_by_role("button", name="CET estimado").click()
+            page.get_by_label("Crédito bruto contratado (R$)").fill("10000")
+            page.get_by_label("Custos descontados na liberação (R$)").fill("500")
+            page.get_by_label("Valor base de cada parcela (R$)").fill("950")
+            page.get_by_label("Encargos adicionais por mês (R$)").fill("25")
+            page.get_by_label("Data de contratação/liberação").fill("2026-01-01")
+            page.get_by_label("Primeiro vencimento").fill("2026-02-01")
+            page.get_by_role("button", name="Calcular").click()
+            expect(page.get_by_text("CUSTO EFETIVO ANUAL ESTIMADO")).to_be_visible()
+
+            page.get_by_role("button", name="Encargos por atraso").click()
+            page.get_by_label("Principal em atraso (R$)").fill("1000")
+            page.get_by_label("Data de vencimento").fill("2026-01-01")
+            page.get_by_label("Data prevista de pagamento").fill("2026-02-01")
+            page.get_by_role("button", name="Calcular").click()
+            expect(page.get_by_text("TOTAL ESTIMADO")).to_be_visible()
+
             page.get_by_role("button", name="Relatórios").click()
             expect(page.get_by_text("Relatórios e análises")).to_be_visible()
             expect(page.get_by_role("heading", name="Despesas por categoria")).to_be_visible()

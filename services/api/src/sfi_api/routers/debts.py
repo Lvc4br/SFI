@@ -1,7 +1,7 @@
 import calendar
 import uuid
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP, localcontext
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -165,9 +165,18 @@ def _build_amortization_schedule(debt: Debt) -> dict:
         "assumptions": [
             "Taxa anual nominal dividida por 12; não representa CET.",
             "Sem seguros, tarifas, impostos, multas, mora ou indexadores.",
-            "Projeção calculada sobre o principal em aberto e a quantidade cadastrada de parcelas.",
-            "Pagamentos já registrados não reduzem automaticamente a quantidade de parcelas projetadas.",
-            "Datas mensais preservam o dia de vencimento e ajustam para o último dia do mês quando necessário.",
+            (
+                "Projeção calculada sobre o principal em aberto e a quantidade "
+                "cadastrada de parcelas."
+            ),
+            (
+                "Pagamentos já registrados não reduzem automaticamente a quantidade "
+                "de parcelas projetadas."
+            ),
+            (
+                "Datas mensais preservam o dia de vencimento e ajustam para o último "
+                "dia do mês quando necessário."
+            ),
         ],
     }
 

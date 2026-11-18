@@ -173,10 +173,10 @@ def parse_nfe_pdf(content_base64: str) -> dict:
         )
 
     normalized = re.sub(r"[ \t]+", " ", text)
-    key_match = re.search(r"(?<!\d)(\d{44})(?!\d)", re.sub(r"[\s.-]", "", normalized))
+    key_match = re.search(r"(?<!\d)((?:\d[\s.-]?){43}\d)(?!\d)", normalized)
     if not key_match:
         raise HTTPException(422, "Não foi possível localizar a chave de acesso de 44 dígitos.")
-    access_key = key_match.group(1)
+    access_key = re.sub(r"\D", "", key_match.group(1))
     if not _valid_access_key(access_key):
         raise HTTPException(422, "A chave de acesso encontrada possui dígito verificador inválido.")
 
@@ -216,7 +216,7 @@ def parse_nfe_pdf(content_base64: str) -> dict:
     )
     series_match = re.search(r"S[ÉE]RIE\s*[: ]?\s*(\d{1,3})", normalized, re.IGNORECASE)
     total_match = re.search(
-        r"VALOR\s+TOTAL\s+DA\s+NOTA\s*[: ]*\s*(?:R\\$\\s*)?([\\d.]+,\\d{2}|\\d+\\.\\d{2})",
+        r"VALOR\s+TOTAL\s+DA\s+NOTA\s*[: ]*\s*(?:R\$\s*)?([\d.]+,\d{2}|\d+\.\d{2})",
         normalized,
         re.IGNORECASE,
     )
@@ -273,7 +273,7 @@ async def confirm_document(
     session: AsyncSession = SESSION_DEPENDENCY,
     user: User = USER_DEPENDENCY,
 ):
-    parsed = parse_nfe_xml(payload.content)
+    parsed = parse_document(payload)
     existing = await session.scalar(select(FiscalDocument.id).where(
         FiscalDocument.user_id == user.id,
         FiscalDocument.access_key == parsed["access_key"],

@@ -714,7 +714,10 @@ async def export_transactions(
             "Data", "Conta", "Tipo", "Descrição", "Categoria", "Valor", "Moeda"
         ]]
         for record in records:
-            occurred = datetime.fromisoformat(record["occurred_at"])
+            parsed_date = datetime.fromisoformat(record["occurred_at"])
+            occurred = (
+                parsed_date.replace(tzinfo=UTC) if parsed_date.tzinfo is None else parsed_date
+            ).astimezone(ZoneInfo(user.timezone))
             description = Paragraph(escape(record["description"].encode("cp1252", errors="replace").decode("cp1252")), styles["BodyText"])
             table_rows.append([
                 occurred.strftime("%d/%m/%Y"), Paragraph(escape(record["account_name"].encode("cp1252", errors="replace").decode("cp1252")), styles["BodyText"]),

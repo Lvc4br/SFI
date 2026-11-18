@@ -99,9 +99,7 @@ def _normalize_row(row: dict, line: int, source_format: str) -> dict:
         raise ValueError("A movimentação não pode ter mais de duas casas decimais.")
     if amount > Decimal("9999999999999999.99"):
         raise ValueError("O valor excede o limite de precisão financeira.")
-    date_text = str(
-        lowered.get("occurred_at", lowered.get("date", lowered.get("dtposted", "")))
-    )
+    date_text = lowered.get("occurred_at", lowered.get("date", lowered.get("dtposted", "")))
     description = str(
         lowered.get("description", lowered.get("name", lowered.get("memo", "")))
     ).strip()

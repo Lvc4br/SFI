@@ -277,7 +277,10 @@ async def debt_refinance_preview(
             "Simulação informativa; não altera contrato, dívida, saldo ou movimentações.",
             "A taxa informada é efetiva mensal; taxa anual efetiva calculada por (1+i)^12-1.",
             "Tarifas financiadas integram o principal; tarifas mensais são somadas às parcelas.",
-            "CET oficial pode incluir IOF, seguros, tributos, tarifas e fluxos/datas específicos não informados.",
+            (
+                "CET oficial pode incluir IOF, seguros, tributos, tarifas e fluxos/datas "
+                "específicos não informados."
+            ),
             "A proposta depende de confirmação e condições formais do credor.",
         ],
     }

@@ -105,12 +105,22 @@ def _build_amortization_schedule(debt: Debt) -> dict:
         raise HTTPException(409, "Defina o método Price ou SAC para projetar parcelas.")
     if not debt.installment_count:
         raise HTTPException(409, "Informe a quantidade de parcelas para gerar a projeção.")
+    monthly_rate = debt.annual_interest_rate / Decimal("100") / Decimal("12")
     principal = _money(debt.outstanding_principal)
     if principal <= 0:
-        return {"debt_id": str(debt.id), "method": debt.amortization_method,
-                "currency": debt.currency, "installments": [], "principal_total": "0.00",
-                "interest_total": "0.00", "payment_total": "0.00", "is_estimate": True,\n                "annual_rate_percent": str(debt.annual_interest_rate),\n                "monthly_rate_percent": str(monthly_rate * Decimal("100")),\n                "assumptions": ["Saldo principal já está zerado; nenhuma parcela projetada."]}
-    monthly_rate = debt.annual_interest_rate / Decimal("100") / Decimal("12")
+        return {
+            "debt_id": str(debt.id),
+            "method": debt.amortization_method,
+            "currency": debt.currency,
+            "annual_rate_percent": str(debt.annual_interest_rate),
+            "monthly_rate_percent": str(monthly_rate * Decimal("100")),
+            "installments": [],
+            "principal_total": "0.00",
+            "interest_total": "0.00",
+            "payment_total": "0.00",
+            "is_estimate": True,
+            "assumptions": ["Saldo principal já está zerado; nenhuma parcela projetada."],
+        }
     count = debt.installment_count
     start_date = debt.next_due_date or debt.first_due_date
     with localcontext() as context:

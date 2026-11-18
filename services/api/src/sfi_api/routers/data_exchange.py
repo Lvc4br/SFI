@@ -229,6 +229,7 @@ async def _prepare(
 ) -> tuple[list[dict], int, int]:
     rows = _parse_content(payload)
     prepared = []
+    seen_keys: set[str] = set()
     valid_count = 0
     duplicate_count = 0
     for row in rows:
@@ -239,12 +240,15 @@ async def _prepare(
             account = await _resolve_account(session, user.id, row, payload.default_account_id)
             category = await _resolve_category(session, user.id, row, payload.default_category_id)
             key = _idempotency_key(user.id, account, category, row)
-            duplicate = await session.scalar(
-                select(Transaction.id).where(
-                    Transaction.user_id == user.id,
-                    Transaction.idempotency_key == key,
+            duplicate = key in seen_keys or bool(
+                await session.scalar(
+                    select(Transaction.id).where(
+                        Transaction.user_id == user.id,
+                        Transaction.idempotency_key == key,
+                    )
                 )
             )
+            seen_keys.add(key)
             entry = {
                 **row,
                 "account_id": account.id,

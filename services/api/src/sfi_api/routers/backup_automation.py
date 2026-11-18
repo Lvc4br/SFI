@@ -46,8 +46,8 @@ async def put_automatic_backup(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    if session.get_bind().dialect.name != "sqlite":
-        raise HTTPException(409, "Backup automático está disponível somente no Desktop local.")
+    if sys.platform != "win32" or session.get_bind().dialect.name != "sqlite":
+        raise HTTPException(409, "Backup automático está disponível somente no Desktop Windows.")
     try:
         return configure_automatic_backup(
             user.id, payload.cadence, payload.local_time, payload.passphrase
@@ -61,8 +61,8 @@ async def delete_automatic_backup(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    if session.get_bind().dialect.name != "sqlite":
-        raise HTTPException(409, "Backup automático está disponível somente no Desktop local.")
+    if sys.platform != "win32" or session.get_bind().dialect.name != "sqlite":
+        raise HTTPException(409, "Backup automático está disponível somente no Desktop Windows.")
     try:
         disable_automatic_backup(user.id)
     except BackupAutomationError as exc:

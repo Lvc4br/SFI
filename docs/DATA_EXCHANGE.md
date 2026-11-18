@@ -1,6 +1,6 @@
 # Importação e exportação de movimentações
 
-O intercâmbio oferece importação com prévia e confirmação humana para CSV, JSON, OFX, XLSX, QIF e PDFs com texto selecionável. A exportação disponível inclui CSV/JSON/XLSX, QIF por conta e PDF em formato de relatório.
+O intercâmbio oferece importação com prévia e confirmação humana para CSV, JSON, OFX, XLSX, QIF e PDFs com texto selecionável. A exportação disponível inclui CSV/JSON/XLSX, QIF por conta e PDF em formato de relatório. QIF exige `account_id`, valida a propriedade da conta e escolhe `Bank`, `Cash` ou `CCard` conforme o tipo cadastrado. PDF agrega todas as movimentações do usuário em relatório paginado; não é extrato bancário oficial.
 
 ## Formatos de importação
 - CSV: cabeçalhos date/occurred_at, type/transaction_type, amount, description e account_id/account_name opcionais; category_id/category_name opcionais.

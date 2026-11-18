@@ -122,8 +122,8 @@ def parse_nfe_xml(content: str) -> dict:
 @router.post("/documents/preview")
 async def preview_document(
     payload: FiscalPreviewRequest,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    session: AsyncSession = SESSION_DEPENDENCY,
+    user: User = USER_DEPENDENCY,
 ):
     parsed = parse_nfe_xml(payload.content)
     existing = await session.scalar(select(FiscalDocument.id).where(

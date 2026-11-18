@@ -299,6 +299,11 @@ export type LoanCalculatorResult = {
   installments: {number:number;due_date:string;opening_balance:string;amortization:string;interest:string;payment:string;closing_balance:string}[];
   principal_total:string;interest_total:string;payment_total:string;is_estimate:boolean;assumptions:string[];
 };
+export type LatePaymentEstimateResult = {
+  currency: string; principal: string; corrected_principal: string; days_overdue: number;
+  penalty: string; interest: string; total_due: string; interest_method: "simple" | "compound";
+  index_correction_factor: string; is_estimate: boolean; assumptions: string[];
+};
 export type CetEstimateResult = {
   currency: string; net_disbursement: string; total_paid: string; upfront_costs: string;
   monthly_charges_total: string; effective_annual_cost_percent: string;

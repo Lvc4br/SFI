@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
+import hmac
 import json
 import uuid
 from datetime import date, datetime
@@ -95,14 +97,26 @@ def _decode(value: Any, column) -> Any:
     return value
 
 
+def _canonical_backup_bytes(backup: dict) -> bytes:
+    unsigned = {key: value for key, value in backup.items() if key != "integrity"}
+    return json.dumps(
+        unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+
+
 def _build_backup(user: User, rows_by_table: dict[str, list[dict]]) -> dict:
-    return {
+    backup = {
         "format": BACKUP_FORMAT,
         "version": BACKUP_VERSION,
         "exported_at": datetime.now().astimezone().isoformat(),
         "profile": {"timezone": user.timezone},
         "tables": rows_by_table,
     }
+    backup["integrity"] = {
+        "algorithm": "sha256",
+        "digest": hashlib.sha256(_canonical_backup_bytes(backup)).hexdigest(),
+    }
+    return backup
 
 
 async def _collect_backup(session: AsyncSession, user: User) -> dict:
@@ -124,6 +138,17 @@ async def _collect_backup(session: AsyncSession, user: User) -> dict:
 
 
 def _validate_backup(backup: dict) -> tuple[dict[str, list[dict]], int]:
+    integrity = backup.get("integrity")
+    if (
+        not isinstance(integrity, dict)
+        or integrity.get("algorithm") != "sha256"
+        or not isinstance(integrity.get("digest"), str)
+        or len(integrity["digest"]) != 64
+    ):
+        raise HTTPException(422, "Checksum SHA-256 ausente ou inválido.")
+    expected_digest = hashlib.sha256(_canonical_backup_bytes(backup)).hexdigest()
+    if not hmac.compare_digest(integrity["digest"].lower(), expected_digest):
+        raise HTTPException(422, "Checksum SHA-256 não confere; backup alterado ou corrompido.")
     if backup.get("format") != BACKUP_FORMAT or backup.get("version") != BACKUP_VERSION:
         raise HTTPException(
             422,

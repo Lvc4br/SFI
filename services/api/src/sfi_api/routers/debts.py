@@ -109,7 +109,7 @@ def _build_amortization_schedule(debt: Debt) -> dict:
     if principal <= 0:
         return {"debt_id": str(debt.id), "method": debt.amortization_method,
                 "currency": debt.currency, "installments": [], "principal_total": "0.00",
-                "interest_total": "0.00", "payment_total": "0.00", "is_estimate": True}
+                "interest_total": "0.00", "payment_total": "0.00", "is_estimate": True,\n                "annual_rate_percent": str(debt.annual_interest_rate),\n                "monthly_rate_percent": str(monthly_rate * Decimal("100")),\n                "assumptions": ["Saldo principal já está zerado; nenhuma parcela projetada."]}
     monthly_rate = debt.annual_interest_rate / Decimal("100") / Decimal("12")
     count = debt.installment_count
     start_date = debt.next_due_date or debt.first_due_date

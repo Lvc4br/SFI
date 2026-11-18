@@ -71,6 +71,23 @@ class EquivalentRateInput(BaseModel):
     compounds_per_year: int = Field(ge=1, le=365)
 
 
+class LatePaymentInput(BaseModel):
+    principal: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    due_date: date
+    payment_date: date
+    penalty_percent: Decimal = Field(default=Decimal("2"), ge=0, le=100, max_digits=8, decimal_places=4)
+    monthly_interest_percent: Decimal = Field(default=Decimal("1"), ge=0, le=100, max_digits=8, decimal_places=4)
+    interest_method: Literal["simple", "compound"] = "simple"
+    index_correction_factor: Decimal = Field(default=Decimal("1"), ge=Decimal("0.1"), le=10, max_digits=10, decimal_places=6)
+
+    @field_validator("principal", "penalty_percent", "monthly_interest_percent", "index_correction_factor")
+    @classmethod
+    def reject_non_finite_late_payment_values(cls, value: Decimal) -> Decimal:
+        if not value.is_finite():
+            raise ValueError("Informe um número finito.")
+        return value
+
+
 class CetEstimateInput(BaseModel):
     gross_credit_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
     upfront_costs: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=2)
@@ -281,5 +298,42 @@ def cet_estimate(payload: CetEstimateInput) -> dict:
             "O valor líquido liberado é o crédito bruto menos os custos iniciais informados.",
             "Cada parcela inclui o encargo mensal informado; custos variáveis devem ser incluídos no valor de cada parcela.",
             "Não substitui o CET oficial da instituição financeira nem valida tarifas, tributos ou contrato.",
+        ],
+    }
+
+
+
+@router.post("/late-payment-estimate")
+def late_payment_estimate(payload: LatePaymentInput) -> dict:
+    days_overdue = max(0, (payload.payment_date - payload.due_date).days)
+    with localcontext() as context:
+        context.prec = 40
+        corrected_principal = money(payload.principal * payload.index_correction_factor)
+        penalty = money(corrected_principal * payload.penalty_percent / HUNDRED) if days_overdue else Decimal("0.00")
+        monthly_rate = payload.monthly_interest_percent / HUNDRED
+        if not days_overdue or monthly_rate == 0:
+            interest = Decimal("0.00")
+        elif payload.interest_method == "simple":
+            interest = money(corrected_principal * monthly_rate * Decimal(days_overdue) / Decimal("30"))
+        else:
+            period_factor = (Decimal("1") + monthly_rate) ** (Decimal(days_overdue) / Decimal("30"))
+            interest = money(corrected_principal * (period_factor - Decimal("1")))
+        total = money(corrected_principal + penalty + interest)
+    return {
+        "currency": "BRL",
+        "principal": str(money(payload.principal)),
+        "corrected_principal": str(corrected_principal),
+        "days_overdue": days_overdue,
+        "penalty": str(penalty),
+        "interest": str(interest),
+        "total_due": str(total),
+        "interest_method": payload.interest_method,
+        "index_correction_factor": str(payload.index_correction_factor),
+        "is_estimate": True,
+        "assumptions": [
+            "A multa é aplicada uma única vez sobre o principal corrigido e somente quando há atraso.",
+            "Juros simples ou compostos são calculados proporcionalmente a períodos de 30 dias.",
+            "O fator de correção é informado manualmente; o SFI não consulta índices econômicos.",
+            "Use apenas percentuais e critérios previstos no contrato e na legislação aplicável.",
         ],
     }

@@ -166,12 +166,12 @@ def automatic_backup_status(user_id: UUID) -> dict[str, Any]:
         "last_run": config.get("last_run"),
         "last_error": config.get("last_error"),
         "retention": _RETENTION_COUNT,
-        "history": _backup_history(),
+        "history": _backup_history(user_id),
     }
 
 
-def _backup_history() -> list[dict[str, Any]]:
-    directory = _data_dir() / "backups"
+def _backup_history(user_id: UUID) -> list[dict[str, Any]]:
+    directory = _data_dir() / "backups" / str(user_id)
     if not directory.exists():
         return []
     files = sorted(directory.glob("*" + _BACKUP_SUFFIX), key=lambda item: item.stat().st_mtime, reverse=True)
@@ -214,7 +214,7 @@ async def _create_scheduled_backup(config: dict[str, Any]) -> None:
             raise BackupAutomationError("Usuário da configuração de backup não existe.")
         backup = await _collect_backup(session, user)
     envelope = encrypt_backup(backup, passphrase)
-    directory = _data_dir() / "backups"
+    directory = _data_dir() / "backups" / str(user_id)
     directory.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
     destination = directory / f"sfi-{timestamp}{_BACKUP_SUFFIX}"

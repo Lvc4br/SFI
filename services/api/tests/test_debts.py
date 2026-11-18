@@ -186,3 +186,68 @@ def test_debt_is_marked_paid_when_principal_reaches_zero(client):
     assert updated["outstanding_principal"] == "0.00"
     assert updated["status"] == "paid"
     assert updated["next_due_date"] is None
+
+
+
+@pytest.mark.parametrize(
+    ("method", "expected_first_principal"),
+    [("price", "825.06"), ("sac", "833.33")],
+)
+def test_debt_amortization_schedule_is_estimated_and_balances_to_zero(
+    client, method, expected_first_principal
+):
+    headers = register(client, f"debt-schedule-{method}@example.com")
+    payload = {
+        "creditor": "Banco Exemplo", "debt_type": "loan",
+        "description": "Empréstimo de teste", "original_amount": "2500.00",
+        "annual_interest_rate": "12.000000", "amortization_method": method,
+        "contracted_at": "2026-01-01", "first_due_date": "2026-02-28",
+        "installment_count": 3,
+    }
+    created = client.post("/api/v1/debts", headers=headers, json=payload)
+    assert created.status_code == 201, created.text
+    response = client.get(f"/api/v1/debts/{created.json()['id']}/schedule", headers=headers)
+    assert response.status_code == 200, response.text
+    schedule = response.json()
+    assert schedule["is_estimate"] is True
+    assert len(schedule["installments"]) == 3
+    assert schedule["installments"][0]["due_date"] == "2026-02-28"
+    assert schedule["installments"][-1]["due_date"] == "2026-04-28"
+    assert schedule["installments"][0]["principal"] == expected_first_principal
+    assert schedule["installments"][-1]["closing_balance"] == "0.00"
+    assert schedule["principal_total"] == "2500.00"
+    assert float(schedule["interest_total"]) > 0
+
+
+def test_debt_schedule_rejects_manual_method_and_hides_foreign_debt(client):
+    owner = register(client, "debt-schedule-owner@example.com")
+    other = register(client, "debt-schedule-other@example.com")
+    manual = client.post("/api/v1/debts", headers=owner, json={
+        "creditor": "Credor", "description": "Manual", "original_amount": "1000.00",
+        "contracted_at": "2026-01-01", "first_due_date": "2026-02-01",
+    }).json()
+    assert client.get(f"/api/v1/debts/{manual['id']}/schedule", headers=owner).status_code == 409
+    assert client.get(f"/api/v1/debts/{manual['id']}/schedule", headers=other).status_code == 404
+
+
+def test_debt_schedule_supports_zero_interest_and_month_end_dates(client):
+    headers = register(client, "debt-schedule-zero@example.com")
+    created = client.post("/api/v1/debts", headers=headers, json={
+        "creditor": "Credor", "description": "Sem juros", "original_amount": "100.00",
+        "annual_interest_rate": "0", "amortization_method": "price",
+        "contracted_at": "2026-01-01", "first_due_date": "2026-01-31",
+        "installment_count": 3,
+    })
+    assert created.status_code == 201, created.text
+    schedule = client.get(f"/api/v1/debts/{created.json()['id']}/schedule", headers=headers).json()
+    assert schedule["interest_total"] == "0.00"
+    assert schedule["payment_total"] == "100.00"
+    assert [item["due_date"] for item in schedule["installments"]] == [
+        "2026-01-31", "2026-02-28", "2026-03-31"
+    ]
+    invalid = client.post("/api/v1/debts", headers=headers, json={
+        "creditor": "Credor", "description": "Excesso", "original_amount": "100.00",
+        "contracted_at": "2026-01-01", "first_due_date": "2026-02-01",
+        "installment_count": 601,
+    })
+    assert invalid.status_code == 422

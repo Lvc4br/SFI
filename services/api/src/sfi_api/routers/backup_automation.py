@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,8 +32,8 @@ async def get_automatic_backup(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    if session.get_bind().dialect.name != "sqlite":
-        raise HTTPException(409, "Backup automático está disponível somente no Desktop local.")
+    if sys.platform != "win32" or session.get_bind().dialect.name != "sqlite":
+        raise HTTPException(409, "Backup automático está disponível somente no Desktop Windows.")
     try:
         return automatic_backup_status(user.id)
     except BackupAutomationError as exc:

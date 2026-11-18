@@ -92,8 +92,8 @@ def parse_nfe_xml(content: str) -> dict:
         product = next((node for node in detail if _local(node.tag) == "prod"), None)
         if product is None:
             continue
-        def child(name: str) -> str:
-            node = next((item for item in product if _local(item.tag) == name), None)
+        def child(name: str, product_node: ET.Element = product) -> str:
+            node = next((item for item in product_node if _local(item.tag) == name), None)
             return (node.text or "").strip() if node is not None else ""
         items.append({
             "code": child("cProd"),

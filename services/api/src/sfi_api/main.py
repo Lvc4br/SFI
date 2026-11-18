@@ -12,6 +12,7 @@ from sfi_api.routers.debts import router as debts_router
 from sfi_api.routers.finance import router as finance_router
 from sfi_api.routers.goals import router as goals_router
 from sfi_api.routers.investments import router as investments_router
+from sfi_api.routers.patrimony import router as patrimony_router
 from sfi_api.routers.products import router as products_router
 from sfi_api.routers.recurrence import router as recurrence_router
 from sfi_api.routers.shopping import router as shopping_router
@@ -76,6 +77,7 @@ app.include_router(credit_router, prefix=settings.api_prefix)
 app.include_router(debts_router, prefix=settings.api_prefix)
 app.include_router(goals_router, prefix=settings.api_prefix)
 app.include_router(investments_router, prefix=settings.api_prefix)
+app.include_router(patrimony_router, prefix=settings.api_prefix)
 app.include_router(transaction_pages_router, prefix=settings.api_prefix)
 app.include_router(transfer_history_router, prefix=settings.api_prefix)
 app.include_router(recurrence_router, prefix=settings.api_prefix)

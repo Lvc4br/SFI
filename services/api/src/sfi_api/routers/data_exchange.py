@@ -76,7 +76,7 @@ def _date_value(value: str | date | datetime | None) -> datetime:
 
 def _parse_qif_date(value: str) -> datetime:
     raw = value.strip()
-    for pattern in ("%m/%d'%y", "%m/%d/%y", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"):
+    for pattern in ("%m/%d'%y", "%m/%d/%y", "%m/%d/%Y", "%d/%m/%y", "%d/%m/%Y", "%Y-%m-%d"):
         try:
             return datetime.strptime(raw, pattern).replace(tzinfo=UTC)
         except ValueError:

@@ -102,7 +102,9 @@ def _parse_qif(content: str) -> list[dict]:
                 if not amount_text or not description.strip() or not current.get("D"):
                     records.append({
                         "line": line_number,
-                        "error": "Registro QIF incompleto: exige data (D), valor (T) e favorecido/memo (P/M).",
+                        "error": (
+                            "Registro QIF incompleto: exige data (D), valor (T) e favorecido/memo (P/M)."
+                        ),
                     })
                 else:
                     try:
@@ -162,7 +164,7 @@ def _parse_pdf_statement(binary: bytes) -> list[dict]:
     if not text.strip():
         raise HTTPException(
             422,
-            "O PDF não contém texto selecionável. PDFs digitalizados exigem OCR, ainda não disponível.",
+            "PDF sem texto selecionável; OCR para documentos digitalizados ainda não disponível.",
         )
     date_pattern = r"(\d{2}/\d{2}/\d{4}|\d{4}-\d{2}-\d{2})"
     amount_pattern = r"([+-]?(?:\d{1,3}(?:\.\d{3})*|\d+)(?:,\d{2}|\.\d{2}))(?:\s*([DC]))?$"

@@ -71,7 +71,9 @@ def parse_nfe_xml(content: str) -> dict:
     ide = _first(info, "ide")
     total = _first(info, "ICMSTot")
     if issuer is None or ide is None or total is None:
-        raise HTTPException(422, "A NF-e está incompleta: emitente, identificação ou total ausente.")
+        raise HTTPException(
+            422, "A NF-e está incompleta: emitente, identificação ou total ausente."
+        )
     issuer_name = _text(issuer, "xNome")
     issuer_tax_id = re.sub(
         r"\D", "", _text(issuer, "CNPJ") or _text(issuer, "CPF")

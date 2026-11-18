@@ -1,4 +1,5 @@
-# ruff: noqa: E501\nimport asyncio
+# ruff: noqa: E501
+import asyncio
 
 import pytest
 from fastapi.testclient import TestClient

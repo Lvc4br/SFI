@@ -1,3 +1,5 @@
+import base64
+import binascii
 import csv
 import hashlib
 import io
@@ -10,6 +12,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
+from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -26,7 +29,7 @@ MAX_IMPORT_ROWS = 10000
 
 
 class ImportRequest(BaseModel):
-    format: Literal["csv", "json", "ofx"]
+    format: Literal["csv", "json", "ofx", "xlsx"]
     content: str = Field(min_length=1)
     default_account_id: uuid.UUID | None = None
     default_category_id: uuid.UUID | None = None
@@ -36,7 +39,10 @@ class ConfirmedImportRequest(ImportRequest):
     confirmed: bool
 
 
-def _date_value(value: str) -> datetime:
+def _date_value(value: str | datetime) -> datetime:
+    if isinstance(value, datetime):
+        parsed = value.replace(tzinfo=UTC) if value.tzinfo is None else value
+        return parsed.astimezone(UTC)
     raw = value.strip()
     if not raw:
         raise ValueError("Data não informada.")
@@ -120,9 +126,34 @@ def _normalize_row(row: dict, line: int, source_format: str) -> dict:
 
 
 def _parse_content(payload: ImportRequest) -> list[dict]:
-    if len(payload.content.encode("utf-8")) > MAX_IMPORT_BYTES:
+    if payload.format == "xlsx":
+        try:
+            binary = base64.b64decode(payload.content, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise HTTPException(422, "O conteúdo XLSX não está em Base64 válido.") from exc
+        if len(binary) > MAX_IMPORT_BYTES:
+            raise HTTPException(413, "O arquivo excede o limite de 5 MB.")
+        try:
+            workbook = load_workbook(io.BytesIO(binary), read_only=True, data_only=True)
+            sheet = workbook.active
+            iterator = sheet.iter_rows(values_only=True)
+            headers = next(iterator, None)
+            if not headers or not any(value is not None for value in headers):
+                raise HTTPException(422, "A planilha não possui cabeçalho na primeira linha.")
+            names = [str(value).strip() if value is not None else "" for value in headers]
+            if any(not name for name in names) or len(set(name.lower() for name in names)) != len(names):
+                raise HTTPException(422, "Os cabeçalhos da planilha devem ser preenchidos e únicos.")
+            rows = [dict(zip(names, values, strict=False)) for values in iterator if any(value is not None for value in values)]
+            workbook.close()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(422, "Não foi possível ler a primeira planilha do arquivo XLSX.") from exc
+        if not rows:
+            raise HTTPException(422, "A planilha não contém linhas de dados.")
+    elif len(payload.content.encode("utf-8")) > MAX_IMPORT_BYTES:
         raise HTTPException(413, "O arquivo excede o limite de 5 MB.")
-    if payload.format == "csv":
+    elif payload.format == "csv":
         try:
             sample = payload.content[:4096]
             try:
@@ -157,7 +188,7 @@ def _parse_content(payload: ImportRequest) -> list[dict]:
     if len(rows) > MAX_IMPORT_ROWS:
         raise HTTPException(413, "O arquivo excede 10.000 movimentações.")
     normalized = []
-    for index, row in enumerate(rows, start=2 if payload.format == "csv" else 1):
+    for index, row in enumerate(rows, start=2 if payload.format in {"csv", "xlsx"} else 1):
         if not isinstance(row, dict):
             normalized.append({"line": index, "error": "Registro precisa ser um objeto."})
             continue
@@ -365,7 +396,7 @@ async def import_transactions(
 
 @router.get("/transactions/export")
 async def export_transactions(
-    format: Literal["csv", "json"] = "csv",
+    format: Literal["csv", "json", "xlsx"] = "csv",
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
@@ -392,6 +423,29 @@ async def export_transactions(
             content=json.dumps(records, ensure_ascii=False),
             media_type="application/json",
             headers={"Content-Disposition": 'attachment; filename="sfi-transactions.json"'},
+        )
+    if format == "xlsx":
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Movimentações"
+        fields = [
+            "id", "account_id", "category_id", "transaction_type", "amount",
+            "currency", "description", "occurred_at",
+        ]
+        sheet.append(fields)
+        for record in records:
+            sheet.append([record[field] for field in fields])
+        sheet.freeze_panes = "A2"
+        sheet.auto_filter.ref = sheet.dimensions
+        for column, width in {"A": 38, "B": 38, "C": 38, "D": 18, "E": 20, "F": 12, "G": 42, "H": 30}.items():
+            sheet.column_dimensions[column].width = width
+        output = io.BytesIO()
+        workbook.save(output)
+        workbook.close()
+        return Response(
+            content=output.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="sfi-transactions.xlsx"'},
         )
     buffer = io.StringIO(newline="")
     fields = [

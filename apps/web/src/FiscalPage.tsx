@@ -1,8 +1,11 @@
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import type {ChangeEvent} from "react";
 import {api,type Account,type Category,type FiscalPreview} from "./api";
 
 type SavedDocument={id:string;access_key:string;document_number:string;series:string;issuer_name:string;issuer_tax_id:string;issue_date:string;total_amount:string;currency:string;items:FiscalPreview["items"];transaction_id:string|null};
+type BarcodeResult={rawValue:string};
+type BarcodeDetectorLike={detect(source:HTMLVideoElement):Promise<BarcodeResult[]>};
+type BarcodeDetectorConstructor=new(options?:{formats:string[]})=>BarcodeDetectorLike;
 const money=(value:string,currency="BRL")=>new Intl.NumberFormat("pt-BR",{style:"currency",currency}).format(Number(value));
 
 export default function FiscalPage({accounts,categories}:{accounts:Account[];categories:Category[]}){
@@ -10,8 +13,47 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
  const [preview,setPreview]=useState<FiscalPreview|null>(null),[documents,setDocuments]=useState<SavedDocument[]>([]);
  const [accountId,setAccountId]=useState(accounts[0]?.id??""),[categoryId,setCategoryId]=useState("");
  const [createExpense,setCreateExpense]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const [cameraActive,setCameraActive]=useState(false),[cameraMessage,setCameraMessage]=useState("");
+ const videoRef=useRef<HTMLVideoElement|null>(null),streamRef=useRef<MediaStream|null>(null),scanFrameRef=useRef<number|null>(null),scanningRef=useRef(false);
  async function reload(){try{setDocuments(await api.fiscalDocuments());}catch(e){setError(e instanceof Error?e.message:"Não foi possível carregar as notas.");}}
- useEffect(()=>{void reload();},[]);
+ useEffect(()=>{void reload();return()=>{scanningRef.current=false;if(scanFrameRef.current!==null)cancelAnimationFrame(scanFrameRef.current);streamRef.current?.getTracks().forEach(track=>track.stop());};},[]);
+ function stopCamera(){
+  scanningRef.current=false;
+  if(scanFrameRef.current!==null)cancelAnimationFrame(scanFrameRef.current);
+  scanFrameRef.current=null;
+  streamRef.current?.getTracks().forEach(track=>track.stop());
+  streamRef.current=null;
+  if(videoRef.current)videoRef.current.srcObject=null;
+  setCameraActive(false);
+ }
+ async function startCamera(){
+  setCameraMessage("");setError("");
+  const Detector=(window as Window&{BarcodeDetector?:BarcodeDetectorConstructor}).BarcodeDetector;
+  if(!Detector){setCameraMessage("A leitura nativa de QR não é suportada neste navegador. Cole o conteúdo do QR Code manualmente.");return;}
+  if(!navigator.mediaDevices?.getUserMedia){setCameraMessage("A câmera não está disponível neste ambiente. Você pode colar o conteúdo do QR Code manualmente.");return;}
+  try{
+   const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+   streamRef.current=stream;
+   if(!videoRef.current){stream.getTracks().forEach(track=>track.stop());streamRef.current=null;return;}
+   videoRef.current.srcObject=stream;
+   await videoRef.current.play();
+   const detector=new Detector({formats:["qr_code"]});
+   scanningRef.current=true;setCameraActive(true);
+   const scan=async()=>{
+    if(!scanningRef.current||!videoRef.current)return;
+    try{
+     const results=await detector.detect(videoRef.current);
+     const value=results.find(result=>result.rawValue.trim())?.rawValue;
+     if(value){setQrPayload(value);setPreview(null);setCameraMessage("QR Code lido. Confira o conteúdo antes de analisar o documento.");stopCamera();return;}
+    }catch{setCameraMessage("Não foi possível ler o QR Code. Ajuste o enquadramento ou informe o conteúdo manualmente.");}
+    if(scanningRef.current)scanFrameRef.current=requestAnimationFrame(()=>{void scan();});
+   };
+   void scan();
+  }catch{
+   stopCamera();
+   setCameraMessage("Não foi possível acessar a câmera. Verifique a permissão do navegador ou cole o conteúdo manualmente.");
+  }
+ }
  async function chooseFile(event:ChangeEvent<HTMLInputElement>){
   const file=event.target.files?.[0];if(!file)return;
   setPreview(null);setQrPayload("");setError("");setNotice("");
@@ -41,7 +83,12 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
    <div className="form-stack">
     <label>Arquivo XML ou PDF<input type="file" accept=".xml,.pdf,application/xml,text/xml,application/pdf" onChange={chooseFile}/></label>
     {filename&&<small className="muted">{filename}</small>}
-    <label>Conteúdo do QR Code (opcional)<textarea value={qrPayload} maxLength={4096} rows={3} onChange={event=>{setQrPayload(event.target.value);setPreview(null);}} placeholder="Cole o texto/URL obtido do QR Code da NF-e/NFC-e"/></label>
+    <div className="form-stack">
+     <div className="panel-heading"><strong>QR Code da nota (opcional)</strong><button className="button secondary" type="button" onClick={()=>cameraActive?stopCamera():void startCamera()}>{cameraActive?"Desligar câmera":"Ler com câmera"}</button></div>
+     {cameraActive&&<video ref={videoRef} autoPlay playsInline muted aria-label="Visualização da câmera para leitura do QR Code" style={{width:"100%",maxHeight:"280px",objectFit:"contain",borderRadius:"8px",background:"#111"}}/>}
+     {cameraMessage&&<p className="form-hint" role="status">{cameraMessage}</p>}
+     <label>Conteúdo do QR Code<textarea value={qrPayload} maxLength={4096} rows={3} onChange={event=>{setQrPayload(event.target.value);setPreview(null);}} placeholder="Cole o texto/URL obtido do QR Code da NF-e/NFC-e"/></label>
+    </div>
     <p className="muted">O SFI compara a chave do QR com a chave do documento. Isso não consulta a SEFAZ nem comprova autenticidade ou situação fiscal.</p>
     <button className="button primary" type="button" disabled={busy||!content} onClick={()=>void makePreview()}>{busy?"Analisando...":"Analisar documento"}</button>
    </div>

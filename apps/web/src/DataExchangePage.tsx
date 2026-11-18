@@ -1,6 +1,6 @@
-import {useState} from "react";
+import {useEffect,useState} from "react";
 import type {ChangeEvent,FormEvent} from "react";
-import {api,type Account,type Category,type ExchangePreview,type BackupDocument,type BackupPreview} from "./api";
+import {api,isDesktopApp,type Account,type Category,type ExchangePreview,type BackupDocument,type BackupPreview,type AutomaticBackupStatus} from "./api";
 
 type ImportFormat="csv"|"json"|"ofx"|"xlsx";
 export default function DataExchangePage({accounts,categories}:{accounts:Account[];categories:Category[]}){
@@ -8,9 +8,11 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
  const [accountId,setAccountId]=useState(accounts[0]?.id??""),[categoryId,setCategoryId]=useState("");
  const [preview,setPreview]=useState<ExchangePreview|null>(null),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [busy,setBusy]=useState(false);
+ const [automaticStatus,setAutomaticStatus]=useState<AutomaticBackupStatus|null>(null),[automaticCadence,setAutomaticCadence]=useState<"daily"|"weekly">("daily"),[automaticTime,setAutomaticTime]=useState("20:00"),[automaticError,setAutomaticError]=useState(""),[automaticNotice,setAutomaticNotice]=useState("");
  const [backup,setBackup]=useState<BackupDocument|null>(null),[backupPreview,setBackupPreview]=useState<BackupPreview|null>(null);
  const [backupFilename,setBackupFilename]=useState(""),[backupError,setBackupError]=useState(""),[backupNotice,setBackupNotice]=useState("");
  const [backupPassphrase,setBackupPassphrase]=useState(""),[encryptedEnvelope,setEncryptedEnvelope]=useState<Record<string,unknown>|null>(null);
+ useEffect(()=>{if(!isDesktopApp)return;api.automaticBackupStatus().then(status=>{setAutomaticStatus(status);if(status.cadence)setAutomaticCadence(status.cadence);if(status.local_time)setAutomaticTime(status.local_time);}).catch(error=>setAutomaticError(error instanceof Error?error.message:"Não foi possível consultar o backup automático."));},[]);
  async function chooseFile(event:ChangeEvent<HTMLInputElement>){
   const file=event.target.files?.[0];if(!file)return;
   setError("");setNotice("");setPreview(null);
@@ -54,6 +56,19 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
   setBusy(true);setBackupError("");setBackupNotice("");
   try{if(backupPassphrase.length<12)throw new Error("Defina uma senha de pelo menos 12 caracteres para criptografar o backup.");const envelope=await api.exportEncryptedBackup(backupPassphrase);const blob=new Blob([JSON.stringify(envelope)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="sfi-backup-encrypted.json";document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);setBackupNotice("Backup criptografado gerado. A senha não é armazenada pelo SFI.");}
   catch(e){setBackupError(e instanceof Error?e.message:"Falha ao gerar backup completo.");}
+  finally{setBusy(false);}
+ }
+
+ async function saveAutomaticBackup(){
+  setBusy(true);setAutomaticError("");setAutomaticNotice("");
+  try{if(backupPassphrase.length<12)throw new Error("Defina uma senha de pelo menos 12 caracteres no campo de senha do backup.");const result=await api.configureAutomaticBackup({cadence:automaticCadence,local_time:automaticTime,passphrase:backupPassphrase});const status=await api.automaticBackupStatus();setAutomaticStatus(status);setAutomaticNotice("Backup automático "+(result.cadence==="daily"?"diário":"semanal")+" configurado para "+result.local_time+". A senha foi protegida pelo Windows DPAPI.");}
+  catch(e){setAutomaticError(e instanceof Error?e.message:"Não foi possível configurar o backup automático.");}
+  finally{setBusy(false);}
+ }
+ async function removeAutomaticBackup(){
+  setBusy(true);setAutomaticError("");setAutomaticNotice("");
+  try{await api.disableAutomaticBackup();setAutomaticStatus(await api.automaticBackupStatus());setAutomaticNotice("Agendamento automático desativado. Os backups já criados foram preservados.");}
+  catch(e){setAutomaticError(e instanceof Error?e.message:"Não foi possível desativar o backup automático.");}
   finally{setBusy(false);}
  }
  async function chooseBackup(event:ChangeEvent<HTMLInputElement>){
@@ -110,6 +125,14 @@ export default function DataExchangePage({accounts,categories}:{accounts:Account
    {backupPreview&&<><div className="metric-grid"><article className="metric-card"><span className="eyebrow">REGISTROS NO BACKUP</span><strong>{backupPreview.records_in_backup}</strong></article><article className="metric-card"><span className="eyebrow">REGISTROS ATUAIS</span><strong>{backupPreview.records_current}</strong></article></div><p className="muted">A restauração substitui os registros financeiros atuais deste usuário. O perfil de autenticação e os dados de outros usuários não são substituídos.</p><div className="table-wrap"><table><thead><tr><th>Módulo/tabela</th><th>No backup</th><th>Atuais</th></tr></thead><tbody>{backupPreview.tables.filter(row=>row.backup_records||row.current_records).map(row=><tr key={row.name}><td>{row.name}</td><td>{row.backup_records}</td><td>{row.current_records}</td></tr>)}</tbody></table></div><button className="button danger" type="button" disabled={busy} onClick={()=>void restoreBackup()}>Substituir dados pelos do backup</button></>}
    <small className="muted">Novos arquivos são criptografados com AES-256-GCM e scrypt. A senha não é armazenada e não pode ser recuperada. Backups JSON antigos sem criptografia continuam aceitos para compatibilidade. Limite de 50 MB e 250.000 registros. Restauração disponível somente no SQLite local; faça um backup atual antes de restaurar.</small>
   </section>
+
+  {isDesktopApp&&<section className="panel"><h3>Backup automático do Windows</h3><p className="muted">O SFI gera backups criptografados em segundo plano enquanto o aplicativo estiver aberto. A senha fica protegida pelo Windows DPAPI e não é gravada em texto puro. São mantidas até 10 versões; ao exceder o limite, as mais antigas são removidas.</p>
+   {automaticError&&<p className="form-error" role="alert">{automaticError}</p>}{automaticNotice&&<p className="form-hint" role="status">{automaticNotice}</p>}
+   <label>Frequência<select value={automaticCadence} onChange={e=>setAutomaticCadence(e.target.value as "daily"|"weekly")}><option value="daily">Todos os dias</option><option value="weekly">A cada 7 dias</option></select></label>
+   <label>Horário local<input type="time" value={automaticTime} onChange={e=>setAutomaticTime(e.target.value)}/></label>
+   <div className="button-row"><button className="button primary" type="button" disabled={busy||backupPassphrase.length<12} onClick={()=>void saveAutomaticBackup()}>{automaticStatus?.enabled?"Atualizar agendamento":"Ativar backup automático"}</button>{automaticStatus?.enabled&&<button className="button secondary" type="button" disabled={busy} onClick={()=>void removeAutomaticBackup()}>Desativar</button>}</div>
+   {automaticStatus&&<><p className="muted">Status: {automaticStatus.enabled?"Ativo":"Desativado"} · Retenção: {automaticStatus.retention} versões · Último backup: {automaticStatus.last_run?new Date(automaticStatus.last_run).toLocaleString():"Ainda não executado"}</p>{automaticStatus.last_error&&<p className="form-error">Última tentativa falhou ({automaticStatus.last_error}). O SFI tentará novamente no próximo ciclo.</p>}<div className="table-wrap"><table><thead><tr><th>Arquivo</th><th>Data</th><th>Tamanho</th></tr></thead><tbody>{automaticStatus.history.map(item=><tr key={item.filename}><td>{item.filename}</td><td>{new Date(item.created_at).toLocaleString()}</td><td>{(item.size_bytes/1024/1024).toFixed(2)} MB</td></tr>)}</tbody></table></div></>}
+  </section>}
   <section className="panel"><h3>Regras de segurança</h3><ul className="muted"><li>Prévia não grava dados.</li><li>Confirmação é obrigatória; arquivos com linhas inválidas são rejeitados por inteiro.</li><li>Contas e categorias precisam pertencer à sua conta SFI.</li><li>Duplicatas são detectadas por chave determinística e ignoradas em reimportações.</li><li>Limite de 5 MB e 10.000 movimentações por arquivo. Planilhas XLSX usam a primeira aba e a primeira linha como cabeçalho.</li></ul></section>
  </div>;
 }

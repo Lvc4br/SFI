@@ -44,6 +44,7 @@ export type ExchangePreview = {total:number;valid:number;duplicates:number;inval
 export type ExchangeImportResult = {created:number;duplicates_skipped:number;total:number};
 export type BackupDocument = {format:string;version:number;exported_at:string;profile:{timezone:string};tables:Record<string,Record<string,unknown>[]>};
 export type BackupPreview = {format:string;version:number;records_in_backup:number;records_current:number;tables:{name:string;backup_records:number;current_records:number}[];restore_mode:"replace";requires_confirmation:boolean};
+export type AutomaticBackupStatus = {enabled:boolean;cadence?:"daily"|"weekly";local_time?:string;last_run?:string|null;last_error?:string|null;retention:number;history:{filename:string;size_bytes:number;created_at:string}[]};
 export type BankStatementEntry = {id:string;account_id:string;matched_transaction_id:string|null;external_id:string|null;transaction_type:"income"|"expense";amount:string;currency:string;description:string;occurred_at:string;status:"pending"|"matched"|"ignored";matched_at:string|null;created_at:string|null};
 export type ReconciliationSuggestion = {transaction_id:string;description:string;amount:string;currency:string;occurred_at:string;date_difference_days:number;description_similarity:number;score:number};
 export type ReconciliationSummary = {entries_by_currency:{currency:string;pending:number;matched:number;ignored:number}[]};
@@ -239,6 +240,9 @@ export const api = {
   restoreEncryptedBackup: (envelope:Record<string,unknown>,passphrase:string) => request<{restored:boolean;records_restored:number;tables_restored:number;mode:string;encrypted:boolean}>("/api/v1/backup/encrypted/restore",{method:"POST",body:JSON.stringify({envelope,passphrase,confirmed:true})}),
   previewBackupRestore: (backup:BackupDocument) => request<BackupPreview>("/api/v1/backup/preview",{method:"POST",body:JSON.stringify({backup})}),
   restoreFullBackup: (backup:BackupDocument) => request<{restored:boolean;records_restored:number;tables_restored:number;mode:string}>("/api/v1/backup/restore",{method:"POST",body:JSON.stringify({backup,confirmed:true})}),
+  automaticBackupStatus: () => request<AutomaticBackupStatus>("/api/v1/backup/automatic"),
+  configureAutomaticBackup: (data:{cadence:"daily"|"weekly";local_time:string;passphrase:string}) => request<{enabled:boolean;cadence:string;local_time:string;retention:number}>("/api/v1/backup/automatic",{method:"PUT",body:JSON.stringify(data)}),
+  disableAutomaticBackup: () => request<{enabled:boolean}>("/api/v1/backup/automatic",{method:"DELETE"}),
   patrimonyItems: (includeArchived=false) => request<PatrimonyItem[]>(`/api/v1/patrimony${includeArchived?"?include_archived=true":""}`),
   createPatrimonyItem: (data:{name:string;item_kind:PatrimonyItem["item_kind"];category:string;currency?:string;description?:string|null}) => request<PatrimonyItem>("/api/v1/patrimony",{method:"POST",body:JSON.stringify(data)}),
   updatePatrimonyItem: (id:string,data:{archived:boolean}) => request<PatrimonyItem>(`/api/v1/patrimony/${id}`,{method:"PATCH",body:JSON.stringify(data)}),

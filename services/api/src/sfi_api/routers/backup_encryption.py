@@ -14,7 +14,6 @@ from sfi_api.dependencies import get_current_user
 from sfi_api.models import User
 from sfi_api.routers.backup import (
     MAX_BACKUP_BYTES,
-    BackupRestoreRequest,
     _collect_backup,
     _owned_tables,
     _payload_size,

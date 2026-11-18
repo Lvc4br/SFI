@@ -46,7 +46,7 @@ def register(client, email):
 
 
 def sample_xml():
-    key = "35261112345678000195550010000001231000001234"
+    key = "35261112345678000195550010000001231000001235"
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe{key}">
 <ide><nNF>123</nNF><serie>1</serie><dhEmi>2026-11-17T10:00:00-03:00</dhEmi></ide>

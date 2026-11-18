@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import re
 import sys
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +14,7 @@ from sfi_api.backup_automation import (
     automatic_backup_status,
     configure_automatic_backup,
     disable_automatic_backup,
+    _data_dir,
 )
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
@@ -68,3 +72,25 @@ async def delete_automatic_backup(
     except BackupAutomationError as exc:
         raise HTTPException(404, str(exc)) from exc
     return {"enabled": False}
+
+
+
+@router.get("/{filename}")
+async def download_automatic_backup(
+    filename: str,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+):
+    if sys.platform != "win32" or session.get_bind().dialect.name != "sqlite":
+        raise HTTPException(409, "Backup automático está disponível somente no Desktop Windows.")
+    if not re.fullmatch(r"sfi-\\d{8}-\\d{6}\\.sfi-backup\\.json", filename):
+        raise HTTPException(404, "Backup não encontrado.")
+    path = _data_dir() / "backups" / str(user.id) / filename
+    if not path.is_file():
+        raise HTTPException(404, "Backup não encontrado.")
+    return FileResponse(
+        path,
+        media_type="application/json",
+        filename=filename,
+        headers={"Cache-Control": "no-store"},
+    )

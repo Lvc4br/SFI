@@ -278,9 +278,14 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_role("button", name="Configurações").click()
             accent_picker = page.get_by_label("Cor de destaque")
             accent_picker.evaluate(
-                "(element) => { element.value = '#4f46e5'; "
+                "(element) => { const setter = Object.getOwnPropertyDescriptor("
+                "HTMLInputElement.prototype, 'value').set; "
+                "setter.call(element, '#4f46e5'); "
                 "element.dispatchEvent(new Event('input', {bubbles: true})); "
                 "element.dispatchEvent(new Event('change', {bubbles: true})); }"
+            )
+            page.wait_for_function(
+                "document.querySelector('.app-shell')?.getAttribute('style')?.includes('#4f46e5')"
             )
             assert "#4f46e5" in (page.locator(".app-shell").get_attribute("style") or "")
             page.get_by_role("button", name="Restaurar cores padrão").click()

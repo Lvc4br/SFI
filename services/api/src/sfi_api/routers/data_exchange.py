@@ -6,11 +6,11 @@ import io
 import json
 import re
 import uuid
-from xml.sax.saxutils import escape
 import zipfile
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
+from xml.sax.saxutils import escape
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
@@ -652,7 +652,7 @@ async def export_transactions(
                 "P" + record["description"].replace(chr(13), " ").replace(chr(10), " "),
             ])
             if record["category_name"]:
-                output.append("L" + record["category_name"].replace("\\r", " ").replace("\\n", " "))
+                output.append("L" + record["category_name"].replace(chr(13), " ").replace(chr(10), " "))
             output.append("^")
         content = chr(10).join(output) + chr(10)
         return Response(

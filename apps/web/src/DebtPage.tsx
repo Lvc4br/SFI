@@ -68,7 +68,14 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
   }
 
   const active = debts.filter(debt => debt.status === "active");
-  const selectedDebt = active.find(debt => debt.id === selected);\n  async function loadSchedule() {\n    if (!selected) return;\n    setBusy(true); setError(""); setSchedule(null);\n    try { setSchedule(await api.debtSchedule(selected)); }\n    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível calcular a projeção."); }\n    finally { setBusy(false); }\n  }
+  const selectedDebt = active.find(debt => debt.id === selected);
+  async function loadSchedule() {
+    if (!selected) return;
+    setBusy(true); setError(""); setSchedule(null);
+    try { setSchedule(await api.debtSchedule(selected)); }
+    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível calcular a projeção."); }
+    finally { setBusy(false); }
+  }
   const paymentAccounts = accounts.filter(account => !account.archived_at && account.account_type !== "credit" && account.currency === (selectedDebt?.currency ?? "BRL"));
 
   return <section className="content-grid">
@@ -107,7 +114,8 @@ export default function DebtPage({ accounts }: { accounts: Account[] }) {
       <div className="panel-heading"><div><h2>Registrar pagamento</h2><p className="muted">Separe amortização e juros para preservar a composição.</p></div></div>
       <form className="form-stack" onSubmit={pay}>
         <label>Dívida<select value={selected} onChange={e => { setSelected(e.target.value); setSchedule(null); }} required><option value="">Selecione</option>{active.map(debt => <option key={debt.id} value={debt.id}>{debt.description} · saldo {money(debt.outstanding_principal, debt.currency)}</option>)}</select></label>
-        {selectedDebt && selectedDebt.amortization_method !== "manual" && <button className="button secondary" type="button" disabled={busy} onClick={() => void loadSchedule()}>Calcular cronograma estimado</button>}\n        <label>Conta de origem<select value={accountId} onChange={e => setAccountId(e.target.value)} required><option value="">Selecione</option>{paymentAccounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+        {selectedDebt && selectedDebt.amortization_method !== "manual" && <button className="button secondary" type="button" disabled={busy} onClick={() => void loadSchedule()}>Calcular cronograma estimado</button>}
+        <label>Conta de origem<select value={accountId} onChange={e => setAccountId(e.target.value)} required><option value="">Selecione</option>{paymentAccounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
         <div className="form-row">
           <label>Amortização (R$)<input type="number" min="0.01" step="0.01" value={principal} onChange={e => setPrincipal(e.target.value)} required /></label>
           <label>Juros (R$)<input type="number" min="0" step="0.01" value={interest} onChange={e => setInterest(e.target.value)} required /></label>

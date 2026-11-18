@@ -1,10 +1,15 @@
+import base64
 import hashlib
+import io
 import json
 import re
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from typing import Literal
+
+from pypdf import PdfReader
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -25,7 +30,8 @@ MAX_XML_BYTES = 2 * 1024 * 1024
 
 
 class FiscalPreviewRequest(BaseModel):
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=14_000_000)
+    format: Literal["xml", "pdf"] = "xml"
 
 
 class FiscalConfirmRequest(FiscalPreviewRequest):
@@ -125,13 +131,135 @@ def parse_nfe_xml(content: str) -> dict:
     }
 
 
+MAX_PDF_BYTES = 10 * 1024 * 1024
+MAX_PDF_PAGES = 10
+
+
+def _valid_access_key(key: str) -> bool:
+    if not re.fullmatch(r"\d{44}", key):
+        return False
+    weights = (2, 3, 4, 5, 6, 7, 8, 9)
+    total = sum(
+        int(digit) * weights[index % len(weights)]
+        for index, digit in enumerate(reversed(key[:-1]))
+    )
+    remainder = total % 11
+    expected = 0 if remainder in (0, 1) else 11 - remainder
+    return expected == int(key[-1])
+
+
+def parse_nfe_pdf(content_base64: str) -> dict:
+    try:
+        raw = base64.b64decode(content_base64, validate=True)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise HTTPException(422, "PDF em Base64 inválido.") from exc
+    if not raw or len(raw) > MAX_PDF_BYTES:
+        raise HTTPException(413, "O PDF deve ter até 10 MB.")
+    try:
+        reader = PdfReader(io.BytesIO(raw), strict=True)
+        if reader.is_encrypted:
+            raise HTTPException(422, "PDF protegido por senha não é aceito.")
+        if not 1 <= len(reader.pages) <= MAX_PDF_PAGES:
+            raise HTTPException(422, "O PDF deve conter entre 1 e 10 páginas.")
+        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(422, "PDF inválido ou não suportado.") from exc
+    if not text.strip():
+        raise HTTPException(
+            422,
+            "O PDF não contém texto selecionável. OCR de documentos digitalizados ainda não está disponível.",
+        )
+
+    normalized = re.sub(r"[ \t]+", " ", text)
+    key_match = re.search(r"(?<!\d)(\d{44})(?!\d)", re.sub(r"[\s.-]", "", normalized))
+    if not key_match:
+        raise HTTPException(422, "Não foi possível localizar a chave de acesso de 44 dígitos.")
+    access_key = key_match.group(1)
+    if not _valid_access_key(access_key):
+        raise HTTPException(422, "A chave de acesso encontrada possui dígito verificador inválido.")
+
+    tax_match = re.search(
+        r"(?<!\d)(\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}|\d{3}\.?\d{3}\.?\d{3}-?\d{2})(?!\d)",
+        normalized,
+    )
+    issuer_tax_id = re.sub(r"\D", "", tax_match.group(1)) if tax_match else ""
+    if len(issuer_tax_id) not in {11, 14}:
+        raise HTTPException(422, "Não foi possível identificar o CNPJ/CPF do emitente.")
+
+    issuer_match = re.search(
+        r"RECEBEMOS DE\s+(.+?)(?:\s+OS PRODUTOS|\s*$)",
+        normalized,
+        re.IGNORECASE,
+    )
+    issuer_name = issuer_match.group(1).strip(" :-") if issuer_match else ""
+    if not issuer_name:
+        tax_position = normalized.find(tax_match.group(1))
+        issuer_name = next(
+            (line.strip() for line in reversed(normalized[:tax_position].splitlines()) if line.strip()),
+            "",
+        )
+    issuer_name = re.sub(r"\s+", " ", issuer_name)[:160]
+    if not issuer_name:
+        raise HTTPException(422, "Não foi possível identificar o emitente no DANFE.")
+
+    date_match = re.search(
+        r"DATA\s+DA\s+EMISS[AÃ]O\s*[:\-]?\s*(\d{2}/\d{2}/\d{4})",
+        normalized,
+        re.IGNORECASE,
+    )
+    number_match = re.search(
+        r"(?:N[º°.]?\s*|N[ÚU]MERO\s*[: ]\s*)(\d{1,12})",
+        normalized,
+        re.IGNORECASE,
+    )
+    series_match = re.search(r"S[ÉE]RIE\s*[: ]?\s*(\d{1,3})", normalized, re.IGNORECASE)
+    total_match = re.search(
+        r"VALOR\s+TOTAL\s+DA\s+NOTA\s*[: ]*\s*(?:R\\$\\s*)?([\\d.]+,\\d{2}|\\d+\\.\\d{2})",
+        normalized,
+        re.IGNORECASE,
+    )
+    if not date_match or not number_match or not series_match or not total_match:
+        raise HTTPException(
+            422,
+            "O layout do DANFE não foi reconhecido por completo. Confira o XML original ou informe os dados manualmente.",
+        )
+    try:
+        issued_date = datetime.strptime(date_match.group(1), "%d/%m/%Y").replace(tzinfo=UTC)
+        raw_amount = total_match.group(1)
+        amount = Decimal(raw_amount.replace(".", "").replace(",", ".")) if "," in raw_amount else Decimal(raw_amount)
+    except (ValueError, InvalidOperation) as exc:
+        raise HTTPException(422, "Data ou valor total inválido no DANFE.") from exc
+    if not amount.is_finite() or amount <= 0 or amount > Decimal("9999999999999999.99"):
+        raise HTTPException(422, "O valor total do DANFE deve ser positivo e válido.")
+    return {
+        "access_key": access_key,
+        "document_number": number_match.group(1),
+        "series": series_match.group(1),
+        "issuer_name": issuer_name,
+        "issuer_tax_id": issuer_tax_id,
+        "issue_date": issued_date.isoformat(),
+        "total_amount": str(amount.quantize(Decimal("0.01"))),
+        "currency": "BRL",
+        "items": [],
+        "xml_sha256": hashlib.sha256(raw).hexdigest(),
+    }
+
+
+def parse_document(payload: FiscalPreviewRequest) -> dict:
+    if payload.format == "pdf":
+        return parse_nfe_pdf(payload.content)
+    return parse_nfe_xml(payload.content)
+
+
 @router.post("/documents/preview")
 async def preview_document(
     payload: FiscalPreviewRequest,
     session: AsyncSession = SESSION_DEPENDENCY,
     user: User = USER_DEPENDENCY,
 ):
-    parsed = parse_nfe_xml(payload.content)
+    parsed = parse_document(payload)
     existing = await session.scalar(select(FiscalDocument.id).where(
         FiscalDocument.user_id == user.id,
         FiscalDocument.access_key == parsed["access_key"],

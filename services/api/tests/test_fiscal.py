@@ -117,3 +117,71 @@ def test_nfe_documents_are_isolated_by_user(client):
         "/api/v1/fiscal/documents/confirm", headers=owner, json={"content": sample_xml()}
     ).status_code == 201
     assert client.get("/api/v1/fiscal/documents", headers=other).json() == []
+
+
+
+def sample_danfe_pdf():
+    import base64
+    from io import BytesIO
+
+    from reportlab.pdfgen import canvas
+
+    buffer = BytesIO()
+    page = canvas.Canvas(buffer)
+    lines = [
+        "DANFE",
+        "RECEBEMOS DE MERCADO EXEMPLO LTDA OS PRODUTOS CONSTANTES DA NOTA FISCAL",
+        "CNPJ: 12.345.678/0001-95",
+        "DATA DA EMISSAO: 17/11/2026",
+        "NUMERO: 123 SERIE: 1",
+        "CHAVE DE ACESSO: 35261112345678000195550010000001231000001235",
+        "VALOR TOTAL DA NOTA: R$ 25,90",
+    ]
+    for index, line in enumerate(lines):
+        page.drawString(40, 800 - index * 24, line)
+    page.save()
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def test_danfe_pdf_text_preview_and_confirmation(client):
+    headers = register(client, "fiscal-pdf@example.com")
+    content = sample_danfe_pdf()
+    preview = client.post(
+        "/api/v1/fiscal/documents/preview",
+        headers=headers,
+        json={"content": content, "format": "pdf"},
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["issuer_name"] == "MERCADO EXEMPLO LTDA"
+    assert preview.json()["issuer_tax_id"] == "12345678000195"
+    assert preview.json()["total_amount"] == "25.90"
+    assert preview.json()["items"] == []
+
+    saved = client.post(
+        "/api/v1/fiscal/documents/confirm",
+        headers=headers,
+        json={"content": content, "format": "pdf", "create_expense": False},
+    )
+    assert saved.status_code == 201, saved.text
+    assert client.get("/api/v1/fiscal/documents", headers=headers).json()[0]["access_key"] == (
+        "35261112345678000195550010000001231000001235"
+    )
+
+
+def test_danfe_pdf_rejects_scanned_or_invalid_documents(client):
+    import base64
+    from io import BytesIO
+
+    from reportlab.pdfgen import canvas
+
+    headers = register(client, "fiscal-pdf-scanned@example.com")
+    buffer = BytesIO()
+    page = canvas.Canvas(buffer)
+    page.drawString(40, 800, "Imagem de DANFE sem campos selecionáveis")
+    page.save()
+    response = client.post(
+        "/api/v1/fiscal/documents/preview",
+        headers=headers,
+        json={"content": base64.b64encode(buffer.getvalue()).decode("ascii"), "format": "pdf"},
+    )
+    assert response.status_code == 422

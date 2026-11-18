@@ -6,7 +6,7 @@ type SavedDocument={id:string;access_key:string;document_number:string;series:st
 const money=(value:string,currency="BRL")=>new Intl.NumberFormat("pt-BR",{style:"currency",currency}).format(Number(value));
 
 export default function FiscalPage({accounts,categories}:{accounts:Account[];categories:Category[]}){
- const [content,setContent]=useState(""),[filename,setFilename]=useState("");
+ const [content,setContent]=useState(""),[filename,setFilename]=useState(""),[format,setFormat]=useState<"xml"|"pdf">("xml");
  const [preview,setPreview]=useState<FiscalPreview|null>(null),[documents,setDocuments]=useState<SavedDocument[]>([]);
  const [accountId,setAccountId]=useState(accounts[0]?.id??""),[categoryId,setCategoryId]=useState("");
  const [createExpense,setCreateExpense]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
@@ -15,22 +15,33 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
  async function chooseFile(event:ChangeEvent<HTMLInputElement>){
   const file=event.target.files?.[0];if(!file)return;
   setPreview(null);setError("");setNotice("");
-  if(!file.name.toLowerCase().endsWith(".xml")){setError("Selecione um arquivo XML de NF-e/NFC-e.");return;}
-  if(file.size>2*1024*1024){setError("O XML excede o limite de 2 MB.");return;}
-  try{setContent(await file.text());setFilename(file.name);setNotice("XML carregado. Gere a prévia para conferir os dados.");}
+  const extension=file.name.toLowerCase().split(".").pop();
+  if(extension!=="xml"&&extension!=="pdf"){setError("Selecione um XML ou PDF de NF-e/NFC-e.");return;}
+  const selectedFormat=extension==="pdf"?"pdf":"xml";
+  if(file.size>(selectedFormat==="pdf"?10:2)*1024*1024){setError(selectedFormat==="pdf"?"O PDF excede o limite de 10 MB.":"O XML excede o limite de 2 MB.");return;}
+  try{
+   if(selectedFormat==="xml")setContent(await file.text());
+   else{
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    let binary="";
+    for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,offset+0x8000));
+    setContent(btoa(binary));
+   }
+   setFormat(selectedFormat);setFilename(file.name);setNotice((selectedFormat==="pdf"?"PDF":"XML")+" carregado. Gere a prévia para conferir os dados.");
+  }
   catch{setError("Não foi possível ler o arquivo.");}
  }
- async function makePreview(){setBusy(true);setError("");setNotice("");try{setPreview(await api.fiscalPreview(content));setNotice("Prévia pronta. Nenhuma nota ou despesa foi gravada.");}catch(e){setError(e instanceof Error?e.message:"Falha ao analisar o XML.");}finally{setBusy(false);}}
- async function confirm(){if(!preview)return;setBusy(true);setError("");setNotice("");try{await api.fiscalConfirm({content,create_expense:createExpense,account_id:createExpense?accountId:null,category_id:createExpense?(categoryId||null):null});setNotice(createExpense? "Nota importada e despesa registrada.":"Nota importada sem criar movimentação.");setPreview(null);setContent("");setFilename("");await reload();}catch(e){setError(e instanceof Error?e.message:"Falha ao importar a nota.");}finally{setBusy(false);}}
+ async function makePreview(){setBusy(true);setError("");setNotice("");try{setPreview(await api.fiscalPreview(content,format));setNotice("Prévia pronta. Nenhuma nota ou despesa foi gravada.");}catch(e){setError(e instanceof Error?e.message:"Falha ao analisar o XML.");}finally{setBusy(false);}}
+ async function confirm(){if(!preview)return;setBusy(true);setError("");setNotice("");try{await api.fiscalConfirm({content,format,create_expense:createExpense,account_id:createExpense?accountId:null,category_id:createExpense?(categoryId||null):null});setNotice(createExpense? "Nota importada e despesa registrada.":"Nota importada sem criar movimentação.");setPreview(null);setContent("");setFilename("");await reload();}catch(e){setError(e instanceof Error?e.message:"Falha ao importar a nota.");}finally{setBusy(false);}}
  return <div className="content-grid">
   <section className="panel">
    <h3>Importar NF-e / NFC-e</h3>
-   <p className="muted">Leia XMLs oficiais, revise emitente, chave, data, total e itens. O SFI guarda os dados extraídos e o hash do arquivo, não o XML bruto.</p>
+   <p className="muted">Leia XMLs oficiais ou DANFEs em PDF com texto selecionável. O SFI guarda os dados extraídos e o hash, não o arquivo original. PDF digitalizado/OCR ainda não é suportado.</p>
    {error&&<p className="form-error" role="alert">{error}</p>}{notice&&<p className="form-hint" role="status">{notice}</p>}
    <div className="form-stack">
-    <label>Arquivo XML<input type="file" accept=".xml,application/xml,text/xml" onChange={chooseFile}/></label>
+    <label>Arquivo XML ou PDF<input type="file" accept=".xml,.pdf,application/xml,text/xml,application/pdf" onChange={chooseFile}/></label>
     {filename&&<small className="muted">{filename}</small>}
-    <button className="button primary" type="button" disabled={busy||!content} onClick={()=>void makePreview()}>{busy?"Analisando...":"Analisar XML"}</button>
+    <button className="button primary" type="button" disabled={busy||!content} onClick={()=>void makePreview()}>{busy?"Analisando...":"Analisar documento"}</button>
    </div>
   </section>
   {preview&&<section className="panel">

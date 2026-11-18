@@ -6,7 +6,7 @@ A migration `0019_debts_and_payments` adiciona cadastro de obrigações e um liv
 - Credor, tipo, descrição, moeda, valor original e saldo principal em aberto.
 - Taxa anual informativa, método declarado (`manual`, `price` ou `sac`), data de contratação, primeiro vencimento e quantidade de parcelas opcional.
 - O saldo principal inicial assume o valor original quando não informado.
-- `GET /api/v1/debts/{id}/schedule` gera projeção Price/SAC sem gravar pagamentos ou alterar o saldo. Usa taxa anual nominal dividida por 12, principal em aberto e quantidade de parcelas cadastrada; arredonda cada parcela para centavos e ajusta a última amortização para zerar o saldo.
+- `GET /api/v1/debts/{id}/schedule` gera projeção Price/SAC sem gravar pagamentos ou alterar o saldo. Usa taxa anual nominal dividida por 12, principal em aberto e quantidade de parcelas cadastrada; arredonda cada parcela para centavos e ajusta a última amortização para zerar o saldo. Pagamentos anteriores não reduzem automaticamente essa quantidade: revise-a no contrato e interprete o resultado como cenário, não como saldo contratual.
 
 ## Pagamentos
 - Cada pagamento informa separadamente amortização de principal e juros; a soma é a saída efetiva de caixa.

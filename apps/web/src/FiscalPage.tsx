@@ -53,7 +53,8 @@ export default function FiscalPage({accounts,categories}:{accounts:Account[];cat
     <label>Categoria<select value={categoryId} onChange={e=>setCategoryId(e.target.value)}><option value="">Sem categoria</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
    </div>}
    <p className="muted">A despesa é criada apenas após sua confirmação. O total será lançado uma única vez; itens são mantidos para consulta.</p>
-   <button className="button primary" type="button" disabled={busy||(createExpense&&!accountId)} onClick={()=>void confirm()}>Confirmar importação</button>
+   {preview.already_imported&&<p className="form-error" role="alert">Esta chave de acesso já consta no SFI.</p>}
+   <button className="button primary" type="button" disabled={busy||preview.already_imported||(createExpense&&!accountId)} onClick={()=>void confirm()}>Confirmar importação</button>
   </section>}
   <section className="panel">
    <h3>Notas fiscais importadas</h3>

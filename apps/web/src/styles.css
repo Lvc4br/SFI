@@ -279,3 +279,25 @@ html[data-theme="light"],html[data-theme="light"] body{background:#f4f7f3;color:
 .reconciliation-suggestions>.data-list{gap:8px}
 .reconciliation-page .metric-card{min-width:0}
 @media(max-width:560px){.reconciliation-entry-main{align-items:flex-start;flex-direction:column}.reconciliation-entry-value{justify-items:start}.reconciliation-suggestions{padding:10px}}
+
+
+/* Accessible high-contrast preset and explicit theme selector. */
+.app-shell[data-theme="contrast"],.auth-layout[data-theme="contrast"]{
+  --ink:#000;--muted:#292929;--line:#000;--surface:#fff;--soft:#fff;--green:#000;--lime:#ff0;--red:#900;
+  background:#fff;color:#000;color-scheme:light;
+}
+.app-shell[data-theme="contrast"] .sidebar{background:#fff;border-color:#000}
+.app-shell[data-theme="contrast"] .nav-item{color:#000}
+.app-shell[data-theme="contrast"] .nav-item:hover,.app-shell[data-theme="contrast"] .nav-item.active{background:#ff0;color:#000;outline:2px solid #000}
+.app-shell[data-theme="contrast"] .panel,.app-shell[data-theme="contrast"] .metric-card{background:#fff;border:2px solid #000;box-shadow:none}
+.app-shell[data-theme="contrast"] .button.primary{background:#000;color:#ff0;border:2px solid #000}
+.app-shell[data-theme="contrast"] .button.secondary{background:#fff;color:#000;border:2px solid #000}
+.app-shell[data-theme="contrast"] .field input,.app-shell[data-theme="contrast"] .field select,.app-shell[data-theme="contrast"] .form-stack input,.app-shell[data-theme="contrast"] .form-stack select{background:#fff;color:#000;border:2px solid #000}
+.app-shell[data-theme="contrast"] .bar-track{background:#ddd;border:1px solid #000}
+.app-shell[data-theme="contrast"] .bar-track>span{background:#000!important}
+.app-shell[data-theme="contrast"] .alert.success{background:#ff0;color:#000;border:2px solid #000}
+.app-shell[data-theme="contrast"] .alert.error{background:#fff;color:#900;border:2px solid #900}
+.theme-select-label{display:grid;gap:4px;color:var(--muted);font-size:9px;font-weight:700}
+.theme-select{min-height:36px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);font:inherit;font-size:11px}
+.theme-select:focus-visible{outline:3px solid #1f6feb;outline-offset:3px}
+@media(max-width:760px){.theme-select-label{font-size:8px}.theme-select{min-height:34px;padding:6px 7px}}

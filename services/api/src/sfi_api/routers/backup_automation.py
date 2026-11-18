@@ -33,19 +33,9 @@ async def get_automatic_backup(
     if session.get_bind().dialect.name != "sqlite":
         raise HTTPException(409, "Backup automático está disponível somente no Desktop local.")
     try:
-        status = automatic_backup_status()
+        return automatic_backup_status(user.id)
     except BackupAutomationError as exc:
         raise HTTPException(500, str(exc)) from exc
-    configured_user = None
-    from sfi_api.backup_automation import _read_config, _CONFIG_LOCK
-
-    with _CONFIG_LOCK:
-        config = _read_config()
-    if config:
-        configured_user = config.get("user_id")
-    if configured_user and configured_user != str(user.id):
-        return {"enabled": False, "configured_for_another_user": True, "retention": 10, "history": []}
-    return status
 
 
 @router.put("")
@@ -61,7 +51,7 @@ async def put_automatic_backup(
             user.id, payload.cadence, payload.local_time, payload.passphrase
         )
     except BackupAutomationError as exc:
-        raise HTTPException(422, str(exc)) from exc
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.delete("")
@@ -71,11 +61,8 @@ async def delete_automatic_backup(
 ):
     if session.get_bind().dialect.name != "sqlite":
         raise HTTPException(409, "Backup automático está disponível somente no Desktop local.")
-    from sfi_api.backup_automation import _read_config, _CONFIG_LOCK
-
-    with _CONFIG_LOCK:
-        config = _read_config()
-        if config and config.get("user_id") != str(user.id):
-            raise HTTPException(404, "Configuração de backup automático não encontrada.")
-        disable_automatic_backup()
+    try:
+        disable_automatic_backup(user.id)
+    except BackupAutomationError as exc:
+        raise HTTPException(404, str(exc)) from exc
     return {"enabled": False}

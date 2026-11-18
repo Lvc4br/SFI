@@ -285,3 +285,25 @@ export const api = {
   updateShoppingItem: (listId: string, itemId: string, data: Partial<Pick<ShoppingItem, "name" | "product_id" | "quantity" | "unit" | "unit_price" | "is_checked" | "notes" | "position">>) => request<ShoppingItem>(`/api/v1/shopping/lists/${listId}/items/${itemId}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteShoppingItem: (listId: string, itemId: string) => request<void>(`/api/v1/shopping/lists/${listId}/items/${itemId}`, { method: "DELETE" }),
 };
+
+
+export type CompoundInterestResult = {
+  currency: string; future_value: string; invested_amount: string;
+  interest_earned: string; monthly_rate_percent: string; months: number;
+  assumptions: string[];
+};
+export type LoanCalculatorResult = {
+  method: "price" | "sac"; currency: string; monthly_rate_percent: string;
+  installments: {number:number;due_date:string;opening_balance:string;amortization:string;interest:string;payment:string;closing_balance:string}[];
+  principal_total:string;interest_total:string;payment_total:string;is_estimate:boolean;assumptions:string[];
+};
+export const calculatorApi = {
+  compoundInterest: (data:{principal:string;monthly_contribution:string;annual_rate_percent:string;months:number}) =>
+    request<CompoundInterestResult>("/api/v1/calculators/compound-interest",{method:"POST",body:JSON.stringify(data)}),
+  loanSchedule: (data:{principal:string;annual_rate_percent:string;installments:number;first_due_date:string;method:"price"|"sac"}) =>
+    request<LoanCalculatorResult>("/api/v1/calculators/loan-schedule",{method:"POST",body:JSON.stringify(data)}),
+  realReturn: (data:{nominal_return_percent:string;inflation_percent:string}) =>
+    request<{real_return_percent:string;formula:string;is_estimate:boolean}>("/api/v1/calculators/real-return",{method:"POST",body:JSON.stringify(data)}),
+  equivalentRate: (data:{annual_nominal_rate_percent:string;compounds_per_year:number}) =>
+    request<{periodic_rate_percent:string;effective_annual_rate_percent:string;compounds_per_year:number;is_estimate:boolean}>("/api/v1/calculators/equivalent-rate",{method:"POST",body:JSON.stringify(data)}),
+};

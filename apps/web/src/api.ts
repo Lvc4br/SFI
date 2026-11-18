@@ -233,7 +233,7 @@ export const api = {
   reconciliationUnmatch: (entryId:string) => request<BankStatementEntry>(`/api/v1/reconciliation/entries/${entryId}/unmatch`,{method:"POST"}),
   exchangePreview: (data:{format:"csv"|"json"|"ofx"|"xlsx"|"qif"|"pdf";content:string;default_account_id?:string|null;default_category_id?:string|null}) => request<ExchangePreview>("/api/v1/exchange/transactions/preview",{method:"POST",body:JSON.stringify(data)}),
   exchangeImport: (data:{format:"csv"|"json"|"ofx"|"xlsx"|"qif"|"pdf";content:string;default_account_id?:string|null;default_category_id?:string|null;confirmed:true}) => request<ExchangeImportResult>("/api/v1/exchange/transactions/import",{method:"POST",body:JSON.stringify(data)}),
-  exportTransactions: (format:"csv"|"json"|"xlsx") => requestBlob(`/api/v1/exchange/transactions/export?format=${format}`),
+  exportTransactions: (format:"csv"|"json"|"xlsx"|"qif"|"pdf", accountId?:string) => requestBlob(`/api/v1/exchange/transactions/export?${new URLSearchParams({format,...(accountId?{account_id:accountId}:{})})}`),
   exportFullBackup: () => requestBlob("/api/v1/backup/export"),
   exportEncryptedBackup: (passphrase:string) => request<Record<string,unknown>>("/api/v1/backup/encrypted/export",{method:"POST",body:JSON.stringify({passphrase})}),
   previewEncryptedBackup: (envelope:Record<string,unknown>,passphrase:string) => request<BackupPreview>("/api/v1/backup/encrypted/preview",{method:"POST",body:JSON.stringify({envelope,passphrase})}),

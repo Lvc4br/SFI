@@ -103,7 +103,8 @@ def _parse_qif(content: str) -> list[dict]:
                     records.append({
                         "line": line_number,
                         "error": (
-                            "Registro QIF incompleto: exige data (D), valor (T) e favorecido/memo (P/M)."
+                            "Registro QIF incompleto: exige data (D), valor (T) e favorecido/memo "
+                            "(P/M)."
                         ),
                     })
                 else:

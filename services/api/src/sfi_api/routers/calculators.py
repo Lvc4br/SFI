@@ -24,8 +24,12 @@ def add_months(value: date, months: int) -> date:
 
 class CompoundInterestInput(BaseModel):
     principal: Decimal = Field(ge=0, max_digits=18, decimal_places=2)
-    monthly_contribution: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=2)
-    annual_rate_percent: Decimal = Field(ge=Decimal("-99.999999"), le=1000, max_digits=10, decimal_places=6)
+    monthly_contribution: Decimal = Field(
+        default=Decimal("0"), ge=0, max_digits=18, decimal_places=2
+    )
+    annual_rate_percent: Decimal = Field(
+        ge=Decimal("-99.999999"), le=1000, max_digits=10, decimal_places=6
+    )
     months: int = Field(ge=1, le=1200)
 
     @field_validator("principal", "monthly_contribution", "annual_rate_percent")
@@ -52,12 +56,18 @@ class LoanCalculatorInput(BaseModel):
 
 
 class RealReturnInput(BaseModel):
-    nominal_return_percent: Decimal = Field(gt=Decimal("-100"), le=10000, max_digits=12, decimal_places=6)
-    inflation_percent: Decimal = Field(gt=Decimal("-100"), le=10000, max_digits=12, decimal_places=6)
+    nominal_return_percent: Decimal = Field(
+        gt=Decimal("-100"), le=10000, max_digits=12, decimal_places=6
+    )
+    inflation_percent: Decimal = Field(
+        gt=Decimal("-100"), le=10000, max_digits=12, decimal_places=6
+    )
 
 
 class EquivalentRateInput(BaseModel):
-    annual_nominal_rate_percent: Decimal = Field(gt=Decimal("-100"), le=10000, max_digits=12, decimal_places=6)
+    annual_nominal_rate_percent: Decimal = Field(
+        gt=Decimal("-100"), le=10000, max_digits=12, decimal_places=6
+    )
     compounds_per_year: int = Field(ge=1, le=365)
 
 
@@ -173,8 +183,12 @@ def equivalent_rate(payload: EquivalentRateInput) -> dict:
         context.prec = 40
         effective = ((Decimal("1") + periodic) ** payload.compounds_per_year - 1) * HUNDRED
     return {
-        "periodic_rate_percent": str((periodic * HUNDRED).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
-        "effective_annual_rate_percent": str(effective.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
+        "periodic_rate_percent": str(
+            (periodic * HUNDRED).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+        ),
+        "effective_annual_rate_percent": str(
+            effective.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+        ),
         "compounds_per_year": payload.compounds_per_year,
         "is_estimate": True,
     }

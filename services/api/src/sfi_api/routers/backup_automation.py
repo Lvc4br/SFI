@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sfi_api.backup_automation import (
     BackupAutomationError,
+    _data_dir,
     automatic_backup_status,
     configure_automatic_backup,
     disable_automatic_backup,
-    _data_dir,
 )
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user

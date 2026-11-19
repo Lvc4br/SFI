@@ -374,5 +374,17 @@ def test_complete_web_financial_journey() -> None:
             expect(page.get_by_text(email)).to_be_visible()
             page.get_by_role("button", name="Visão geral").click()
             expect(page.get_by_role("heading", name="Visão geral")).to_be_visible()
+
+            page.get_by_role("button", name="Configurações").click()
+            page.get_by_label("Senha atual").fill(password)
+            new_password = "senha-atualizada-e2e-789"
+            page.get_by_label("Nova senha").fill(new_password)
+            page.get_by_label("Confirmar nova senha").fill(new_password)
+            page.get_by_role("button", name="Alterar senha").click()
+            expect(page.get_by_role("heading", name="Acesse sua conta")).to_be_visible()
+            expect(page.get_by_text("Senha alterada. Todas as sessões anteriores foram encerradas; entre novamente.")).to_be_visible()
+            page.get_by_label("Senha").fill(new_password)
+            page.get_by_role("button", name="Entrar", exact=True).click()
+            expect(page.get_by_text(email)).to_be_visible()
         finally:
             browser.close()

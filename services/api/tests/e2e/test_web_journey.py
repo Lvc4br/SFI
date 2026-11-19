@@ -378,7 +378,7 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_role("button", name="Configurações").click()
             page.get_by_label("Senha atual").fill(password)
             new_password = "senha-atualizada-e2e-789"
-            page.get_by_label("Nova senha").fill(new_password)
+            page.get_by_label("Nova senha", exact=True).fill(new_password)
             page.get_by_label("Confirmar nova senha").fill(new_password)
             page.get_by_role("button", name="Alterar senha").click()
             expect(page.get_by_role("heading", name="Acesse sua conta")).to_be_visible()

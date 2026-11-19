@@ -37,13 +37,30 @@ Dinheiro usa decimal textual validado ou inteiro em unidade mínima com escala e
 
 Banco/documentos fora do bundle. Antes de migration, backup e checksum. Falha de migration deve preservar versão anterior ou restaurar backup. Atualização nunca sobrescreve banco. Backup inclui schema, dados e metadados de arquivos.
 
-## Gates ainda pendentes
+## Estado do build de homologação — 18/11/2026
 
-1. build PyInstaller e instaladores NSIS/MSI validados no CI;
-2. teste real de instalação limpa, execução, atualização e desinstalação no Windows 10/11;
-3. teste de persistência após reinício e offline sem rede;
-4. política final de migração e backup automático antes de atualização;
-5. sync remoto opcional e resolução de conflitos;
-6. módulos de compras/listas, OCR fiscal, estoque, investimentos, patrimônio, import/export completo, diagramas e IA.
+- [x] Build PyInstaller do sidecar FastAPI no runner Windows.
+- [x] Smoke test HTTP/readiness do sidecar empacotado.
+- [x] Tesseract OCR e modelos português/inglês incluídos no ambiente de empacotamento.
+- [x] Instaladores Windows NSIS e MSI gerados e publicados como artefato de CI.
+- [x] CI API/Web/E2E Chromium/Firefox/WebKit, backup e PostgreSQL precision aprovadas.
+- [x] CodeQL Python/TypeScript e auditoria de dependências aprovados.
+- [ ] Instalação limpa e execução em máquina Windows 10/11 de destino.
+- [ ] Persistência/offline, câmera WebView2 e OCR com documentos reais de teste.
+- [ ] Backup/restore e ciclo DPAPI/backup automático em máquina de destino.
+- [ ] Atualização, desinstalação e preservação dos dados validadas.
+- [ ] Assinatura do instalador e política de atualização segura.
 
-Até os gates de distribuição e os módulos de produto passarem, o projeto ainda não é uma release final completa.
+O roteiro de execução está em [docs/WINDOWS_RELEASE_TEST_CHECKLIST.md](../docs/WINDOWS_RELEASE_TEST_CHECKLIST.md). O instalador atual é build de homologação não assinado. A sessão não persiste após fechar o app; o login será solicitado novamente. A chave JWT local ainda não é protegida por DPAPI.
+
+## Integrações e infraestrutura ainda não entregues
+
+- Consulta oficial SEFAZ/protocolo e autenticação por certificado.
+- Importadores específicos CT-e e NFS-e.
+- Verificação de e-mail, recuperação de senha e MFA TOTP.
+- Open Finance, sincronização multi-dispositivo e cliente móvel.
+- Gateway de IA opcional.
+- Hospedagem, WAF/proxy, observabilidade, SLOs e deploy/rollback.
+- Auditoria externa de segurança, acessibilidade completa (axe/WCAG/leitores de tela) e adequação LGPD.
+
+Nenhuma credencial, integração externa ou escrita no Neon de produção foi criada para esta homologação.

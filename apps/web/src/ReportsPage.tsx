@@ -118,7 +118,7 @@ export default function ReportsPage() {
     const income = cents(row?.income_total ?? "0.00"), expense = cents(row?.expense_total ?? "0.00");
     return { month: monthLabel(summary.start_date), income, expense, net: income - expense };
   });
-  const data = toMonths(summaries);
+  const data = toMonths(summaries), previousData = toMonths(previousSummaries);
   const aggregate = (items: MonthData[]) => ({ income: items.reduce((sum, item) => sum + item.income, 0n), expense: items.reduce((sum, item) => sum + item.expense, 0n), net: items.reduce((sum, item) => sum + item.net, 0n) });
   const totals = aggregate(data), previousTotals = aggregate(previousData);
   const max = data.reduce((value, item) => item.income > value ? item.income : item.expense > value ? item.expense : value, 0n);

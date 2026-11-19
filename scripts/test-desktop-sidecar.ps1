@@ -19,6 +19,12 @@ $startInfo.RedirectStandardError = $true
 $startInfo.EnvironmentVariables["SFI_DATA_DIR"] = $smokeData
 $startInfo.EnvironmentVariables["SFI_ENVIRONMENT"] = "desktop"
 
+# Seed the legacy plaintext key so the first launch proves the migration path.
+$secretsDirectory = Join-Path $smokeData "secrets"
+New-Item -ItemType Directory -Force -Path $secretsDirectory | Out-Null
+$legacyKey = Join-Path $secretsDirectory "jwt.key"
+[System.IO.File]::WriteAllText($legacyKey, ("x" * 64), [System.Text.Encoding]::ASCII)
+
 try {
     for ($attempt = 1; $attempt -le 2; $attempt++) {
         $process = New-Object System.Diagnostics.Process

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import ctypes
 import os
 import secrets
 import socket
 import sys
 import threading
 import time
+from ctypes import wintypes
 from pathlib import Path
 
 from sqlalchemy.engine import URL
@@ -21,8 +23,6 @@ def _dpapi_transform(value: bytes, *, decrypt: bool) -> bytes:
     if sys.platform != "win32":
         raise RuntimeError("DPAPI só está disponível no Windows.")
 
-    import ctypes
-    from ctypes import wintypes
 
     class DataBlob(ctypes.Structure):
         _fields_ = [

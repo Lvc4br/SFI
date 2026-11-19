@@ -48,13 +48,19 @@ pnpm dlx @tauri-apps/cli@^2 build --bundles nsis,msi
 
 Os instaladores são gerados em `src-tauri/target/release/bundle/`. O workflow GitHub Actions executa esse empacotamento e publica artefatos de CI temporários.
 
-## Dados e limites atuais
+## Dados, recursos e limites
 
-- Banco: `%LOCALAPPDATA%\\com.sfi.desktop\\database\\sfi.sqlite3`.
-- Chave local: `%LOCALAPPDATA%\\com.sfi.desktop\\secrets\\jwt.key`.
-- Os dados não são colocados em Program Files nem dentro do bundle.
-- Não há sincronização Neon implementada nesta etapa.
-- O runtime e a jornada financeira já existente são locais; os módulos de compras/listas, OCR fiscal, estoque, investimentos, patrimônio, importação/exportação universal, relatórios avançados e IA ainda estão em desenvolvimento.
-- O build do instalador não substitui os testes de instalação limpa, atualização, desinstalação preservando dados e recuperação de backup no Windows de destino.
+- Banco local: `%LOCALAPPDATA%\\com.sfi.desktop\\database\\sfi.sqlite3`.
+- Chave local: `%LOCALAPPDATA%\\com.sfi.desktop\\secrets\\jwt.key`; nesta versão ela ainda não usa DPAPI. Proteja a conta Windows e mantenha backups criptografados.
+- O usuário final não precisa instalar Python, Node, Rust, Docker ou PostgreSQL.
+- O OCR Tesseract com modelos português/inglês e o PDFium são empacotados no sidecar Windows.
+- A sessão fica em memória; após fechar o SFI, o login é solicitado novamente.
+- Sincronização remota/Neon está desativada e não é necessária para a operação local implementada.
+- QR pela câmera depende do suporte do WebView2 a `BarcodeDetector` e da permissão; entrada manual continua disponível.
+- O build não é assinado e não possui atualização automática segura nesta versão.
+
+## Homologação
+
+O instalador de CI não substitui teste real em Windows 10/11. Siga [Checklist de homologação Windows](../../docs/WINDOWS_RELEASE_TEST_CHECKLIST.md) para instalação limpa, uso offline, persistência, módulos financeiros, OCR, backups, atualização e desinstalação.
 
 Não inclua credenciais, connection strings ou segredos externos no bundle do aplicativo.

@@ -8,6 +8,26 @@ $resolvedExecutable = (Resolve-Path $ExecutablePath).Path
 $smokeData = Join-Path ([System.IO.Path]::GetTempPath()) ("sfi-sidecar-smoke-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $smokeData | Out-Null
 
+function Stop-SmokeProcessAndReadError {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Diagnostics.Process]$Process,
+        [Parameter(Mandatory = $true)]
+        [System.Threading.Tasks.Task[string]]$StderrTask
+    )
+
+    if (-not $Process.HasExited) {
+        $Process.Kill()
+        $Process.WaitForExit(5000) | Out-Null
+    }
+
+    if ($StderrTask.Wait(5000)) {
+        return $StderrTask.Result
+    }
+
+    return "stderr não foi encerrado dentro do prazo."
+}
+
 $startInfo = New-Object System.Diagnostics.ProcessStartInfo
 $startInfo.FileName = $resolvedExecutable
 $startInfo.WorkingDirectory = Split-Path -Parent $resolvedExecutable
@@ -38,16 +58,22 @@ try {
             $stderrTask = $process.StandardError.ReadToEndAsync()
             $readyTask = $process.StandardOutput.ReadLineAsync()
             if (-not $readyTask.Wait(60000)) {
-                throw "O sidecar não ficou pronto em 60 segundos (execução $attempt)."
+                $stderr = Stop-SmokeProcessAndReadError -Process $process -StderrTask $stderrTask
+                throw "O sidecar não ficou pronto em 60 segundos (execução $attempt). $stderr"
             }
 
             $readyLine = $readyTask.Result
             if ($readyLine -notmatch '^SFI_API_READY ([0-9]{1,5})$') {
-                $stderr = $stderrTask.Result
+                $stderr = Stop-SmokeProcessAndReadError -Process $process -StderrTask $stderrTask
                 throw "Handshake inválido do sidecar: '$readyLine'. $stderr"
             }
 
             $port = [int]$Matches[1]
+            if ($port -lt 1 -or $port -gt 65535) {
+                $stderr = Stop-SmokeProcessAndReadError -Process $process -StderrTask $stderrTask
+                throw "O sidecar informou uma porta inválida: $port. $stderr"
+            }
+
             $health = Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/v1/health/ready" -TimeoutSec 10
             if (-not $health.ready -or $health.database -ne "connected") {
                 throw "O endpoint de prontidão não confirmou o SQLite local."

@@ -279,3 +279,223 @@ def test_logout_all_revokes_every_session_for_the_user(client):
         "/api/v1/auth/login",
         json={"email": "logout-all@example.com", "password": "senha-original-123"},
     ).status_code == 200
+
+
+def test_web_refresh_cookie_is_httponly_and_refresh_requires_csrf(client):
+    headers = {"X-SFI-Client": "web"}
+    registered = client.post(
+        "/api/v1/auth/register",
+        headers=headers,
+        json={"email": "web-cookie@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    assert registered.json()["refresh_token"] is None
+    set_cookies = registered.headers.get_list("set-cookie")
+    assert any("sfi_refresh=" in value and "httponly" in value.lower() for value in set_cookies)
+    assert any("sfi_csrf=" in value and "httponly" not in value.lower() for value in set_cookies)
+
+    original_refresh = client.cookies.get("sfi_refresh")
+    csrf_token = client.cookies.get("sfi_csrf")
+    assert original_refresh
+    assert csrf_token
+
+    missing_csrf = client.post("/api/v1/auth/refresh", headers=headers)
+    assert missing_csrf.status_code == 403
+
+    rotated = client.post(
+        "/api/v1/auth/refresh",
+        headers={**headers, "X-CSRF-Token": csrf_token},
+    )
+    assert rotated.status_code == 200
+    assert rotated.json()["refresh_token"] is None
+    assert client.cookies.get("sfi_refresh") != original_refresh
+
+    current_csrf = client.cookies.get("sfi_csrf")
+    access_headers = {
+        **headers,
+        "Authorization": f"Bearer {rotated.json()['access_token']}",
+        "X-CSRF-Token": current_csrf,
+    }
+    logged_out = client.post("/api/v1/auth/logout", headers=access_headers)
+    assert logged_out.status_code == 204
+    assert client.get("/api/v1/auth/me", headers=access_headers).status_code == 401
+
+
+def test_security_event_history_is_user_scoped_and_minimized(client):
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": "audit-first@example.com", "password": "uma-senha-forte-123"},
+    )
+    failed = client.post(
+        "/api/v1/auth/login",
+        json={"email": "audit-first@example.com", "password": "senha-incorreta"},
+    )
+    assert failed.status_code == 401
+
+    second = client.post(
+        "/api/v1/auth/register",
+        json={"email": "audit-second@example.com", "password": "uma-senha-forte-123"},
+    ).json()
+    events = client.get(
+        "/api/v1/auth/security-events",
+        headers={"Authorization": f"Bearer {second['access_token']}"},
+    )
+    assert events.status_code == 200
+    assert events.json()
+    assert all(event["event_type"] == "account_registered" for event in events.json())
+    assert all(set(event) == {"id", "event_type", "created_at"} for event in events.json())
+
+
+def test_web_logout_requires_csrf_header(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        headers={"X-SFI-Client": "web"},
+        json={"email": "web-logout-csrf@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    access_token = registered.json()["access_token"]
+    response = client.post(
+        "/api/v1/auth/logout",
+        headers={
+            "X-SFI-Client": "web",
+            "Authorization": f"Bearer {access_token}",
+        },
+    )
+    assert response.status_code == 403
+    assert client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    ).status_code == 200
+
+
+def test_login_rate_limit_blocks_repeated_invalid_passwords(client):
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": "rate-limit@example.com", "password": "uma-senha-forte-123"},
+    )
+    for _ in range(4):
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "rate-limit@example.com", "password": "senha-errada"},
+        )
+        assert response.status_code == 401
+
+    limited = client.post(
+        "/api/v1/auth/login",
+        json={"email": "rate-limit@example.com", "password": "senha-errada"},
+    )
+    assert limited.status_code == 429
+    assert limited.headers["retry-after"] == "900"
+
+    correct_password = client.post(
+        "/api/v1/auth/login",
+        json={"email": "rate-limit@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert correct_password.status_code == 429
+
+
+def test_successful_login_clears_prior_failed_attempts(client):
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": "rate-reset@example.com", "password": "uma-senha-forte-123"},
+    )
+    failed = client.post(
+        "/api/v1/auth/login",
+        json={"email": "rate-reset@example.com", "password": "senha-errada"},
+    )
+    assert failed.status_code == 401
+
+    successful = client.post(
+        "/api/v1/auth/login",
+        json={"email": "rate-reset@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert successful.status_code == 200
+
+
+def test_user_timezone_update(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "timezone-user@example.com",
+            "password": "uma-senha-forte-123",
+            "timezone": "America/Manaus",
+        },
+    )
+    assert registered.status_code == 201
+    assert registered.json()["user"]["timezone"] == "America/Manaus"
+    headers = {"Authorization": f"Bearer {registered.json()['access_token']}"}
+    updated = client.patch(
+        "/api/v1/auth/me/timezone",
+        headers=headers,
+        json={"timezone": "Europe/Lisbon"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["timezone"] == "Europe/Lisbon"
+
+
+def test_security_event_history_records_authentication_activity(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "security-events@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    failed = client.post(
+        "/api/v1/auth/login",
+        json={"email": "security-events@example.com", "password": "senha-errada"},
+    )
+    assert failed.status_code == 401
+    logged_in = client.post(
+        "/api/v1/auth/login",
+        json={"email": "security-events@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert logged_in.status_code == 200
+    current_headers = {
+        "Authorization": f"Bearer {logged_in.json()['access_token']}"
+    }
+
+    events = client.get("/api/v1/auth/security-events", headers=current_headers)
+    assert events.status_code == 200
+    event_types = [event["event_type"] for event in events.json()]
+    assert "account_registered" in event_types
+    assert "login_failed" in event_types
+    assert "login_succeeded" in event_types
+
+
+
+def test_desktop_client_uses_rotating_bearer_refresh_without_cookies(client):
+    headers = {"X-SFI-Client": "desktop"}
+    registered = client.post(
+        "/api/v1/auth/register",
+        headers=headers,
+        json={"email": "desktop-client@example.com", "password": "uma-senha-forte-123"},
+    )
+    assert registered.status_code == 201
+    body = registered.json()
+    assert body["refresh_token"]
+    assert not registered.headers.get_list("set-cookie")
+
+    rotated = client.post(
+        "/api/v1/auth/refresh",
+        headers=headers,
+        json={"refresh_token": body["refresh_token"]},
+    )
+    assert rotated.status_code == 200
+    replacement = rotated.json()["refresh_token"]
+    assert replacement and replacement != body["refresh_token"]
+    assert not rotated.headers.get_list("set-cookie")
+
+    logged_out = client.post(
+        "/api/v1/auth/logout",
+        headers={
+            **headers,
+            "Authorization": f"Bearer {rotated.json()['access_token']}",
+        },
+        json={"refresh_token": replacement},
+    )
+    assert logged_out.status_code == 204
+    reused = client.post(
+        "/api/v1/auth/refresh",
+        headers=headers,
+        json={"refresh_token": replacement},
+    )
+    assert reused.status_code == 401

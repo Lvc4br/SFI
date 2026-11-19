@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -28,11 +28,23 @@ def _async_database_url(value: str):
 
 
 if settings.database_url:
+    database_url_value = _async_database_url(settings.database_url)
     _engine = create_async_engine(
-        _async_database_url(settings.database_url),
+        database_url_value,
         pool_pre_ping=True,
         pool_recycle=300,
+        connect_args={"timeout": 30}
+        if database_url_value.drivername == "sqlite+aiosqlite"
+        else {},
     )
+    if database_url_value.drivername == "sqlite+aiosqlite":
+        @event.listens_for(_engine.sync_engine, "connect")
+        def configure_sqlite(dbapi_connection, _connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.close()
+
     _session_factory = async_sessionmaker(
         _engine,
         expire_on_commit=False,
@@ -41,7 +53,7 @@ if settings.database_url:
 
 async def get_session() -> AsyncIterator[AsyncSession]:
     if _session_factory is None:
-        raise RuntimeError("SFI_DATABASE_URL não foi configurada.")
+        raise RuntimeError("SFI_DATABASE_URL ou SFI_DATA_DIR não foi configurada.")
     async with _session_factory() as session:
         yield session
 

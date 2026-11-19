@@ -24,6 +24,7 @@ class Account(Base):
     __table_args__ = (
         UniqueConstraint("id", "user_id", name="uq_accounts_id_user"),
         Index("ix_accounts_user_created", "user_id", "created_at"),
+        Index("ix_accounts_user_archived", "user_id", "archived_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -36,6 +37,7 @@ class Account(Base):
     opening_balance: Mapped[Decimal] = mapped_column(
         Numeric(18, 2), default=Decimal("0.00"), nullable=False
     )
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -47,6 +49,7 @@ class Category(Base):
         UniqueConstraint("id", "user_id", name="uq_categories_id_user"),
         UniqueConstraint("user_id", "name", "category_type", name="uq_categories_user_name_type"),
         Index("ix_categories_user", "user_id"),
+        Index("ix_categories_user_archived", "user_id", "archived_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -55,6 +58,7 @@ class Category(Base):
     )
     name: Mapped[str] = mapped_column(String(60), nullable=False)
     category_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

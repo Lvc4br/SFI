@@ -1,59 +1,37 @@
-# Arquitetura — SFI
+# Arquitetura — SFI Desktop Local-first
 
-## 1. Visão lógica
+## Princípio
+O dispositivo é o ambiente primário de execução e persistência. Rede é opcional; nenhuma função essencial depende de site, API hospedada ou Neon.
 
-Aplicativos Web, Desktop e Mobile consomem uma API central. A API FastAPI concentra autenticação, autorização, regras de domínio, cálculos, auditoria e acesso ao Neon PostgreSQL. Workers processam tarefas demoradas, como OCR, importações e relatórios.
+## Componentes
+- Desktop: Tauri 2, Windows x64.
+- UI: React + TypeScript + Vite incorporados ao bundle.
+- Backend local: FastAPI empacotado como sidecar/processo filho gerenciado pelo Tauri.
+- Persistência: SQLite no diretório privado do usuário.
+- Domínio/ORM: SQLAlchemy; regras e cálculos determinísticos no backend.
+- Migrações: Alembic com suporte explícito a SQLite.
+- Arquivos: diretório privado local com metadados no SQLite.
+- Sync: adaptador PostgreSQL/Neon opcional e desligado por padrão.
+- IA/indicadores: provedores externos opcionais.
 
-## 2. Stack
+## Inicialização
+1. Tauri resolve diretórios de dados/cache e inicia sidecar.
+2. Sidecar recebe configuração local não secreta.
+3. Backend abre SQLite e valida/migra schema com backup prévio.
+4. Backend vincula em loopback, escolhe porta efêmera e comunica endereço por canal privado.
+5. UI aguarda health check e libera navegação.
+6. Encerramento solicita shutdown e finaliza processo após timeout.
 
-- Web: React + TypeScript.
-- Desktop: Tauri + React + TypeScript.
-- Mobile: React Native + Expo.
-- Backend: Python + FastAPI.
-- Banco: Neon PostgreSQL.
-- Storage: object storage privado compatível com S3.
-- IA: AI Gateway com provedores intercambiáveis.
-- Offline: IndexedDB na Web/Desktop; persistência local transacional no Mobile.
+Não expor porta fixa na LAN, não exigir endpoint remoto e não aceitar origem arbitrária.
 
-## 3. Organização proposta
+## Integridade
+SQLite com FK, busy_timeout, WAL quando adequado e transações. Dinheiro em representação decimal exata (texto decimal validado ou inteiro em unidade mínima); nunca REAL. Operações idempotentes. Dados fora do diretório de instalação. Migrações testadas em banco vazio e com dados.
 
-```text
-apps/
-  web/
-  desktop/
-  mobile/
-services/
-  api/
-  worker/
-  ai-gateway/
-packages/
-  contracts/
-  design-system/
-  domain-types/
-  validation/
-database/
-  migrations/
-  seeds/
-  diagrams/
-docs/
-architecture/
-planning/
-scripts/
-.github/workflows/
-```
+## Sync
+Neon pode ser habilitado para sync entre dispositivos/backup remoto. Outbox, IDs estáveis, idempotência, cursores e resolução explícita. Movimentações confirmadas não usam last-write-wins.
 
-## 4. Estilo arquitetural
+## Segurança
+API local somente loopback, token efêmero UI/sidecar, capabilities mínimas, validação de arquivos, segredos no cofre do SO quando possível, logs sem dados financeiros e backup criptografado.
 
-Começar com monólito modular FastAPI, separando domínios por módulos internos. Não adotar microserviços antes de existir necessidade comprovada. Workers assíncronos podem ser processos separados.
-
-## 5. Segurança de dados
-
-Clientes nunca conectam diretamente ao Neon. Segredos ficam no servidor. Toda consulta e mutação aplica autorização por usuário. RLS pode atuar como defesa adicional, sem substituir autorização na API.
-
-## 6. Domínios iniciais
-
-Identity, Accounts, Transactions, Budgeting, Education, Debt, Goals, Assets, Purchases, FiscalDocuments, Inventory, PriceIntelligence, Reports, Indicators e AI.
-
-## 7. Requisitos de qualidade
-
-Idempotência, Decimal, trilha de auditoria, versionamento concorrente, migrações controladas, testes de isolamento, backups e restauração verificada.
+## Estado
+A API FastAPI e o cliente Tauri existem, mas sidecar empacotado, lifecycle, SQLite padrão, migrations locais e operação offline ainda precisam ser implementados e testados. Não declarar local-first concluído antes desses gates.

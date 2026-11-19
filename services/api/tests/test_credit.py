@@ -1,0 +1,206 @@
+import asyncio
+from datetime import date
+from types import SimpleNamespace
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from sfi_api.config import Settings
+from sfi_api.database import get_session
+from sfi_api.main import app
+from sfi_api.models import Base
+from sfi_api.routers.credit import _cycle_dates
+
+
+@pytest.fixture(autouse=True)
+def configure_test_jwt(monkeypatch):
+    def test_settings() -> Settings:
+        return Settings(jwt_secret_key="test-only-secret-key-with-at-least-32-bytes")
+
+    monkeypatch.setattr("sfi_api.security.get_settings", test_settings)
+
+
+def register(client, email):
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": email,
+            "password": "senha-forte-teste-123",
+        },
+    )
+    assert response.status_code == 201, response.text
+    return response.json()["access_token"]
+
+
+def test_installments_and_invoice_partial_payment(tmp_path):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'credit.db'}")
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def prepare():
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+    asyncio.run(prepare())
+
+    async def override():
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override
+    try:
+        with TestClient(app) as client:
+            headers = {
+                "Authorization": (
+                    f"Bearer {register(client, 'credit-test@example.com')}"
+                )
+            }
+            credit = client.post(
+                "/api/v1/finance/accounts",
+                headers=headers,
+                json={"name": "Cartão", "account_type": "credit"},
+            )
+            source = client.post(
+                "/api/v1/finance/accounts",
+                headers=headers,
+                json={"name": "Corrente", "account_type": "checking"},
+            )
+            card = client.post(
+                "/api/v1/credit/cards",
+                headers=headers,
+                json={
+                    "account_id": credit.json()["id"],
+                    "name": "Meu cartão",
+                    "closing_day": 10,
+                    "due_day": 20,
+                    "credit_limit": "5000.00",
+                },
+            )
+            assert card.status_code == 201, card.text
+
+            invalid_card = client.post(
+                "/api/v1/credit/cards",
+                headers=headers,
+                json={
+                    "account_id": source.json()["id"],
+                    "name": "Conta corrente não pode ser cartão",
+                    "closing_day": 10,
+                    "due_day": 20,
+                    "credit_limit": "1000.00",
+                },
+            )
+            assert invalid_card.status_code == 422
+
+            purchase = client.post(
+                "/api/v1/credit/purchases",
+                headers=headers,
+                json={
+                    "card_id": card.json()["id"],
+                    "description": "Notebook",
+                    "amount": "1000.00",
+                    "purchase_date": "2026-11-12",
+                    "installments": 3,
+                    "idempotency_key": "purchase-notebook-2026-001",
+                },
+            )
+            assert purchase.status_code == 201, purchase.text
+
+            duplicate_purchase = client.post(
+                "/api/v1/credit/purchases",
+                headers=headers,
+                json={
+                    "card_id": card.json()["id"],
+                    "description": "Notebook",
+                    "amount": "1000.00",
+                    "purchase_date": "2026-11-12",
+                    "installments": 3,
+                    "idempotency_key": "purchase-notebook-2026-001",
+                },
+            )
+            assert duplicate_purchase.status_code == 409
+
+            invoices = client.get(
+                "/api/v1/credit/invoices",
+                headers=headers,
+            ).json()
+            assert len(invoices) == 3
+            assert {row["period"] for row in invoices} == {
+                "2026-12",
+                "2027-01",
+                "2027-02",
+            }
+            first = next(row for row in invoices if row["period"] == "2026-12")
+            payment_payload = {
+                "source_account_id": source.json()["id"],
+                "amount": "100.00",
+                "paid_at": "2026-12-15T12:00:00Z",
+                "idempotency_key": "payment-notebook-001",
+            }
+            payment_url = f"/api/v1/credit/invoices/{first['id']}/payments"
+            payment = client.post(
+                payment_url,
+                headers=headers,
+                json=payment_payload,
+            )
+            assert payment.status_code == 201, payment.text
+
+            again = client.post(
+                payment_url,
+                headers=headers,
+                json=payment_payload,
+            )
+            assert again.status_code == 409
+
+            updated = client.get(
+                "/api/v1/credit/invoices",
+                headers=headers,
+            ).json()
+            row = next(item for item in updated if item["id"] == first["id"])
+            assert row["paid_amount"] == "100.00"
+            assert row["remaining_amount"] == "233.34"
+
+            cashflow = client.get(
+                "/api/v1/finance/summary?start_date=2026-12-01&end_date=2026-12-31",
+                headers=headers,
+            )
+            assert cashflow.status_code == 200, cashflow.text
+            totals = cashflow.json()["totals_by_currency"][0]
+            assert totals["income_total"] == "0.00"
+            assert totals["expense_total"] == "333.34"
+            assert totals["net_flow"] == "-333.34"
+
+            closed = client.post(
+                f"/api/v1/credit/invoices/{first['id']}/close",
+                headers=headers,
+            )
+            assert closed.status_code == 200, closed.text
+
+            late_purchase = client.post(
+                "/api/v1/credit/purchases",
+                headers=headers,
+                json={
+                    "card_id": card.json()["id"],
+                    "description": "Compra após fechamento",
+                    "amount": "50.00",
+                    "purchase_date": "2026-11-13",
+                    "installments": 1,
+                    "idempotency_key": "purchase-after-close-001",
+                },
+            )
+            assert late_purchase.status_code == 409
+    finally:
+        app.dependency_overrides.clear()
+        asyncio.run(engine.dispose())
+
+
+def test_cycle_handles_short_month_and_due_month():
+    card = SimpleNamespace(closing_day=31, due_day=10)
+    period, closing, due = _cycle_dates(card, date(2027, 2, 28))
+    assert period == "2027-02"
+    assert closing == date(2027, 2, 28)
+    assert due == date(2027, 3, 10)
+
+    next_period, next_closing, next_due = _cycle_dates(card, date(2027, 3, 1))
+    assert next_period == "2027-03"
+    assert next_closing == date(2027, 3, 31)
+    assert next_due == date(2027, 4, 10)

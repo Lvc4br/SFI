@@ -1,24 +1,29 @@
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from sfi_api.database import get_session
 from sfi_api.dependencies import get_current_user
 from sfi_api.models.finance import Account, Budget, Category, Transaction, Transfer
+from sfi_api.models.recurrence import Recurrence
 from sfi_api.models.transfer_reversal import TransferReversal
 from sfi_api.models.user import User
 from sfi_api.schemas.finance import (
     AccountCreate,
     AccountResponse,
+    AccountUpdate,
     BudgetCreate,
     BudgetResponse,
     CategoryCreate,
     CategoryResponse,
+    CategoryUpdate,
     TransactionCreate,
     TransactionResponse,
     TransactionReversalResponse,
@@ -45,13 +50,158 @@ async def create_account(
 
 @router.get("/accounts", response_model=list[AccountResponse])
 async def list_accounts(
+    include_archived: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[AccountResponse]:
-    result = await session.scalars(
-        select(Account).where(Account.user_id == user.id).order_by(Account.created_at.desc())
-    )
+    query = select(Account).where(Account.user_id == user.id)
+    if not include_archived:
+        query = query.where(Account.archived_at.is_(None))
+    result = await session.scalars(query.order_by(Account.created_at.desc()))
     return [AccountResponse.model_validate(item) for item in result.all()]
+
+
+@router.patch("/accounts/{account_id}", response_model=AccountResponse)
+async def update_account(
+    account_id: uuid.UUID,
+    payload: AccountUpdate,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> AccountResponse:
+    account = await session.scalar(
+        select(Account).where(
+            Account.id == account_id,
+            Account.user_id == user.id,
+            Account.archived_at.is_(None),
+        )
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail="Conta ativa não encontrada.")
+    account.name = payload.name
+    await session.commit()
+    await session.refresh(account)
+    return AccountResponse.model_validate(account)
+
+
+@router.post("/accounts/{account_id}/archive", response_model=AccountResponse)
+async def archive_account(
+    account_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> AccountResponse:
+    account = await session.scalar(
+        select(Account).where(
+            Account.id == account_id,
+            Account.user_id == user.id,
+            Account.archived_at.is_(None),
+        )
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail="Conta ativa não encontrada.")
+    active_recurrence = await session.scalar(
+        select(Recurrence.id).where(
+            Recurrence.user_id == user.id,
+            Recurrence.account_id == account.id,
+            Recurrence.is_active.is_(True),
+        ).limit(1)
+    )
+    if active_recurrence is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Desative as recorrências desta conta antes de arquivá-la.",
+        )
+    income = func.coalesce(
+        func.sum(case((Transaction.transaction_type == "income", Transaction.amount), else_=0)),
+        Decimal("0.00"),
+    )
+    expenses = func.coalesce(
+        func.sum(case((Transaction.transaction_type == "expense", Transaction.amount), else_=0)),
+        Decimal("0.00"),
+    )
+    totals = (
+        await session.execute(
+            select(income.label("income"), expenses.label("expenses")).where(
+                Transaction.user_id == user.id,
+                Transaction.account_id == account.id,
+            )
+        )
+    ).one()
+    balance = (
+        account.opening_balance + Decimal(totals.expenses) - Decimal(totals.income)
+        if account.account_type == "credit"
+        else account.opening_balance + Decimal(totals.income) - Decimal(totals.expenses)
+    )
+    if balance != Decimal("0.00"):
+        raise HTTPException(
+            status_code=409,
+            detail="Zere o saldo da conta antes de arquivá-la.",
+        )
+    account.archived_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(account)
+    return AccountResponse.model_validate(account)
+
+
+@router.post("/categories/{category_id}/archive", response_model=CategoryResponse)
+async def archive_category(
+    category_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> CategoryResponse:
+    category = await session.scalar(
+        select(Category).where(
+            Category.id == category_id,
+            Category.user_id == user.id,
+            Category.archived_at.is_(None),
+        )
+    )
+    if category is None:
+        raise HTTPException(status_code=404, detail="Categoria ativa não encontrada.")
+    active_recurrence = await session.scalar(
+        select(Recurrence.id).where(
+            Recurrence.user_id == user.id,
+            Recurrence.category_id == category.id,
+            Recurrence.is_active.is_(True),
+        ).limit(1)
+    )
+    if active_recurrence is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Desative as recorrências desta categoria antes de arquivá-la.",
+        )
+    category.archived_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(category)
+    return CategoryResponse.model_validate(category)
+
+
+@router.patch("/categories/{category_id}", response_model=CategoryResponse)
+async def update_category(
+    category_id: uuid.UUID,
+    payload: CategoryUpdate,
+    session: AsyncSession = Depends(get_session),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> CategoryResponse:
+    category = await session.scalar(
+        select(Category).where(
+            Category.id == category_id,
+            Category.user_id == user.id,
+            Category.archived_at.is_(None),
+        )
+    )
+    if category is None:
+        raise HTTPException(status_code=404, detail="Categoria ativa não encontrada.")
+    category.name = payload.name
+    try:
+        await session.commit()
+        await session.refresh(category)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma categoria ativa com este nome e tipo.",
+        ) from None
+    return CategoryResponse.model_validate(category)
 
 
 @router.post("/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
@@ -77,10 +227,13 @@ async def create_category(
 @router.get("/categories", response_model=list[CategoryResponse])
 async def list_categories(
     category_type: str | None = Query(default=None, pattern="^(income|expense)$"),
+    include_archived: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[CategoryResponse]:
     query = select(Category).where(Category.user_id == user.id)
+    if not include_archived:
+        query = query.where(Category.archived_at.is_(None))
     if category_type:
         query = query.where(Category.category_type == category_type)
     result = await session.scalars(query.order_by(Category.name.asc()))
@@ -110,7 +263,11 @@ async def create_transaction(
         )
 
     account = await session.scalar(
-        select(Account).where(Account.id == payload.account_id, Account.user_id == user.id)
+        select(Account).where(
+            Account.id == payload.account_id,
+            Account.user_id == user.id,
+            Account.archived_at.is_(None),
+        )
     )
     if account is None:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
@@ -126,6 +283,7 @@ async def create_transaction(
             select(Category).where(
                 Category.id == payload.category_id,
                 Category.user_id == user.id,
+                Category.archived_at.is_(None),
             )
         )
         if category is None:
@@ -210,22 +368,40 @@ async def list_transactions(
 
 
 async def _budget_response(
-    session: AsyncSession, user_id, budget: Budget, category: Category
+    session: AsyncSession,
+    user_id,
+    budget: Budget,
+    category: Category,
+    timezone_name: str,
 ) -> BudgetResponse:
     year, month = (int(part) for part in budget.period.split("-"))
-    start = datetime(year, month, 1, tzinfo=UTC)
-    end = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=UTC)
+    timezone = ZoneInfo(timezone_name)
+    start = datetime(year, month, 1, tzinfo=timezone).astimezone(UTC)
+    end = datetime(
+        year + (month == 12), month % 12 + 1, 1, tzinfo=timezone
+    ).astimezone(UTC)
+    reversal = aliased(Transaction)
+    has_reversal = (
+        select(reversal.id)
+        .where(
+            reversal.user_id == user_id,
+            reversal.reversal_of_transaction_id == Transaction.id,
+        )
+        .exists()
+    )
     spent = await session.scalar(
-        select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+        select(func.coalesce(func.sum(Transaction.amount), Decimal("0.00"))).where(
             Transaction.user_id == user_id,
             Transaction.category_id == budget.category_id,
             Transaction.transaction_type == "expense",
+            Transaction.reversal_of_transaction_id.is_(None),
             Transaction.currency == budget.currency,
             Transaction.occurred_at >= start,
             Transaction.occurred_at < end,
+            ~has_reversal,
         )
     )
-    spent_amount = Decimal(spent or 0)
+    spent_amount = Decimal(spent or Decimal("0.00")).quantize(Decimal("0.01"))
     remaining = budget.limit_amount - spent_amount
     usage = (spent_amount / budget.limit_amount * Decimal("100")).quantize(Decimal("0.01"))
     if spent_amount > budget.limit_amount:
@@ -259,6 +435,7 @@ async def create_budget(
         select(Category).where(
             Category.id == payload.category_id,
             Category.user_id == user.id,
+            Category.archived_at.is_(None),
         )
     )
     if category is None:
@@ -279,7 +456,7 @@ async def create_budget(
             status_code=status.HTTP_409_CONFLICT,
             detail="Já existe um orçamento para esta categoria neste mês.",
         ) from None
-    return await _budget_response(session, user.id, budget, category)
+    return await _budget_response(session, user.id, budget, category, user.timezone)
 
 
 @router.get("/budgets", response_model=list[BudgetResponse])
@@ -295,7 +472,7 @@ async def list_budgets(
         .order_by(Category.name.asc())
     )
     return [
-        await _budget_response(session, user.id, budget, category)
+        await _budget_response(session, user.id, budget, category, user.timezone)
         for budget, category in result.all()
     ]
 
@@ -327,6 +504,7 @@ async def create_transfer(
     accounts = await session.scalars(
         select(Account).where(
             Account.user_id == user.id,
+            Account.archived_at.is_(None),
             Account.id.in_([payload.source_account_id, payload.destination_account_id]),
         )
     )
@@ -356,35 +534,39 @@ async def create_transfer(
         idempotency_key=payload.idempotency_key,
         occurred_at=payload.occurred_at,
     )
-    session.add(transfer)
-    await session.flush()
-    session.add_all([
-        Transaction(
-            user_id=user.id,
-            account_id=source.id,
-            category_id=None,
-            transfer_id=transfer.id,
-            transaction_type="expense",
-            amount=payload.amount,
-            currency=source.currency,
-            description=f"Transferência enviada: {payload.description.strip()}",
-            idempotency_key=f"transfer:{transfer.id}:out",
-            occurred_at=payload.occurred_at,
-        ),
-        Transaction(
-            user_id=user.id,
-            account_id=destination.id,
-            category_id=None,
-            transfer_id=transfer.id,
-            transaction_type="income",
-            amount=payload.amount,
-            currency=destination.currency,
-            description=f"Transferência recebida: {payload.description.strip()}",
-            idempotency_key=f"transfer:{transfer.id}:in",
-            occurred_at=payload.occurred_at,
-        ),
-    ])
     try:
+        # Keep the initial INSERT/flush inside the IntegrityError boundary.
+        # Concurrent requests can both pass the preflight idempotency SELECT;
+        # the database unique constraint is the final arbiter and may fail here,
+        # before commit. Returning a controlled 409 avoids an accidental 500.
+        session.add(transfer)
+        await session.flush()
+        session.add_all([
+            Transaction(
+                user_id=user.id,
+                account_id=source.id,
+                category_id=None,
+                transfer_id=transfer.id,
+                transaction_type="expense",
+                amount=payload.amount,
+                currency=source.currency,
+                description=f"Transferência enviada: {payload.description.strip()}",
+                idempotency_key=f"transfer:{transfer.id}:out",
+                occurred_at=payload.occurred_at,
+            ),
+            Transaction(
+                user_id=user.id,
+                account_id=destination.id,
+                category_id=None,
+                transfer_id=transfer.id,
+                transaction_type="income",
+                amount=payload.amount,
+                currency=destination.currency,
+                description=f"Transferência recebida: {payload.description.strip()}",
+                idempotency_key=f"transfer:{transfer.id}:in",
+                occurred_at=payload.occurred_at,
+            ),
+        ])
         await session.commit()
         await session.refresh(transfer)
     except IntegrityError:

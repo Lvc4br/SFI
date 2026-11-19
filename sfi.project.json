@@ -1,19 +1,39 @@
 {
   "name": "sfi",
-  "display_name": "Sistema Financeiro Inteligente",
-  "version": "2.0.0-plan",
-  "status": "planning",
-  "platforms": ["web", "desktop", "mobile"],
-  "modules": 19,
+  "display_name": "Sistema Financeiro Integrado",
+  "version": "0.2.0-dev",
+  "status": "desktop-local-first-in-development",
+  "platforms": [
+    "windows-desktop-primary",
+    "web-shared-ui-development"
+  ],
+  "product_type": "personal-finance-and-asset-management",
+  "excluded_scope": [
+    "financial-education",
+    "courses",
+    "lessons",
+    "teaching-platform"
+  ],
   "stack": {
-    "backend": "Python + FastAPI",
-    "database": "Neon PostgreSQL",
-    "web": "React + TypeScript",
-    "desktop": "Tauri + React",
-    "mobile": "React Native + Expo",
-    "styling": "Tailwind CSS + CSS",
-    "local_storage": ["IndexedDB", "platform-native persistent storage"]
+    "desktop": "Tauri 2 + React + TypeScript + Vite",
+    "backend": "Python + FastAPI packaged sidecar",
+    "database": "SQLite local primary",
+    "remote_sync": "Neon PostgreSQL optional opt-in",
+    "documents": "private local application data directory"
   },
-  "docker_required": false,
-  "central_sqlite_required": false
+  "capabilities": {
+    "offline_core_required": true,
+    "remote_api_required": false,
+    "ai_optional": true,
+    "market_data_optional": true
+  },
+  "packaging": {
+    "target": "Windows 10/11 x64",
+    "installer": [
+      "NSIS",
+      "MSI"
+    ],
+    "runtime_dependencies_installed_by_app": true
+  },
+  "docker_required": false
 }

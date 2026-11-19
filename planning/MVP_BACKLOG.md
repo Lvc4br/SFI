@@ -1,3 +1,5 @@
+> **Documento histórico — não normativo (15/11/2026):** este plano descreve a antiga entrega MVP Web. A direção atual é o aplicativo Desktop pessoal local-first, conforme [PRODUCT_SPEC.md](../docs/PRODUCT_SPEC.md), [MVP_SCOPE.md](../docs/MVP_SCOPE.md) e [COMPLETION_MASTER_PLAN.md](../planning/COMPLETION_MASTER_PLAN.md). Use-o somente como registro histórico de implementação; não como escopo vigente.
+
 # Backlog Priorizado — MVP Web Financeiro
 
 Este backlog organiza entregas verticais. Não substitui o backlog geral dos 19 módulos.
@@ -110,10 +112,67 @@ A primeira fatia Web está implementada na branch `feature/mvp-financial-foundat
 - [x] Integrar paginação server-side à tela de histórico (25 por página), totalizador e navegação anterior/próxima.
 - [x] Aplicar filtros server-side por tipo, categoria e período (datas inicial/final).
 - [x] Exportar CSV de todo o conjunto filtrado, percorrendo páginas da API e aplicando busca textual no conjunto completo.
-- [ ] Expandir E2E para transferências, orçamento, paginação/filtros, tema claro/escuro e validação de saldos/indicadores; adicionar evidências de acessibilidade.
+- [x] Expandir E2E para transferências, orçamento, paginação/filtros, tema claro/escuro e validação de saldos/indicadores.
+- [ ] Completar auditoria de acessibilidade com axe/WCAG, leitor de tela, contraste e navegação integral por teclado.
 - [x] Script PowerShell de validação unificada (`scripts/validate.ps1`): Ruff + pytest/SQLite + TypeScript + build Web; não acessa Neon.
 - [x] Primeira jornada E2E com Playwright/Chromium: cadastro, autenticação, duas contas, categoria, despesa, transferência pareada, orçamento, filtros, tema claro/escuro, exportação CSV, logout e novo login; banco SQLite descartável.
 - [x] Job E2E independente no GitHub Actions e runner local `scripts/e2e.ps1`.
 - [x] Testes API para paginação, filtros, ordenação, validação de intervalo e isolamento por usuário.
 
 **Limite importante:** a paginação usa offset/limit; inserções concorrentes durante uma exportação longa podem deslocar registros entre páginas. Evoluir para cursor/snapshot antes de prometer exportação transacionalmente consistente. A busca textual filtra a página visível, mas a exportação reaplica o mesmo termo ao conjunto completo recuperado.
+
+
+## Atualização — hardening do núcleo financeiro (branch `feature/financial-core-security-hardening`)
+
+- [x] Corrigir o realizado de orçamento para excluir a despesa original quando existe estorno compensatório vinculado.
+- [x] Corrigir despesas por categoria no dashboard para não continuar exibindo como consumo uma despesa já estornada.
+- [x] Expor ação de estorno de movimentação simples na tabela do histórico Web, com confirmação explícita e feedback após sucesso.
+- [x] Ampliar teste de domínio para verificar orçamento zerado e categoria sem consumo após estorno.
+- [x] Ampliar teste de paginação para percorrer 65 registros em três páginas sem lacunas ou duplicidades.
+- [x] Ampliar jornada Playwright para realizar estorno pela interface.
+- [x] Implementar edição e arquivamento lógico de contas/categorias com migration reversível, bloqueio de saldo/recorrência e preservação dos rótulos históricos.
+- [x] Adicionar cobertura E2E para paginação multi-página, filtros de datas e CSV com mais de 25 registros (CI desta última alteração pendente).
+- [x] Definir timezone IANA por usuário, com configuração no Web e conversão de limites de dashboard, orçamento e filtros de calendário para UTC.
+- [ ] Executar auditoria completa de acessibilidade automatizada e manual; E2E agora verifica nomes acessíveis básicos de controles.
+- [x] Migrar refresh token Web para cookie HttpOnly/Secure/SameSite com proteção CSRF; manter estratégia compatível com clientes não-Web.
+- [x] Remover access token Web de sessionStorage; mantê-lo somente em memória e restaurar sessão por refresh cookie HttpOnly. E2E valida ausência de tokens no sessionStorage e restauração após reload.
+- [x] Implementar rate limiting de login persistido no banco e compartilhado entre instâncias; recuperação de senha ainda depende do fluxo de e-mail.
+- [ ] Implementar verificação de e-mail e recuperação de senha com tokens de uso único, hashes persistidos e provedor de e-mail configurado.
+- [ ] Implementar MFA TOTP com códigos de recuperação, rotação e auditoria.
+- [ ] Aplicar CSP e demais security headers na camada que efetivamente serve a Web; validar política em produção/staging.
+- [x] Criar trilha persistente de eventos de autenticação e exibir atividade recente na área de Configurações.
+- [ ] Integrar monitoramento/alertas centralizados, política de retenção e revisão de eventos.
+- [x] Criar scripts de backup criptografado e restauração protegida para branch isolada, com runbook.
+- [ ] Executar o ensaio real de backup/restore, definir retenção/RPO/RTO e registrar evidências.
+- [ ] Completar testes de abuso, concorrência, sessão, CSRF, rate limit, isolamento e recuperação de desastre.
+
+**Nota de segurança:** esta branch ainda não é um release seguro para produção. O rate limit de login usa estado no banco compartilhado, mas não substitui proteção de borda/WAF nem testes de concorrência e limpeza de registros. Verificação de e-mail, recuperação de senha e MFA ainda dependem de provedor de e-mail, armazenamento de segredos, telas e testes próprios.
+
+## Estado consolidado após hardening — 15/11/2026
+
+Esta seção substitui o status inicial da tabela de progresso acima para os itens efetivamente alterados pela branch `feature/financial-core-security-hardening`.
+
+| Item | Estado atual | Evidência / limite |
+|---|---|---|
+| MVP-01 — Inspeção e contratos | Parcial | Rotas e schemas consumidos estão tipados manualmente; geração automática de cliente OpenAPI continua pendente. |
+| MVP-02 — Base Web | Implementado na fatia atual | Sessão Web com refresh cookie HttpOnly + CSRF, access token em memória, restauração após reload e navegação protegida; recuperação de senha e verificação de e-mail ainda pendentes. |
+| MVP-03 — Contas e categorias | Implementado na fatia atual | Criar, listar, renomear e arquivar logicamente; histórico preservado e restrições de arquivamento cobertas. |
+| MVP-04 — Movimentações | Implementado na fatia atual | Receitas/despesas, transferências pareadas, histórico paginado, filtros, CSV e estorno compensatório; concorrência e reconciliação ampliada continuam no hardening. |
+| MVP-05 — Orçamento | Implementado na fatia atual | Criar/listar orçamento mensal e cálculo de realizado/limite; despesas estornadas deixam de contar como consumo. |
+| MVP-06 — Dashboard | Implementado na fatia atual | Resumo, saldos e despesas por categoria; períodos calculados no timezone IANA do usuário e valores separados por moeda. |
+| MVP-07 — Educação contextual | Parcial | Conteúdo introdutório presente; glossário completo, revisão pedagógica e versionamento editorial pendentes. |
+| MVP-08 — Segurança e experiência | Parcial, hardening substancial | Cookies, CSRF, rate limit persistido, auditoria de eventos e headers API implementados; e-mail, MFA, CSP na hospedagem, WAF e auditoria WCAG ainda pendentes. |
+| MVP-09 — E2E e release candidate | Parcial | 54 testes API, typecheck/build, E2E local e 8 testes de backup aprovados pelo operador em 14/11; CI GitHub em andamento para a revisão mais recente; recuperação de dados com fixtures e RPO/RTO pendentes. |
+
+### Evidências e próximos critérios operacionais
+
+- [x] Validação integrada local executada pelo operador: API, Web, Chromium E2E, integridade de backup e leitura do schema Neon restaurado.
+- [x] Schema da branch isolada atualizado até Alembic `0013_security_events`.
+- [x] Script `scripts/verify-restored-db.ps1` adicionado para verificar, sem escrita, tabelas/colunas obrigatórias, Alembic head e constraints/FKs validadas.
+- [ ] Executar o novo verificador read-only no Windows contra a branch isolada.
+- [ ] Segunda rodada backup → restore com dados fictícios conhecidos e reconciliação de contagens/valores.
+- [ ] Executar readiness e leituras autenticadas da API contra a branch restaurada.
+- [ ] Definir e medir RPO/RTO, retenção, cópia externa e recuperação de chave.
+- [ ] Completar auditoria WCAG/axe/manual, recuperação de senha, verificação de e-mail e MFA.
+
+**Regra:** "implementado na fatia atual" não significa pronto para beta público ou produção. Itens de segurança operacional e recuperação permanecem bloqueadores para lançamento.

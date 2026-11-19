@@ -6,9 +6,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from sfi_api.config import get_settings
 from sfi_api.database import check_database, dispose_database
 from sfi_api.routers.auth import router as auth_router
+from sfi_api.routers.backup import router as backup_router
+from sfi_api.routers.backup_automation import router as backup_automation_router
+from sfi_api.routers.backup_encryption import router as backup_encryption_router
+from sfi_api.routers.calculators import router as calculators_router
+from sfi_api.routers.credit import router as credit_router
 from sfi_api.routers.dashboard import router as dashboard_router
+from sfi_api.routers.data_exchange import router as data_exchange_router
+from sfi_api.routers.debts import router as debts_router
 from sfi_api.routers.finance import router as finance_router
+from sfi_api.routers.fiscal import router as fiscal_router
+from sfi_api.routers.goals import router as goals_router
+from sfi_api.routers.investments import router as investments_router
+from sfi_api.routers.patrimony import router as patrimony_router
+from sfi_api.routers.products import router as products_router
+from sfi_api.routers.reconciliation import router as reconciliation_router
 from sfi_api.routers.recurrence import router as recurrence_router
+from sfi_api.routers.shopping import router as shopping_router
+from sfi_api.routers.shopping_purchases import router as shopping_purchases_router
+from sfi_api.routers.stock import router as stock_router
 from sfi_api.routers.transaction_pages import router as transaction_pages_router
 from sfi_api.routers.transfer_history import router as transfer_history_router
 
@@ -27,7 +43,6 @@ app = FastAPI(
     description="API central do SFI.",
     lifespan=lifespan,
 )
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.parsed_cors_origins,
@@ -38,14 +53,52 @@ app.add_middleware(
         "Content-Type",
         "Idempotency-Key",
         "If-Match",
+        "X-SFI-Client",
+        "X-CSRF-Token",
     ],
 )
 
+
+@app.middleware("http")
+async def apply_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=()"
+    if request.url.path.startswith(settings.api_prefix):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+        )
+    if settings.environment.lower() == "production":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+
 app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(finance_router, prefix=settings.api_prefix)
+app.include_router(fiscal_router, prefix=settings.api_prefix)
+app.include_router(credit_router, prefix=settings.api_prefix)
+app.include_router(calculators_router, prefix=settings.api_prefix)
+app.include_router(debts_router, prefix=settings.api_prefix)
+app.include_router(data_exchange_router, prefix=settings.api_prefix)
+app.include_router(backup_router, prefix=settings.api_prefix)
+app.include_router(backup_encryption_router, prefix=settings.api_prefix)
+app.include_router(backup_automation_router, prefix=settings.api_prefix)
+app.include_router(goals_router, prefix=settings.api_prefix)
+app.include_router(investments_router, prefix=settings.api_prefix)
+app.include_router(patrimony_router, prefix=settings.api_prefix)
 app.include_router(transaction_pages_router, prefix=settings.api_prefix)
 app.include_router(transfer_history_router, prefix=settings.api_prefix)
+app.include_router(reconciliation_router, prefix=settings.api_prefix)
 app.include_router(recurrence_router, prefix=settings.api_prefix)
+app.include_router(shopping_router, prefix=settings.api_prefix)
+app.include_router(shopping_purchases_router, prefix=settings.api_prefix)
+app.include_router(stock_router, prefix=settings.api_prefix)
+app.include_router(products_router, prefix=settings.api_prefix)
 app.include_router(dashboard_router, prefix=settings.api_prefix)
 
 
@@ -75,18 +128,13 @@ async def readiness() -> dict[str, str | bool]:
             "database": "not_configured",
             "ready": False,
         }
-
     try:
         await check_database()
     except Exception as exc:
         raise HTTPException(
             status_code=503,
-            detail={
-                "status": "not_ready",
-                "database": "unavailable",
-            },
+            detail={"status": "not_ready", "database": "unavailable"},
         ) from exc
-
     return {
         "status": "ok",
         "database": "connected",

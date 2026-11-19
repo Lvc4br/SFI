@@ -15,6 +15,9 @@ class User(Base):
         Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     email: Mapped[str] = mapped_column(String(320), nullable=False)
+    timezone: Mapped[str] = mapped_column(
+        String(64), default="America/Sao_Paulo", server_default="America/Sao_Paulo", nullable=False
+    )
     password_hash: Mapped[str] = mapped_column(String(512), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     token_version: Mapped[int] = mapped_column(

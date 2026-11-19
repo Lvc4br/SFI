@@ -1,45 +1,19 @@
-# Roadmap do SFI
+# Roadmap do SFI — Desktop pessoal
 
-Roadmap orientado a entregáveis e critérios de saída, sem datas artificiais.
+Escopo vinculante em [PRODUCT_SPEC.md](../docs/PRODUCT_SPEC.md), arquitetura em [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) e gates em [COMPLETION_MASTER_PLAN.md](COMPLETION_MASTER_PLAN.md).
 
-## Entrega prioritária atual — MVP Web
+1. **Auditoria e reorientação:** retirar posicionamento educacional; mapear compatibilidade SQLite/PostgreSQL; preservar regras financeiras.
+2. **Runtime Desktop local:** Tauri gerencia FastAPI empacotado, health check, loopback dinâmico, encerramento, diretórios e atualização.
+3. **SQLite e núcleo offline:** migrations locais, backup pré-migration, contas, categorias, transações, transferências, estornos, recorrências, orçamento e dashboard.
+4. **Importação/exportação e backup:** CSV/XLSX/OFX/JSON/QIF/PDF para movimentações, staging, mapeamento, duplicidade, validação, relatório, backup e restore. PDF exportado é relatório, não extrato bancário oficial; OCR e layouts bancários específicos permanecem pendentes.
+5. **Cartões, dívidas e objetivos:** faturas, empréstimos, projeções estimadas Price/SAC, amortização, reservas e metas; CET, multas, mora e refinanciamento permanecem pendentes.
+6. **Compras e consumo:** listas favoritas, produtos, estabelecimentos, compras, preços e integração idempotente com despesas.
+7. **Documentos fiscais e estoque:** XML NF-e/NFC-e, PDF/DANFE, imagens, OCR, QR, revisão humana e estoque.
+8. **Patrimônio e investimentos:** ativos, passivos, carteira, rendimentos, preço médio e snapshots; sem ordens.
+9. **Indicadores e calculadoras:** fontes, datas, cache, fórmulas e projeções determinísticas.
+10. **Visualizações, relatórios e temas:** gráficos/diagramas com dados reais, filtros, presets, cores, exportação e acessibilidade.
+11. **IA pessoal opcional:** ferramentas tipadas, mínimo acesso, consentimento, sem SQL arbitrário ou ações críticas.
+12. **Sync remoto opcional:** Neon opt-in, outbox, conflitos explícitos e revogação de dispositivos.
+13. **Qualidade e lançamento:** instalação/atualização/desinstalação, recuperação, segurança, acessibilidade, documentação e assinatura.
 
-O recorte executável da primeira versão está detalhado em [Escopo do MVP](../docs/MVP_SCOPE.md), [Backlog priorizado](MVP_BACKLOG.md), [Plano de entrega](MVP_DELIVERY_PLAN.md), [Critérios de aceite](../docs/MVP_ACCEPTANCE_CRITERIA.md) e [Plano de testes](MVP_TEST_PLAN.md).
-
-A sequência de implementação é: baseline/contratos → fundação Web autenticada → contas e categorias → movimentações e transferências → orçamento e dashboard → educação contextual → estabilização. Essa sequência aproveita o backend já integrado e não elimina os módulos posteriores.
-
-## Fase 0 — Descoberta e validação
-Requisitos priorizados, jornadas, protótipos, provas de conceito Neon/Tauri/Expo, avaliação OCR/XML e estimativa de custos. **Saída:** riscos críticos identificados e arquitetura aprovada.
-
-## Fase 1 — Fundação
-Monorepo, padrões, CI, ambientes, autenticação, FastAPI, Neon, migrações, design system, logs, auditoria e OpenAPI. **Saída:** usuário autenticado, dados isolados e build funcionando.
-
-## Fase 2 — Núcleo financeiro
-Contas, categorias, receitas/despesas, transferências, orçamento, fluxo de caixa, dashboard e importação CSV. **Progresso:** autenticação, contas, categorias, movimentações, saldos, resumo, orçamentos mensais, transferências, histórico, estornos individuais e pareados, recorrências e previsão de fluxo de caixa já integrados com CI aprovado. **Pendências:** conciliação, cartões/faturas, importação de extratos e dashboard visual. **Saída:** testes de domínio e integração aprovados e saldos reconciliáveis.
-
-## Fase 3 — Educação e calculadoras
-Cursos, aulas, glossário, progresso, motor financeiro, calculadoras e avaliações. **Saída:** fórmulas validadas e conteúdo revisado. A educação contextual básica já entra no MVP Web, sem antecipar o módulo completo de cursos.
-
-## Fase 4 — Dívidas, metas e patrimônio
-Cartões, faturas, dívidas, parcelamentos, reservas, objetivos, ativos, passivos e relatórios básicos. **Saída:** valores reais, estimados e futuros claramente separados.
-
-## Fase 5 — Compras e documentos fiscais
-Listas, produtos/variantes, upload, parser XML, OCR, revisão humana, despesas e histórico de preços. **Saída:** importação idempotente e conciliação correta.
-
-## Fase 6 — Estoque e inteligência de consumo
-Despensa, validade, unidades, movimentos, comparação de preços e reposição estimada. **Saída:** equivalência de produtos validada e previsões identificadas como estimativas.
-
-## Fase 7 — Economia e investimentos
-Indicadores oficiais, fontes/datas, carteira informativa, rendimentos e rentabilidade real. **Saída:** dados rastreáveis; sem execução de ordens.
-
-## Fase 8 — IA integrada
-Gateway, RAG educacional, ferramentas tipadas, simulações, revisão e avaliação de segurança. **Saída:** testes de alucinação, privacidade e cálculo aprovados.
-
-## Fase 9 — Multiplataforma e offline
-Web PWA, Desktop Tauri, Mobile Expo, armazenamento local, fila, conflitos e notificações. **Saída:** sincronização idempotente sem perda silenciosa.
-
-## Fase 10 — Beta e lançamento
-Carga, revisão de segurança, backup/restauração, acessibilidade, documentação, instaladores assinados, publicação e suporte. **Saída:** critérios globais cumpridos.
-
-## Prioridades
-P0: autenticação, isolamento, transações, backup, cálculos e integridade. P1: orçamento, educação, dívidas, metas e relatórios. P2: documentos fiscais, listas, estoque e comparação. P3: investimentos, indicadores e IA ampla. P4: integrações bancárias e automações futuras.
+**Fora do produto:** cursos, aulas, trilhas, avaliações pedagógicas, gamificação educacional, plataforma para ensinar terceiros, pagamentos e execução de ordens de investimento.

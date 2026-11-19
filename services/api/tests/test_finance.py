@@ -1,5 +1,6 @@
 import asyncio
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,7 @@ from sfi_api.config import Settings
 from sfi_api.database import get_session
 from sfi_api.main import app
 from sfi_api.models import Base
+from sfi_api.schemas.finance import TransactionCreate
 
 
 @pytest.fixture
@@ -504,3 +506,404 @@ def test_compensating_transaction_cannot_be_reversed_again(client):
         params={"idempotency_key": "double-reverse-second-001"},
     )
     assert second_reversal.status_code == 422
+
+
+def test_reversed_expense_is_removed_from_budget_and_category_spending(client):
+    token = register(client, "budget-reversal@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    ).json()
+    category = client.post(
+        "/api/v1/finance/categories",
+        headers=headers,
+        json={"name": "Mercado", "category_type": "expense"},
+    ).json()
+    transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "category_id": category["id"],
+            "transaction_type": "expense",
+            "amount": "125.50",
+            "description": "Compra estornada",
+            "occurred_at": "2026-11-10T12:00:00+00:00",
+            "idempotency_key": "budget-reversal-expense-01",
+        },
+    )
+    assert transaction.status_code == 201
+    budget = client.post(
+        "/api/v1/finance/budgets",
+        headers=headers,
+        json={
+            "category_id": category["id"],
+            "period": "2026-11",
+            "limit_amount": "200.00",
+        },
+    )
+    assert budget.status_code == 201
+    assert budget.json()["spent_amount"] == "125.50"
+
+    reversal = client.post(
+        f"/api/v1/finance/transactions/{transaction.json()['id']}/reverse",
+        headers=headers,
+        params={"idempotency_key": "budget-reversal-key-0001"},
+    )
+    assert reversal.status_code == 201
+
+    updated_budget = client.get(
+        "/api/v1/finance/budgets?period=2026-11", headers=headers
+    )
+    assert updated_budget.status_code == 200
+    assert updated_budget.json()[0]["spent_amount"] == "0.00"
+    assert updated_budget.json()[0]["remaining_amount"] == "200.00"
+
+    summary = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-30",
+        headers=headers,
+    )
+    assert summary.status_code == 200
+    assert summary.json()["spending_by_category"] == []
+
+
+def test_accounts_and_categories_can_be_renamed_and_archived_without_deleting_history(client):
+    token = register(client, "archive-finance@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta original", "account_type": "checking"},
+    ).json()
+    category = client.post(
+        "/api/v1/finance/categories",
+        headers=headers,
+        json={"name": "Categoria original", "category_type": "expense"},
+    ).json()
+
+    renamed_account = client.patch(
+        f"/api/v1/finance/accounts/{account['id']}",
+        headers=headers,
+        json={"name": "Conta renomeada"},
+    )
+    assert renamed_account.status_code == 200
+    assert renamed_account.json()["name"] == "Conta renomeada"
+
+    renamed_category = client.patch(
+        f"/api/v1/finance/categories/{category['id']}",
+        headers=headers,
+        json={"name": "Categoria renomeada"},
+    )
+    assert renamed_category.status_code == 200
+    assert renamed_category.json()["name"] == "Categoria renomeada"
+
+    archived_category = client.post(
+        f"/api/v1/finance/categories/{category['id']}/archive",
+        headers=headers,
+    )
+    assert archived_category.status_code == 200
+    assert archived_category.json()["archived_at"] is not None
+    assert client.get("/api/v1/finance/categories", headers=headers).json() == []
+    archived_categories = client.get(
+        "/api/v1/finance/categories?include_archived=true", headers=headers
+    ).json()
+    assert len(archived_categories) == 1
+    assert archived_categories[0]["name"] == "Categoria renomeada"
+
+    archived_category_transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "category_id": category["id"],
+            "transaction_type": "expense",
+            "amount": "1.00",
+            "description": "Categoria arquivada",
+            "idempotency_key": "archived-category-key-01",
+        },
+    )
+    assert archived_category_transaction.status_code == 404
+
+    archived_account = client.post(
+        f"/api/v1/finance/accounts/{account['id']}/archive",
+        headers=headers,
+    )
+    assert archived_account.status_code == 200
+    assert archived_account.json()["archived_at"] is not None
+    assert client.get("/api/v1/finance/accounts", headers=headers).json() == []
+    archived_accounts = client.get(
+        "/api/v1/finance/accounts?include_archived=true", headers=headers
+    ).json()
+    assert len(archived_accounts) == 1
+    assert archived_accounts[0]["name"] == "Conta renomeada"
+
+    archived_account_transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "transaction_type": "income",
+            "amount": "1.00",
+            "description": "Conta arquivada",
+            "idempotency_key": "archived-account-key-001",
+        },
+    )
+    assert archived_account_transaction.status_code == 404
+
+
+def test_account_with_nonzero_balance_cannot_be_archived(client):
+    token = register(client, "archive-nonzero@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta com saldo", "account_type": "checking", "opening_balance": "10.00"},
+    ).json()
+
+    archived = client.post(
+        f"/api/v1/finance/accounts/{account['id']}/archive",
+        headers=headers,
+    )
+    assert archived.status_code == 409
+    assert "Zere o saldo" in archived.json()["detail"]
+
+
+def test_summary_and_monthly_budget_use_user_timezone_boundaries(client):
+    token = register(client, "timezone-period@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    ).json()
+    category = client.post(
+        "/api/v1/finance/categories",
+        headers=headers,
+        json={"name": "Mercado", "category_type": "expense"},
+    ).json()
+    transaction = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "category_id": category["id"],
+            "transaction_type": "expense",
+            "amount": "10.00",
+            "description": "Compra próxima da meia-noite",
+            "occurred_at": "2026-11-01T02:00:00+00:00",
+            "idempotency_key": "timezone-boundary-expense-01",
+        },
+    )
+    assert transaction.status_code == 201
+
+    for period in ("2026-10", "2026-11"):
+        created = client.post(
+            "/api/v1/finance/budgets",
+            headers=headers,
+            json={
+                "category_id": category["id"],
+                "period": period,
+                "limit_amount": "100.00",
+            },
+        )
+        assert created.status_code == 201
+
+    october = client.get(
+        "/api/v1/finance/budgets?period=2026-10", headers=headers
+    ).json()[0]
+    november = client.get(
+        "/api/v1/finance/budgets?period=2026-11", headers=headers
+    ).json()[0]
+    assert october["spent_amount"] == "10.00"
+    assert november["spent_amount"] == "0.00"
+
+    local_october = client.get(
+        "/api/v1/finance/summary?start_date=2026-10-31&end_date=2026-10-31",
+        headers=headers,
+    ).json()
+    local_november = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-01",
+        headers=headers,
+    ).json()
+    assert local_october["totals_by_currency"][0]["expense_total"] == "10.00"
+    assert local_november["totals_by_currency"] == []
+
+    updated_timezone = client.patch(
+        "/api/v1/auth/me/timezone",
+        headers=headers,
+        json={"timezone": "UTC"},
+    )
+    assert updated_timezone.status_code == 200
+
+    utc_november = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-01",
+        headers=headers,
+    ).json()
+    assert utc_november["totals_by_currency"][0]["expense_total"] == "10.00"
+
+
+
+def test_transaction_amount_preserves_decimal_precision_and_rejects_excess_scale(client):
+    # Validate the full Numeric(18, 2) boundary without SQLite persistence:
+    # SQLite NUMERIC affinity uses binary floating point for large values,
+    # unlike PostgreSQL NUMERIC, and cannot represent every cent at this magnitude.
+    boundary_payload = TransactionCreate.model_validate(
+        {
+            "account_id": "00000000-0000-0000-0000-000000000001",
+            "transaction_type": "income",
+            "amount": "9999999999999999.99",
+            "description": "Limite decimal",
+            "idempotency_key": "decimal-limit-accepted-001",
+        }
+    )
+    assert boundary_payload.amount == Decimal("9999999999999999.99")
+    with pytest.raises(ValueError):
+        TransactionCreate.model_validate(
+            {
+                "account_id": "00000000-0000-0000-0000-000000000001",
+                "transaction_type": "income",
+                "amount": "0.001",
+                "description": "Escala excedente",
+                "idempotency_key": "decimal-excess-scale-001",
+            }
+        )
+
+    token = register(client, "decimal-boundary@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta decimal", "account_type": "checking"},
+    )
+    assert account.status_code == 201, account.text
+
+    persisted = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account.json()["id"],
+            "transaction_type": "income",
+            "amount": "123456.78",
+            "description": "Persistência decimal",
+            "idempotency_key": "decimal-persistence-001",
+        },
+    )
+    assert persisted.status_code == 201, persisted.text
+    assert persisted.json()["amount"] == "123456.78"
+
+
+def test_idempotency_keys_are_scoped_to_each_user(client):
+    first_token = register(client, "decimal-owner-a@example.com")
+    second_token = register(client, "decimal-owner-b@example.com")
+    first_headers = {"Authorization": f"Bearer {first_token}"}
+    second_headers = {"Authorization": f"Bearer {second_token}"}
+
+    first_account = client.post(
+        "/api/v1/finance/accounts",
+        headers=first_headers,
+        json={"name": "Conta A", "account_type": "checking"},
+    )
+    second_account = client.post(
+        "/api/v1/finance/accounts",
+        headers=second_headers,
+        json={"name": "Conta B", "account_type": "checking"},
+    )
+    shared_key = "same-idempotency-key-two-users"
+
+    first = client.post(
+        "/api/v1/finance/transactions",
+        headers=first_headers,
+        json={
+            "account_id": first_account.json()["id"],
+            "transaction_type": "income",
+            "amount": "10.10",
+            "description": "Lançamento A",
+            "idempotency_key": shared_key,
+        },
+    )
+    second = client.post(
+        "/api/v1/finance/transactions",
+        headers=second_headers,
+        json={
+            "account_id": second_account.json()["id"],
+            "transaction_type": "income",
+            "amount": "10.10",
+            "description": "Lançamento B",
+            "idempotency_key": shared_key,
+        },
+    )
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+    assert first.json()["id"] != second.json()["id"]
+
+
+def test_transaction_requires_timezone_aware_timestamp(client):
+    token = register(client, "timezone-required@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta timezone", "account_type": "checking"},
+    )
+    response = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account.json()["id"],
+            "transaction_type": "expense",
+            "amount": "1.00",
+            "description": "Data sem timezone",
+            "occurred_at": "2026-11-14T12:00:00",
+            "idempotency_key": "timezone-missing-offset-001",
+        },
+    )
+    assert response.status_code == 422
+
+
+
+def test_financial_summary_keeps_currencies_separate_without_implicit_conversion(client):
+    token = register(client, "multi-currency@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    brl = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta BRL", "account_type": "checking", "currency": "BRL"},
+    )
+    usd = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta USD", "account_type": "checking", "currency": "USD"},
+    )
+    assert brl.status_code == 201
+    assert usd.status_code == 201
+
+    for account_id, amount, key in [
+        (brl.json()["id"], "100.00", "currency-brl-income-001"),
+        (usd.json()["id"], "25.50", "currency-usd-income-001"),
+    ]:
+        created = client.post(
+            "/api/v1/finance/transactions",
+            headers=headers,
+            json={
+                "account_id": account_id,
+                "transaction_type": "income",
+                "amount": amount,
+                "description": "Receita de teste",
+                "occurred_at": "2026-11-14T12:00:00+00:00",
+                "idempotency_key": key,
+            },
+        )
+        assert created.status_code == 201, created.text
+
+    summary = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-30",
+        headers=headers,
+    )
+    assert summary.status_code == 200
+    totals = {item["currency"]: item for item in summary.json()["totals_by_currency"]}
+    assert totals["BRL"]["income_total"] == "100.00"
+    assert totals["USD"]["income_total"] == "25.50"
+    assert totals["BRL"]["net_flow"] == "100.00"
+    assert totals["USD"]["net_flow"] == "25.50"

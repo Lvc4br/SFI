@@ -1,0 +1,264 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+import { api } from "./api";
+import type { Account, ShoppingItem, ShoppingList, ShoppingListDetail, StockBalance, StockMovement } from "./api";
+
+const money = (value: string | null) => value === null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
+
+export default function ShoppingPage() {
+  const [lists, setLists] = useState<ShoppingList[]>([]);
+  const [selected, setSelected] = useState<string>("");
+  const [detail, setDetail] = useState<ShoppingListDetail | null>(null);
+  const [name, setName] = useState("");
+  const [itemName, setItemName] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [unit, setUnit] = useState("un");
+  const [price, setPrice] = useState("");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [templatesOnly, setTemplatesOnly] = useState(false);
+  const [isTemplate, setIsTemplate] = useState(false);
+  const [products, setProducts] = useState<Awaited<ReturnType<typeof api.shoppingProducts>>>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [purchaseAccountId, setPurchaseAccountId] = useState("");
+  const [stock, setStock] = useState<StockBalance[]>([]);
+  const [stockProductId, setStockProductId] = useState("");
+  const [stockQuantity, setStockQuantity] = useState("1");
+  const [stockMovementType, setStockMovementType] = useState<StockMovement["movement_type"]>("adjustment_in");
+  const [stockNotes, setStockNotes] = useState("");
+  const [productId, setProductId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const refreshLists = useCallback(async (preferredId?: string) => {
+    const data = await api.shoppingLists(favoritesOnly, templatesOnly);
+    setLists(data);
+    const nextId = preferredId && data.some(list => list.id === preferredId)
+      ? preferredId
+      : data.some(list => list.id === selected) ? selected : data[0]?.id ?? "";
+    setSelected(nextId);
+    if (!nextId) setDetail(null);
+    return nextId;
+  }, [favoritesOnly, templatesOnly, selected]);
+
+  const refreshDetail = useCallback(async (id: string) => {
+    if (!id) { setDetail(null); return; }
+    setDetail(await api.shoppingList(id));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void api.shoppingLists(favoritesOnly, templatesOnly).then(data => {
+      if (!active) return;
+      setLists(data);
+      setSelected(current => data.some(list => list.id === current) ? current : data[0]?.id ?? "");
+    }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar listas."); });
+    return () => { active = false; };
+  }, [favoritesOnly, templatesOnly]);
+
+  useEffect(() => {
+    let active = true;
+    if (!selected) { setDetail(null); return; }
+    void api.shoppingList(selected).then(data => { if (active) setDetail(data); })
+      .catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao abrir lista."); });
+    return () => { active = false; };
+  }, [selected]);
+
+  useEffect(() => { let active = true; void api.shoppingProducts().then(data => { if (active) setProducts(data); }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar catálogo."); }); return () => { active = false; }; }, []);
+  useEffect(() => { let active = true; void api.accounts().then(data => { if (active) { setAccounts(data.filter(account => account.currency === "BRL")); setPurchaseAccountId(current => current || data.find(account => account.currency === "BRL")?.id || ""); } }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar contas."); }); return () => { active = false; }; }, []);
+  const refreshStock = useCallback(async () => { setStock(await api.stockBalances()); }, []);
+  useEffect(() => { let active = true; void api.stockBalances().then(data => { if (active) setStock(data); }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar estoque."); }); return () => { active = false; }; }, []);
+
+  const total = useMemo(() => detail?.items.reduce((sum, item) =>
+    sum + (item.unit_price === null ? 0 : Number(item.unit_price) * Number(item.quantity)), 0) ?? 0, [detail]);
+  const pending = detail?.items.filter(item => !item.is_checked).length ?? 0;
+  const checked = detail?.items.filter(item => item.is_checked).length ?? 0;
+
+  async function run(operation: () => Promise<unknown>, success: string, refresh = true) {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await operation();
+      if (refresh && selected) await refreshDetail(selected);
+      setNotice(success);
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível concluir a operação."); }
+    finally { setBusy(false); }
+  }
+
+  async function createList(event: FormEvent) {
+    event.preventDefault();
+    if (!name.trim()) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const created = await api.createShoppingList(name.trim(), false, isTemplate);
+      setName(""); setIsTemplate(false);
+      await refreshLists(created.id);
+      setNotice("Lista criada.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível criar a lista."); }
+    finally { setBusy(false); }
+  }
+
+  async function addItem(event: FormEvent) {
+    event.preventDefault();
+    if (!detail || !itemName.trim()) return;
+    const parsedQuantity = Number(quantity.replace(",", "."));
+    const parsedPrice = price.trim() ? Number(price.replace(",", ".")) : null;
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) { setError("Informe uma quantidade maior que zero."); return; }
+    if (parsedPrice !== null && (!Number.isFinite(parsedPrice) || parsedPrice < 0)) { setError("Informe um preço válido ou deixe o campo vazio."); return; }
+    await run(async () => {
+      await api.createShoppingItem(detail.id, {
+        name: itemName.trim(), product_id: productId || null, quantity: parsedQuantity.toFixed(3), unit: unit.trim() || "un",
+        unit_price: parsedPrice === null ? null : parsedPrice.toFixed(2),
+        position: detail.items.length,
+      });
+      setItemName(""); setQuantity("1"); setUnit("un"); setPrice(""); setProductId("");
+    }, "Item adicionado.");
+  }
+
+  async function confirmPurchase() {
+    if (!detail || !purchaseAccountId || detail.is_template) return;
+    if (!window.confirm("Confirmar esta compra? Será criada uma despesa real na conta selecionada e a lista será arquivada.")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await api.confirmShoppingPurchase(detail.id, purchaseAccountId);
+      await refreshStock();
+      const next = await refreshLists();
+      if (next) await refreshDetail(next);
+      setNotice(`Compra registrada: ${money(result.amount)}. Uma despesa foi criada e a lista foi arquivada.`);
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível confirmar a compra."); }
+    finally { setBusy(false); }
+  }
+
+  async function registerStockMovement(event: FormEvent) {
+    event.preventDefault();
+    const parsed = Number(stockQuantity.replace(",", "."));
+    if (!stockProductId || !Number.isFinite(parsed) || parsed <= 0) { setError("Selecione um produto e informe uma quantidade válida."); return; }
+    await run(async () => {
+      await api.createStockMovement(stockProductId, { movement_type: stockMovementType, quantity: parsed.toFixed(3), notes: stockNotes.trim() || undefined });
+      await refreshStock();
+      setStockNotes(""); setStockQuantity("1");
+    }, "Movimentação de estoque registrada.", false);
+  }
+
+  async function useTemplate() {
+    if (!detail?.is_template) return;
+    setBusy(true); setError(""); setNotice("");
+    try { const created = await api.createShoppingListFromTemplate(detail.id); await refreshLists(created.id); setNotice("Nova lista criada a partir do modelo."); }
+    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível usar o modelo."); }
+    finally { setBusy(false); }
+  }
+
+  async function saveCurrentItemToCatalog() {
+    if (!itemName.trim()) return;
+    setBusy(true); setError(""); setNotice("");
+    try { const product = await api.createShoppingProduct({ name: itemName.trim(), unit: unit.trim() || "un" }); setProducts(current => [...current.filter(item => item.id !== product.id), product]); setProductId(product.id); setNotice("Produto salvo no catálogo pessoal."); }
+    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível salvar o produto."); }
+    finally { setBusy(false); }
+  }
+
+  async function toggleItem(item: ShoppingItem) {
+    await run(() => api.updateShoppingItem(item.list_id, item.id, { is_checked: !item.is_checked }),
+      item.is_checked ? "Item voltou para a lista." : "Item marcado como comprado.");
+  }
+
+  async function renameList() {
+    if (!detail) return;
+    const next = window.prompt("Nome da lista:", detail.name);
+    if (next === null || !next.trim() || next.trim() === detail.name) return;
+    await run(async () => {
+      await api.updateShoppingList(detail.id, { name: next.trim() });
+      await refreshLists(detail.id);
+    }, "Lista renomeada.");
+  }
+
+  async function archiveList() {
+    if (!detail || !window.confirm("Arquivar esta lista? Os itens e o histórico serão preservados.")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await api.archiveShoppingList(detail.id);
+      const next = await refreshLists();
+      if (next) await refreshDetail(next);
+      setNotice("Lista arquivada. O histórico foi preservado.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível arquivar a lista."); }
+    finally { setBusy(false); }
+  }
+
+  return <section className="content-grid shopping-page">
+    {error && <div className="alert error" role="alert">{error}<button onClick={() => setError("")} aria-label="Fechar erro">×</button></div>}
+    {notice && <div className="alert success" role="status">{notice}<button onClick={() => setNotice("")} aria-label="Fechar aviso">×</button></div>}
+    <div className="shopping-layout">
+      <aside className="panel shopping-sidebar">
+        <div className="panel-heading"><div><h3>Suas listas</h3><p className="muted">Mercado, farmácia e outras compras</p></div></div>
+        <form className="shopping-create-list" onSubmit={createList}>
+          <input aria-label="Nome da nova lista" placeholder="Nome da lista" value={name} onChange={e => setName(e.target.value)} maxLength={100} required />
+          <label><input type="checkbox" checked={isTemplate} onChange={e => setIsTemplate(e.target.checked)} /> Criar como modelo</label>
+          <button className="button primary" disabled={busy || !name.trim()}>Criar lista</button>
+        </form>
+        <label className="shopping-favorites-filter"><input type="checkbox" checked={favoritesOnly} onChange={e => setFavoritesOnly(e.target.checked)} /> Mostrar apenas favoritas</label>
+        <label className="shopping-favorites-filter"><input type="checkbox" checked={templatesOnly} onChange={e => setTemplatesOnly(e.target.checked)} /> Mostrar apenas modelos</label>
+        <div className="shopping-list-options">
+          {lists.map(list => <button type="button" key={list.id} className={selected === list.id ? "shopping-list-option active" : "shopping-list-option"} onClick={() => setSelected(list.id)}>
+            <span className="shopping-list-icon">☷</span><span className="shopping-list-name">{list.name}<small>{list.is_template ? "Modelo reutilizável" : list.is_favorite ? "Favorita" : "Lista pessoal"}</small></span><span className="shopping-fav-mark">{list.is_favorite ? "★" : ""}</span>
+          </button>)}
+          {!lists.length && <p className="muted shopping-empty">Nenhuma lista encontrada. Crie sua primeira lista.</p>}
+        </div>
+      </aside>
+      <section className="panel shopping-detail">
+        {detail ? <>
+          <div className="shopping-detail-heading">
+            <div><span className="eyebrow">LISTA DE COMPRAS</span><h2>{detail.name}</h2><p className="muted">{pending} pendentes · {checked} comprados</p></div>
+            <div className="shopping-actions">
+              <button className="button secondary" type="button" disabled={busy} onClick={() => void run(async () => { await api.updateShoppingList(detail.id, { is_favorite: !detail.is_favorite }); await refreshLists(detail.id); }, detail.is_favorite ? "Removida das favoritas." : "Adicionada às favoritas.")}>{detail.is_favorite ? "★ Favorita" : "☆ Favoritar"}</button>
+              {detail.is_template && <button className="button primary" type="button" disabled={busy} onClick={() => void useTemplate()}>Usar modelo</button>}
+              <button className="button secondary" type="button" disabled={busy} onClick={renameList}>Renomear</button>
+              {!detail.is_template && <div className="shopping-confirm-purchase">
+                <select aria-label="Conta para registrar a compra" value={purchaseAccountId} onChange={e => setPurchaseAccountId(e.target.value)} disabled={busy || !accounts.length}>
+                  <option value="">Selecione a conta</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}
+                </select>
+                <button className="button primary" type="button" disabled={busy || !purchaseAccountId || !detail.items.length || pending > 0} onClick={() => void confirmPurchase()}>Confirmar compra</button>
+                {pending > 0 && <small>Marque os {pending} item(ns) comprados antes de confirmar.</small>}
+              </div>}
+              <button className="button secondary" type="button" disabled={busy} onClick={archiveList}>Arquivar</button>
+            </div>
+          </div>
+          <form className="shopping-add-item" onSubmit={addItem}>
+            <select aria-label="Produto do catálogo" value={productId} onChange={e => { const id = e.target.value; setProductId(id); const product = products.find(item => item.id === id); if (product) { setItemName(product.name); setUnit(product.unit); } }}><option value="">Item avulso / sem produto</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}{product.brand ? " · " + product.brand : ""}</option>)}</select>
+            <input className="shopping-item-name" aria-label="Nome do item" placeholder="O que você precisa comprar?" value={itemName} onChange={e => setItemName(e.target.value)} maxLength={120} required />
+            <input aria-label="Quantidade" type="number" min="0.001" step="0.001" value={quantity} onChange={e => setQuantity(e.target.value)} required />
+            <input aria-label="Unidade" value={unit} onChange={e => setUnit(e.target.value)} maxLength={20} required />
+            <input aria-label="Preço unitário estimado" inputMode="decimal" placeholder="Preço (R$)" value={price} onChange={e => setPrice(e.target.value)} />
+            <button className="button primary" disabled={busy || !itemName.trim()}>Adicionar</button>
+            <button className="button secondary" type="button" disabled={busy || !itemName.trim() || !!productId} onClick={() => void saveCurrentItemToCatalog()}>Salvar no catálogo</button>
+          </form>
+          <div className="shopping-items-heading"><strong>Itens</strong><span>Estimativa dos itens com preço informado</span></div>
+          {detail.items.length ? <div className="shopping-items">
+            {detail.items.map(item => <article className={item.is_checked ? "shopping-item checked" : "shopping-item"} key={item.id}>
+              <input type="checkbox" checked={item.is_checked} disabled={busy} aria-label={"Marcar " + item.name + " como comprado"} onChange={() => void toggleItem(item)} />
+              <div className="shopping-item-description"><strong>{item.name}</strong><small>{Number(item.quantity).toLocaleString("pt-BR")} {item.unit} · {money(item.unit_price)} por unidade</small></div>
+              <strong className="shopping-item-total">{item.unit_price === null ? "—" : money((Number(item.unit_price) * Number(item.quantity)).toFixed(2))}</strong>
+              <button className="shopping-delete" type="button" disabled={busy} aria-label={"Excluir " + item.name} onClick={() => { if (window.confirm("Excluir este item da lista?")) void run(() => api.deleteShoppingItem(item.list_id, item.id), "Item removido."); }}>×</button>
+            </article>)}
+          </div> : <div className="empty-state"><span>◌</span><p>Esta lista ainda não tem itens. Adicione o primeiro acima.</p></div>}
+          <div className="shopping-total"><div><span>Total estimado</span><strong>{money(total.toFixed(2))}</strong></div><small>Não é uma despesa registrada. Os valores são apenas uma estimativa de compras.</small></div>
+        </> : <div className="empty-state shopping-no-selection"><span>🛒</span><p>Selecione uma lista ou crie uma nova para organizar suas compras.</p></div>}
+      </section>
+    </div>
+    <section className="panel shopping-stock-panel">
+      <div className="panel-heading"><div><h3>Estoque doméstico</h3><p className="muted">Saldo calculado pelo histórico de entradas e saídas. Compras confirmadas adicionam automaticamente os produtos do catálogo.</p></div></div>
+      <form className="shopping-add-item" onSubmit={registerStockMovement}>
+        <select aria-label="Produto do estoque" value={stockProductId} onChange={e => setStockProductId(e.target.value)} required>
+          <option value="">Selecione um produto</option>{products.map(product => <option key={product.id} value={product.id}>{product.name} ({product.unit})</option>)}
+        </select>
+        <select aria-label="Tipo de movimentação" value={stockMovementType} onChange={e => setStockMovementType(e.target.value as StockMovement["movement_type"])}>
+          <option value="adjustment_in">Entrada / saldo inicial</option><option value="consumption">Consumo</option><option value="adjustment_out">Retirada / ajuste</option><option value="waste">Perda / descarte</option>
+        </select>
+        <input aria-label="Quantidade da movimentação" type="number" min="0.001" step="0.001" value={stockQuantity} onChange={e => setStockQuantity(e.target.value)} required />
+        <input aria-label="Observação da movimentação" placeholder="Observação (opcional)" value={stockNotes} onChange={e => setStockNotes(e.target.value)} maxLength={300} />
+        <button className="button primary" disabled={busy || !stockProductId}>Registrar movimentação</button>
+      </form>
+      {stock.length ? <div className="shopping-items">{stock.map(item => <article className="shopping-item" key={item.product_id}>
+        <div className="shopping-item-description"><strong>{item.product_name}</strong><small>Saldo disponível</small></div>
+        <strong className="shopping-item-total">{Number(item.balance).toLocaleString("pt-BR")} {item.unit}</strong>
+      </article>)}</div> : <div className="empty-state"><span>▤</span><p>Sem saldo registrado. Adicione produtos ao catálogo e registre uma entrada ou confirme uma compra.</p></div>}
+    </section>
+  </section>;
+}

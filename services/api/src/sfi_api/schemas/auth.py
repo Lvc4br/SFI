@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -8,6 +9,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class RegisterRequest(BaseModel):
     email: str = Field(min_length=6, max_length=320)
     password: str = Field(min_length=12, max_length=128)
+    timezone: str = "America/Sao_Paulo"
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        try:
+            return ZoneInfo(value).key
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError("Informe um fuso horário IANA válido.") from None
 
     @field_validator("email")
     @classmethod
@@ -47,12 +57,33 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
     is_active: bool
+    timezone: str
     created_at: datetime
+
+
+class TimezoneUpdateRequest(BaseModel):
+    timezone: str = Field(min_length=1, max_length=64)
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        try:
+            return ZoneInfo(value).key
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError("Informe um fuso horário IANA válido.") from None
 
 
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
     expires_in: int
     user: UserResponse
+
+
+class SecurityEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    event_type: str
+    created_at: datetime

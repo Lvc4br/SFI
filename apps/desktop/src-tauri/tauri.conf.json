@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "SFI",
+  "version": "0.1.0",
+  "identifier": "com.sfi.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm --filter @sfi/web dev -- --host 127.0.0.1",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "pnpm --filter @sfi/web build",
+    "frontendDist": "../../web/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "SFI — Sistema Financeiro Inteligente",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:*; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis",
+      "msi"
+    ],
+    "shortDescription": "Gestão financeira pessoal",
+    "longDescription": "Aplicativo Desktop do Sistema Financeiro Inteligente.",
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "binaries/sfi-api.exe": "sfi-api.exe"
+    }
+  }
+}

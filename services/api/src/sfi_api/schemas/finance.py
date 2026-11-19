@@ -20,7 +20,20 @@ class AccountResponse(BaseModel):
     account_type: str
     currency: str
     opening_balance: Decimal
+    archived_at: datetime | None = None
     created_at: datetime
+
+
+class AccountUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("name")
+    @classmethod
+    def trim_account_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("O nome da conta não pode ficar vazio.")
+        return value
 
 
 class CategoryCreate(BaseModel):
@@ -41,7 +54,20 @@ class CategoryResponse(BaseModel):
     id: uuid.UUID
     name: str
     category_type: str
+    archived_at: datetime | None = None
     created_at: datetime
+
+
+class CategoryUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+
+    @field_validator("name")
+    @classmethod
+    def trim_category_update_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("O nome da categoria não pode ficar vazio.")
+        return value
 
 
 class TransactionCreate(BaseModel):

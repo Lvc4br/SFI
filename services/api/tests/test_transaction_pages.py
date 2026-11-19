@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -116,3 +116,91 @@ def test_transaction_page_rejects_invalid_ranges(client):
         headers=headers,
     )
     assert response.status_code == 422
+
+
+def test_transaction_page_handles_large_dataset_without_duplicates_or_gaps(client):
+    owner = _register(client, "page-volume@example.com")
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=owner,
+        json={"name": "Conta volume", "account_type": "checking"},
+    ).json()
+
+    for index in range(65):
+        response = client.post(
+            "/api/v1/finance/transactions",
+            headers=owner,
+            json={
+                "account_id": account["id"],
+                "transaction_type": "expense",
+                "amount": "1.00",
+                "description": f"Movimentação volume {index:03d}",
+                "occurred_at": (
+                    datetime(2026, 11, 1, 12, 0, 0, tzinfo=UTC)
+                    + timedelta(seconds=index)
+                ).isoformat(),
+                "idempotency_key": f"page-volume-key-{index:04d}",
+            },
+        )
+        assert response.status_code == 201
+
+    collected = []
+    for offset in (0, 25, 50):
+        response = client.get(
+            f"/api/v1/finance/transactions/page?limit=25&offset={offset}",
+            headers=owner,
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["total"] == 65
+        collected.extend(item["id"] for item in payload["items"])
+        assert payload["has_more"] is (offset < 50)
+
+    assert len(collected) == 65
+    assert len(set(collected)) == 65
+
+
+def test_calendar_date_filters_use_the_users_timezone(client):
+    headers = _register(client, "date-filter-timezone@example.com")
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    ).json()
+    created = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "transaction_type": "expense",
+            "amount": "5.00",
+            "description": "Instante próximo à meia-noite",
+            "occurred_at": "2026-11-01T02:00:00+00:00",
+            "idempotency_key": "date-filter-timezone-0001",
+        },
+    )
+    assert created.status_code == 201
+
+    local_october = client.get(
+        "/api/v1/finance/transactions/page?start_date=2026-10-31&end_date=2026-10-31",
+        headers=headers,
+    )
+    local_november = client.get(
+        "/api/v1/finance/transactions/page?start_date=2026-11-01&end_date=2026-11-01",
+        headers=headers,
+    )
+    assert local_october.json()["total"] == 1
+    assert local_november.json()["total"] == 0
+
+    token = headers["Authorization"].removeprefix("Bearer ")
+    changed = client.patch(
+        "/api/v1/auth/me/timezone",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"timezone": "UTC"},
+    )
+    assert changed.status_code == 200
+    utc_november = client.get(
+        "/api/v1/finance/transactions/page?start_date=2026-11-01&end_date=2026-11-01",
+        headers=headers,
+    )
+    assert utc_november.json()["total"] == 1

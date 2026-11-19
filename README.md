@@ -28,15 +28,19 @@ Dashboard; contas e cartões; movimentações e recorrências; orçamento e flux
 - Dados permanecem locais por padrão.
 - Backup/exportação em formatos abertos.
 
-## Estado real
-A fundação inclui autenticação, contas, categorias, movimentações, transferências, estornos, recorrências, orçamento, dashboard, filtros, paginação, CSV e trilha de segurança. O runtime Desktop local foi implementado com Tauri + sidecar FastAPI, SQLite em AppLocalData, chave JWT por instalação, API em loopback e encerramento supervisionado. O pipeline Windows já gerou instaladores NSIS/MSI e aprovou o smoke test do sidecar.
+## Estado real — build de homologação
 
-O módulo de compras inclui listas pessoais/favoritas/modelos, catálogo pessoal de produtos, histórico de preços, confirmação explícita que cria despesa e entradas de estoque de forma transacional, e estoque doméstico por livro-razão de movimentos (entradas, consumo, ajustes e perdas). A interface permite confirmar compras, acompanhar saldos e registrar movimentos manuais. Itens sem produto do catálogo entram na despesa, mas não geram saldo de estoque.
+A branch `feature/financial-core-security-hardening` contém uma versão candidata de homologação do SFI Desktop 0.1.0. O instalador Windows x64 NSIS e o MSI foram gerados com sucesso pelo GitHub Actions, incluindo o sidecar FastAPI e o mecanismo OCR Tesseract com português/inglês. O smoke test do sidecar empacotado passou.
 
-**O produto completo ainda não está concluído nem liberado.** A PR #17 permanece Draft. A base de compras/estoque, cartões/faturas e dívidas foi implementada. A migration 0020 acrescenta metas e reservas com histórico de aportes e retiradas; esses movimentos são alocações de planejamento e não alteram saldos bancários. A migration 0021 acrescenta cadastro de ativos, ledger de operações e carteira calculada por custo médio, com dividendos e resultado realizado; as operações também são informativas e não alteram contas bancárias. A migration 0022 acrescenta bens e passivos com avaliações históricas e patrimônio líquido calculado separadamente por moeda. O módulo de intercâmbio adiciona prévia e importação confirmada de CSV/JSON/OFX com deduplicação e exportação CSV/JSON de movimentações. A CI precisa validar esta última migration e sua interface antes de considerar o módulo aprovado. O smoke test do sidecar não substitui testes de instalação limpa/atualização/desinstalação em Windows de destino. Permanecem pendentes, entre outros: cronogramas contratuais Price/SAC, importação/exportação universal, OCR fiscal, conciliação, relatórios/diagramas avançados, temas completos, IA pessoal, sincronização PC–celular e validação operacional de backup/restore.
+- **CI:** API (154 aprovados, 2 ignorados, 1 desmarcado), Ruff, Web build, E2E Chromium/Firefox/WebKit, backups e precisão PostgreSQL aprovados.
+- **Segurança:** CodeQL Python/TypeScript e auditoria de dependências aprovados.
+- **Desktop:** instaladores NSIS/MSI gerados; falta homologação em Windows 10/11 real, assinatura de código e validação de atualização/desinstalação.
+- **Dados:** o Desktop usa SQLite local; nenhum deploy, seed, migration ou escrita no Neon de produção foi executado.
+- **PR #17:** permanece Draft, sem merge. Este build é para homologação, não release pública estável.
 
-Consulte [o plano de conclusão](planning/COMPLETION_MASTER_PLAN.md), [o módulo de listas e compras](docs/SHOPPING_LISTS.md), [a confirmação de compras](docs/SHOPPING_PURCHASE_CONFIRMATION.md), [o estoque doméstico](docs/HOUSEHOLD_STOCK.md), [o catálogo e histórico de preços](docs/PRODUCT_CATALOG_PRICE_HISTORY.md) e [o runtime Desktop](architecture/DESKTOP_RUNTIME.md) e [metas financeiras](docs/FINANCIAL_GOALS.md). Nenhuma migration, restauração ou escrita em banco remoto de produção deve ser executada sem autorização explícita.
+O produto já inclui contas, categorias, movimentações, transferências, estornos, recorrências, orçamento, compras/listas, catálogo e histórico de preços, estoque, cartões/faturas, dívidas e projeções, metas, investimentos informativos, patrimônio, importação/exportação, conciliação, documentos fiscais NF-e/NFC-e, OCR de DANFE, câmera/entrada manual de QR, calculadoras, relatórios e temas personalizados.
 
+**Baixar e testar:** consulte [Checklist de homologação Windows](docs/WINDOWS_RELEASE_TEST_CHECKLIST.md). O checklist cobre instalação, execução offline, operações financeiras, módulos, OCR, backup/restore e desinstalação, além de separar claramente integrações que dependem de credenciais ou fornecedores.
 
 ## Documentos fiscais — NF-e/NFC-e
 

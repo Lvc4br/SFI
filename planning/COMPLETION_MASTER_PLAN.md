@@ -1,3 +1,44 @@
+# Atualização de estado — 18/11/2026 (prevalece sobre notas históricas abaixo)
+
+## Build de homologação disponível
+
+- Commit de código validado: `5e6e72bd0ddb68b812799620208e24865f12947c`.
+- API: 154 testes aprovados, 2 ignorados, 1 desmarcado; Ruff aprovado.
+- Web build e E2E Chromium, Firefox e WebKit aprovados.
+- Backups, automação de backup Windows e precisão financeira PostgreSQL aprovados na CI.
+- CodeQL Python/TypeScript e auditoria de dependências aprovados.
+- Sidecar FastAPI empacotado e smoke test aprovados; OCR Tesseract com idiomas português/inglês preparado no bundle.
+- Instaladores NSIS e MSI Windows x64 gerados com sucesso no workflow Desktop. Artefato: [sfi-desktop-windows](https://github.com/Lvc4br/SFI/actions/runs/44420685084).
+- PR #17 continua Draft; nenhum merge/deploy foi feito e o Neon de produção não foi alterado.
+- Guia para o operador: [Checklist de homologação Windows](../docs/WINDOWS_RELEASE_TEST_CHECKLIST.md).
+
+## Tarefas que agora ficam para homologação no Windows
+
+1. Instalação limpa e primeira inicialização sem Python/Node/Rust.
+2. Persistência do SQLite após fechar/reabrir e reiniciar Windows.
+3. Operação offline e encerramento do sidecar.
+4. Jornadas dos módulos financeiros, compras, estoque, conciliação e importação/exportação.
+5. OCR com XML/PDF/imagens de teste; câmera conforme suporte WebView2.
+6. Backup criptografado, senha incorreta, arquivo adulterado, restauração e agendamento.
+7. Atualização/desinstalação e comportamento de preservação dos dados.
+8. Registro de falhas com logs sem dados pessoais.
+
+## Pendências de implementação/infraestrutura externa
+
+- SEFAZ oficial, CT-e e NFS-e.
+- Verificação de e-mail, recuperação de senha e MFA.
+- Open Finance e sync remoto/móvel.
+- Provedor opcional de IA.
+- Infraestrutura de produção, WAF/proxy, observabilidade, deploy/rollback.
+- Assinatura do instalador e atualização segura.
+- DPAPI para proteção da chave JWT local.
+- Auditoria completa WCAG/axe/leitores de tela, revisão externa de segurança e decisões LGPD.
+- Ensaios de recuperação Neon em branches isoladas, RPO/RTO e cópia externa; nenhuma escrita de teste deve usar produção.
+
+Este build é uma **versão candidata de homologação**, não uma release pública estável. Os estados antigos registrados abaixo são histórico do plano e devem ser interpretados à luz desta atualização. A CI não substitui os testes manuais no Windows real.
+
+---
+
 # Plano mestre de conclusão — SFI
 
 Atualizado em 15/11/2026. Este documento é o controle operacional das seis prioridades de conclusão. Status "pendente externo" significa que código/documentação no GitHub não consegue comprovar a execução no ambiente do operador ou de um fornecedor.

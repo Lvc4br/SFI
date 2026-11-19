@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -62,7 +62,6 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
     import queue
     import sqlite3
     import subprocess
-    import sys
     import threading
     from urllib.request import urlopen
 

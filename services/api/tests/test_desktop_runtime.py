@@ -40,7 +40,11 @@ def test_legacy_plaintext_secret_is_migrated_to_dpapi(tmp_path: Path):
     assert not secret_path.exists()
     protected_path = tmp_path / "secrets" / "jwt.key.dpapi"
     assert protected_path.is_file()
+
+    # Simulate interruption after DPAPI file creation but before legacy cleanup.
+    secret_path.write_text("x" * 64, encoding="utf-8")
     assert ensure_local_secret(tmp_path) == "x" * 64
+    assert not secret_path.exists()
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows DPAPI integration test")

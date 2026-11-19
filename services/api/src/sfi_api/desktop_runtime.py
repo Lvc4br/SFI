@@ -134,7 +134,15 @@ def ensure_local_secret(data_dir: Path) -> str:
                 raise RuntimeError(
                     "Não foi possível desbloquear a chave DPAPI deste usuário Windows."
                 ) from exc
-            return _validate_secret(value)
+            value = _validate_secret(value)
+            if legacy_path.exists():
+                legacy_value = legacy_path.read_text(encoding="utf-8").strip()
+                if not secrets.compare_digest(legacy_value, value):
+                    raise RuntimeError(
+                        "A chave legada difere da chave DPAPI; os dados foram preservados."
+                    )
+                legacy_path.unlink()
+            return value
 
         if legacy_path.exists():
             value = _validate_secret(legacy_path.read_text(encoding="utf-8").strip())

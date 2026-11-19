@@ -136,6 +136,12 @@ export default function ReportsPage() {
     const rows = [
       ["Tipo", "Período", "Moeda", "Categoria", "Receitas", "Despesas", "Resultado"],
       ...data.map(item => ["Mensal", item.month, currency, "", decimal(item.income), decimal(item.expense), decimal(item.net)]),
+      ...(comparePrevious ? previousSummaries.flatMap(summary => {
+        const row = summary.totals_by_currency.find(item => item.currency === currency);
+        const income = cents(row?.income_total ?? "0.00");
+        const expense = cents(row?.expense_total ?? "0.00");
+        return [["Período anterior", summary.start_date + " a " + summary.end_date, currency, "", decimal(income), decimal(expense), decimal(income - expense)]];
+      }) : []),
       ...categories.map(item => ["Categoria", range.start + " a " + range.end, currency, item.name, "", decimal(item.amount), ""]),
     ];
     const csv = "\uFEFF" + rows.map(row => row.map(value => '"' + String(value).replace(/"/g, '""') + '"').join(";")).join("\r\n");

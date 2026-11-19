@@ -90,7 +90,7 @@ export default function ReportsPage() {
       setBusy(true);
       setError("");
       try {
-        if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(range.start) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(range.end)) throw new Error("Informe datas válidas.");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(range.start) || !/^\d{4}-\d{2}-\d{2}$/.test(range.end)) throw new Error("Informe datas válidas.");
         const start = parseDate(range.start), end = parseDate(range.end);
         if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || localDate(start) !== range.start || localDate(end) !== range.end) throw new Error("Informe datas válidas.");
         const days = rangeDays(range);

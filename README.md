@@ -5,45 +5,82 @@
 O SFI é um software pessoal para administrar finanças, compras, documentos fiscais, investimentos informativos, patrimônio e planejamento econômico. Não é uma plataforma educacional, curso ou serviço para terceiros.
 
 ## Produto e arquitetura
+
 - **Desktop:** Tauri 2 + React + TypeScript + Vite, instalador Windows 10/11 x64.
 - **Execução local-first:** funções essenciais sem internet e sem conta externa.
 - **Persistência primária:** SQLite local, migrações versionadas e integridade transacional.
-- **Backend:** FastAPI empacotado como processo local/sidecar; sem instalação manual de Python.
-- **Sincronização:** Neon PostgreSQL opcional, desativado por padrão.
+- **Backend:** FastAPI empacotado como processo local/sidecar; não exige instalação manual de Python para o usuário final.
+- **Sincronização:** integração remota/Neon não faz parte do fluxo operacional deste build e permanece desativada.
 - **Arquivos:** diretório privado do usuário, com backup e metadados.
-- **IA e indicadores externos:** opcionais; falhas de rede não bloqueiam operações locais.
+- **IA e indicadores externos:** não estão habilitados como recursos operacionais nesta versão.
 
 A interface React é incorporada ao aplicativo nativo, não um site permanente.
 
-## Escopo funcional
-Dashboard; contas e cartões; movimentações e recorrências; orçamento e fluxo de caixa; dívidas e financiamentos; metas e reservas; investimentos; calculadoras; indicadores; listas de compras favoritas/personalizadas; catálogo pessoal de produtos; histórico de preços; compras confirmadas; estoque doméstico; documentos fiscais XML/PDF/imagens e OCR; patrimônio; documentos pessoais; importação/exportação; gráficos e diagramas; relatórios; temas; IA pessoal opcional; backup e restauração.
+## Escopo funcional implementado
+
+Dashboard; contas e cartões; movimentações e recorrências; orçamento e fluxo de caixa; dívidas e projeções; metas e reservas; investimentos informativos; calculadoras; listas de compras; catálogo pessoal e histórico de preços; compras confirmadas e estoque doméstico; documentos fiscais NF-e/NFC-e com leitura XML, DANFE e OCR local; patrimônio; importação/exportação; conciliação bancária assistida; relatórios; temas; backup e restauração.
+
+Consulte os documentos em [docs/](docs/) para regras, limites e formatos suportados por cada módulo.
 
 ## Princípios obrigatórios
-- SQLite é a fonte de verdade local; sync remoto é opt-in.
+
+- SQLite é a fonte de verdade local; sincronização remota não é necessária para a operação implementada.
 - Decimal/Numeric e arredondamento documentado; nunca float para dinheiro.
 - Operações financeiras transacionais, idempotentes e auditáveis.
 - Lançamentos confirmados corrigidos por estorno/compensação.
 - Documento fiscal só gera movimentação após revisão e confirmação humana.
-- IA não inventa saldos nem executa operações críticas.
 - Dados permanecem locais por padrão.
 - Backup/exportação em formatos abertos.
 
 ## Estado real — build de homologação
 
-A branch `feature/financial-core-security-hardening` contém uma versão candidata de homologação do SFI Desktop 0.1.0. O instalador Windows x64 NSIS e o MSI foram gerados com sucesso pelo GitHub Actions, incluindo o sidecar FastAPI e o mecanismo OCR Tesseract com português/inglês. O smoke test do sidecar empacotado passou.
+A branch `feature/financial-core-security-hardening` contém o build candidato SFI Desktop 0.1.0. No commit `712cdcc7ee7bd5893a659260a9cc020282953c25`, os workflows CI, Security e Desktop do GitHub Actions concluíram com sucesso. O Desktop gerou instaladores Windows x64 NSIS e MSI, incluindo o sidecar FastAPI e os recursos OCR empacotados.
 
-- **CI:** API (154 aprovados, 2 ignorados, 1 desmarcado), Ruff, Web build, E2E Chromium/Firefox/WebKit, backups e precisão PostgreSQL aprovados.
-- **Segurança:** CodeQL Python/TypeScript e auditoria de dependências aprovados.
-- **Desktop:** instaladores NSIS/MSI gerados; falta homologação em Windows 10/11 real, assinatura de código e validação de atualização/desinstalação.
-- **Dados:** o Desktop usa SQLite local; nenhum deploy, seed, migration ou escrita no Neon de produção foi executado.
+- **CI:** workflow concluído com sucesso; inclui testes de API, lint, build Web, E2E e validações de dados.
+- **Segurança:** workflow concluído com sucesso; inclui auditoria de dependências e CodeQL.
+- **Desktop:** workflow concluído com sucesso; instaladores NSIS/MSI e smoke test do sidecar gerados no runner Windows.
+- **Homologação física:** ainda depende de instalação e execução em Windows 10/11 real, incluindo persistência, uso offline, backup/restauração, atualização e desinstalação.
+- **Assinatura:** o instalador não está assinado com certificado de publicação.
+- **Atualização:** não há mecanismo de atualização automática segura nesta versão.
+- **Dados:** nenhum deploy, seed, migração ou escrita no Neon de produção foi executado.
 - **PR #17:** permanece Draft, sem merge. Este build é para homologação, não release pública estável.
 
-O produto já inclui contas, categorias, movimentações, transferências, estornos, recorrências, orçamento, compras/listas, catálogo e histórico de preços, estoque, cartões/faturas, dívidas e projeções, metas, investimentos informativos, patrimônio, importação/exportação, conciliação, documentos fiscais NF-e/NFC-e, OCR de DANFE, câmera/entrada manual de QR, calculadoras, relatórios e temas personalizados.
+### Baixar o código-fonte
 
-**Baixar e testar:** consulte [Checklist de homologação Windows](docs/WINDOWS_RELEASE_TEST_CHECKLIST.md). O checklist cobre instalação, execução offline, operações financeiras, módulos, OCR, backup/restore e desinstalação, além de separar claramente integrações que dependem de credenciais ou fornecedores.
+No PowerShell, execute:
+
+```powershell
+git clone --branch feature/financial-core-security-hardening https://github.com/Lvc4br/SFI.git
+cd SFI
+code .
+```
+
+Isso baixa o código-fonte para a pasta `SFI` e abre o projeto no VS Code. O usuário final não precisa compilar o projeto para testar o instalador: baixe o artefato `sfi-desktop-windows` na execução [Desktop do GitHub Actions](https://github.com/Lvc4br/SFI/actions/runs/44527452174).
+
+### Testar o instalador
+
+Siga o [Checklist de homologação Windows](docs/WINDOWS_RELEASE_TEST_CHECKLIST.md). Ele cobre instalação, execução offline, operações financeiras, módulos, OCR, backup/restore e desinstalação. Use dados fictícios e um perfil descartável para testar restauração.
 
 ## Documentos fiscais — NF-e/NFC-e
 
-A primeira etapa de documentos fiscais aceita XML de NF-e/NFC-e até 2 MB. A API rejeita DTD/entidades, valida a chave de acesso, extrai emitente, identificação, data, total e itens, e oferece uma prévia sem persistência. A confirmação grava metadados estruturados e hash SHA-256; o XML original não é armazenado. A criação de despesa é opcional, depende de confirmação humana e é feita na mesma transação do documento, com chave idempotente por NF-e. A conta escolhida precisa estar ativa, ser não creditícia e usar BRL.
+A primeira etapa aceita XML de NF-e/NFC-e até 2 MiB. A API rejeita DTD/entidades, valida a chave de acesso, extrai emitente, identificação, data, total e itens, e oferece uma prévia sem persistência. A confirmação grava metadados estruturados e hash SHA-256; o XML original não é armazenado. A criação de despesa é opcional, depende de confirmação humana e é feita na mesma transação do documento, com chave idempotente por NF-e.
 
-Limitações atuais: não há consulta de autorização na SEFAZ, validação criptográfica do protocolo, OCR de DANFE/PDF/imagem, leitura de QR Code, conciliação de pagamentos nem suporte a CT-e/NFS-e. A extração do XML é uma prévia informativa e não substitui a validação fiscal oficial.
+Também há leitura de DANFE em PDF com texto selecionável ou OCR local Tesseract português/inglês, além de imagens PNG/JPEG/WEBP/TIFF. A leitura de QR pela câmera depende do suporte do WebView2 a `BarcodeDetector` e da permissão; entrada manual da chave é alternativa. A comparação do QR com a chave do documento não comprova autenticidade.
+
+**Limitações fiscais:** esta versão não consulta autorização/protocolo na SEFAZ, não valida criptograficamente a autorização fiscal e não oferece integração CT-e/NFS-e. A extração e o OCR são recursos de conferência e não substituem validação fiscal oficial.
+
+## Segurança, privacidade e dados
+
+- O banco SQLite e a chave local ficam no diretório privado do aplicativo no perfil Windows.
+- A chave JWT local é protegida com DPAPI no escopo do usuário Windows; uma chave legada em texto claro é migrada após validação. Falha de descriptografia interrompe a inicialização sem sobrescrever a chave/dados.
+- A sessão fica em memória; após fechar o SFI, será necessário autenticar novamente.
+- Backups criptografados usam AES-256-GCM com chave derivada por scrypt; a senha não é persistida pelo mecanismo de backup manual.
+- Restauração substitui os dados do banco de destino. Faça backup antes e teste somente em perfil descartável.
+- A chave DPAPI é vinculada ao perfil Windows e não deve ser copiada para outro computador; migre dados com backup criptografado.
+- Não coloque senhas, tokens, certificados ou connection strings no repositório.
+
+## Pendências fora do build de homologação
+
+Consulta oficial SEFAZ, CT-e/NFS-e, Open Finance, IA com provedor externo, sincronização bidirecional/móvel, assinatura de código, atualização automática segura e distribuição pública estável exigem integração, credenciais, infraestrutura, revisão ou homologação que não estão disponíveis neste build.
+
+A aprovação de CI e a geração do instalador não substituem a homologação em Windows real. Não distribua esta versão como release pública estável antes de concluir os critérios de segurança e operação.

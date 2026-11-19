@@ -138,7 +138,7 @@ export default function ReportsPage() {
       ...data.map(item => ["Mensal", item.month, currency, "", decimal(item.income), decimal(item.expense), decimal(item.net)]),
       ...categories.map(item => ["Categoria", range.start + " a " + range.end, currency, item.name, "", decimal(item.amount), ""]),
     ];
-    const csv = "\uFEFF" + rows.map(row => row.map(value => '"' + String(value).replace(/"/g, '""') + '"').join(";")).join("\\r\\n");
+    const csv = "\uFEFF" + rows.map(row => row.map(value => '"' + String(value).replace(/"/g, '""') + '"').join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a"); link.href = url; link.download = "sfi-relatorio-" + range.start + "-" + range.end + "-" + currency + ".csv"; link.click(); URL.revokeObjectURL(url);
   }

@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -11,7 +12,11 @@ def test_local_secret_is_persistent_and_not_replaced(tmp_path: Path):
 
     assert len(first) >= 48
     assert second == first
-    assert (tmp_path / "secrets" / "jwt.key").is_file()
+    if sys.platform == "win32":
+        assert (tmp_path / "secrets" / "jwt.key.dpapi").is_file()
+        assert not (tmp_path / "secrets" / "jwt.key").exists()
+    else:
+        assert (tmp_path / "secrets" / "jwt.key").is_file()
 
 
 def test_invalid_existing_secret_fails_without_overwriting(tmp_path: Path):
@@ -23,6 +28,33 @@ def test_invalid_existing_secret_fails_without_overwriting(tmp_path: Path):
         ensure_local_secret(tmp_path)
 
     assert secret_path.read_text(encoding="utf-8") == "invalid"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DPAPI integration test")
+def test_legacy_plaintext_secret_is_migrated_to_dpapi(tmp_path: Path):
+    secret_path = tmp_path / "secrets" / "jwt.key"
+    secret_path.parent.mkdir(parents=True)
+    secret_path.write_text("x" * 64, encoding="utf-8")
+
+    assert ensure_local_secret(tmp_path) == "x" * 64
+    assert not secret_path.exists()
+    protected_path = tmp_path / "secrets" / "jwt.key.dpapi"
+    assert protected_path.is_file()
+    assert ensure_local_secret(tmp_path) == "x" * 64
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DPAPI integration test")
+def test_tampered_dpapi_secret_fails_without_replacing_file(tmp_path: Path):
+    secret = ensure_local_secret(tmp_path)
+    protected_path = tmp_path / "secrets" / "jwt.key.dpapi"
+    original = protected_path.read_bytes()
+    protected_path.write_bytes(original + b"tamper")
+
+    with pytest.raises(RuntimeError, match="desbloquear"):
+        ensure_local_secret(tmp_path)
+
+    assert protected_path.read_bytes() == original + b"tamper"
+    assert secret
 
 
 def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path):

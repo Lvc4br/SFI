@@ -57,7 +57,7 @@ try {
                 throw "O sidecar encerrou com código $($process.ExitCode). $stderr"
             }
 
-            Write-Host "Sidecar local validado na execução $attempt: SQLite pronto em 127.0.0.1:$port e encerramento gracioso confirmado." -ForegroundColor Green
+            Write-Host "Sidecar local validado na execução ${attempt}: SQLite pronto em 127.0.0.1:$port e encerramento gracioso confirmado." -ForegroundColor Green
         }
         finally {
             if ($null -ne $process -and -not $process.HasExited) {

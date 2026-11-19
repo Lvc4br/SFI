@@ -1,6 +1,6 @@
 # Checklist de testes operacionais — SFI Desktop 0.1.0
 
-**Build:** commit `5e6e72bd0ddb68b812799620208e24865f12947c`  
+**Build:** commit da branch `feature/financial-core-security-hardening` (confira o SHA do artefato na execução Desktop vinculada à PR)  
 **Plataforma:** Windows 10/11 x64  
 **Estado:** instaladores NSIS e MSI compilados no GitHub Actions; CI, segurança e E2E aprovados. Ainda não houve execução em uma máquina Windows de destino.
 
@@ -51,6 +51,9 @@ Crie uma conta corrente fictícia em BRL e categorias de receita/despesa.
 - [ ] Criar orçamento mensal e conferir planejado versus realizado.
 - [ ] Criar recorrência; conferir configuração, próxima data e prevenção de duplicidade.
 - [ ] Testar filtros, paginação, período, atualização e exportação CSV.
+- [ ] Em Relatórios, testar mês atual, mês anterior, últimos 90/182/365 dias e intervalo personalizado.
+- [ ] Comparar o intervalo com o período imediatamente anterior e conferir que a duração é igual.
+- [ ] Tentar intervalo invertido e intervalo maior que 367 dias; conferir mensagem de validação sem travar a tela.
 - [ ] Fechar e reabrir; conferir saldos, movimentações e orçamento.
 
 **Não** use o saldo exibido como única evidência: confira também os lançamentos e os registros compensatórios.

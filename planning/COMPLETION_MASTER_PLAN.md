@@ -235,8 +235,8 @@ O teste do limite máximo `Numeric(18,2)` valida agora o schema Pydantic diretam
 - Teste de backend adicionado para o fluxo Desktop de registro, rotação e logout.
 - O workflow Windows usa o CLI oficial distribuído pelo pacote npm `@tauri-apps/cli`, evitando compilar o próprio CLI Rust no runner; o build do aplicativo continua sendo compilado pelo toolchain Rust.
 - Investigação CI: Chromium, Firefox e WebKit retornaram corretamente 32 itens no total e 7 na última página (offset 25); o teste esperava incorretamente 5. Ajustada a expectativa para validar o contrato dinâmico e as cinco linhas de volume restantes.
-- Limitação operacional: o Desktop depende da API FastAPI hospedada e do PostgreSQL Neon; ainda não há deploy da API nem URL pública configurada. O aplicativo não contém credenciais e nunca acessa o banco diretamente.
-- A validação do instalador Windows ainda depende do workflow Desktop. Nenhuma release assinada, deploy ou alteração em produção foi feita.
+- Estado operacional atualizado: o Desktop executa FastAPI empacotada e SQLite local; não depende de API hospedada, Neon, PostgreSQL ou internet para as jornadas locais implementadas. O Neon de produção não foi alterado.
+- O workflow Desktop gerou NSIS/MSI e aprovou o smoke test do sidecar/DPAPI. A instalação, atualização e desinstalação em um Windows 10/11 de destino ainda precisam de homologação. Nenhuma release assinada, deploy ou alteração em produção foi feita.
 
 
 ## Reorientação obrigatória pelo PROMPT MESTRE — 15/11/2026
@@ -249,15 +249,22 @@ A especificação atual substitui decisões anteriores incompatíveis. SFI é fe
 - [x] Arquitetura local-first documentada.
 - [x] SQLite definido como fonte local; Neon somente sync opt-in.
 - [x] Backend aceita SFI_DATA_DIR e deriva arquivo SQLite local; bootstrap inicial usa metadata atual e registra baseline 0013; teste automatizado adicionado.
-- [ ] FastAPI empacotado como sidecar Windows sem Python instalado.
-- [ ] Lifecycle do sidecar, loopback dinâmico e encerramento confiável.
-- [ ] Migrations compatíveis com SQLite e atualização segura.
-- [ ] Diretórios privados de dados/documentos e proteção de segredos.
-- [ ] Backup/restore SQLite integrado ao app.
+- [x] FastAPI empacotada como sidecar Windows; build PyInstaller e smoke test Windows aprovados sem Python instalado no ambiente de destino.
+- [x] Lifecycle do sidecar, loopback dinâmico e encerramento confiável; smoke test de inicialização/encerramento e reinício aprovado.
+- [x] Bootstrap/migrations SQLite locais implementados e exercitados pelo smoke test; atualização/desinstalação ainda exigem validação manual.
+- [x] Diretórios privados locais e chave JWT protegida por DPAPI no perfil Windows atual; migração de chave legada testável.
+- [x] Backup/restore SQLite integrado, criptografia, integridade, automação e retenção cobertos por testes; restore operacional ainda exige homologação em perfil descartável.
 - [ ] Instalação limpa, offline, atualização e desinstalação verificadas.
 
-### Escopo funcional pendente
-Cartões/faturas, conciliação, OFX/XLSX, dívidas, financiamentos, metas, investimentos, indicadores, calculadoras, compras, listas favoritas, histórico de preços, estoque, XML/PDF/OCR, patrimônio, documentos, exportação universal, relatórios, diagramas interativos, temas personalizados e assistente de IA opcional.
+### Escopo funcional ainda pendente
+- Consulta oficial SEFAZ/protocolo, certificado A1, CT-e e NFS-e.
+- OCR universal de extratos bancários e perfis específicos por banco; o OCR fiscal atual é para DANFE.
+- Lotes/validade e múltiplos locais de armazenamento, conversão de unidades, estorno/reabertura de compra.
+- Indicadores e análises por intervalos arbitrários/presets além do relatório anual atual.
+- Cofre genérico de documentos pessoais e gestão de anexos; documentos fiscais mantêm metadados/hash, não os originais.
+- Verificação de e-mail, recuperação de senha e MFA; a troca autenticada de senha já existe.
+- Assistente de IA opcional, Open Finance e sincronização PC–celular/móvel, que exigem provedores/credenciais/infraestrutura.
+- Diagramas interativos e refinamentos de acessibilidade completa (axe/WCAG/leitores de tela).
 
 ### Regra de status
 Nenhum módulo é concluído apenas por documentação, rota, tabela, botão ou scaffold. Aceite exige jornada funcional, persistência, integração, tratamento de erros, testes e documentação. Recursos externos (assinatura, IA, cotações e sync) são opcionais e não podem bloquear operação offline.
@@ -273,11 +280,11 @@ Nenhum módulo é concluído apenas por documentação, rota, tabela, botão ou 
 - [x] Interface: confirmação de compra, seleção de conta, saldo do estoque e formulário de movimentações manuais.
 - [x] Testes adicionados: entrada/consumo/saldo, saída insuficiente, isolamento, entrada automática pela compra e incompatibilidade de unidade.
 - [x] Documentação: docs/SHOPPING_PURCHASE_CONFIRMATION.md, docs/HOUSEHOLD_STOCK.md e docs/SHOPPING_LISTS.md.
-- [ ] Validação CI do head ca67c2c: aguardando execução completa de API, Web, E2E Chromium/Firefox/WebKit, Security e Desktop.
-- [ ] Ainda fora deste módulo: lotes/validade, múltiplos locais de armazenamento, conversão de unidades, estorno/reabertura de compra e importação de notas fiscais.
+- [x] Validação CI atualizada: API 154 passed, 4 skipped, 1 deselected; Ruff, Web, E2E Chromium/Firefox/WebKit, PostgreSQL, backup e Security aprovados. Desktop NSIS/MSI e smoke test DPAPI aprovados.
+- [ ] Ainda fora deste módulo: lotes/validade, múltiplos locais de armazenamento, conversão de unidades e estorno/reabertura de compra. A importação fiscal NF-e/NFC-e já existe com revisão manual; CT-e/NFS-e seguem pendentes.
 
 O estoque é local-first conforme o banco configurado pelo runtime. Nenhuma escrita ou migração foi executada contra Neon de produção.
-NaN) ou indicador D/C. OCR, reconhecimento de colunas e perfis específicos de bancos seguem pendentes.
+O parser de extratos bancários aceita texto selecionável e prévia; OCR de extratos, reconhecimento de colunas e perfis específicos de bancos seguem pendentes.
 - Projeções Price/SAC disponíveis na API e na tela de dívidas. O cálculo usa Decimal, taxa nominal anual dividida por 12, ajuste da última amortização e datas mensais com ajuste de fim de mês. Não altera saldos nem cria pagamentos.
-- Testes automatizados foram adicionados para exportação QIF/PDF, isolamento, round-trip QIF, PDF com descrição multilinha, cronogramas Price/SAC, taxa zero e datas de fim de mês. **Os testes e a CI do head atual não foram executados nesta etapa**, pois a validação CI foi reservada para depois da conclusão das implementações.
-- Pendências externas/funcionais: teste operacional de backup/restore e agendamento em Windows real; OCR e layouts bancários; CET/encargos contratuais oficiais; SEFAZ/DANFE/QR/CT-e/NFS-e; auditoria de acessibilidade e leitores de tela; sincronização multi-dispositivo e infraestrutura remota; revisão independente de segurança e requisitos LGPD.
+- Testes automatizados cobrem exportação QIF/PDF, isolamento, round-trip QIF, PDF com descrição multilinha, cronogramas Price/SAC, taxa zero, datas de fim de mês, CET estimado, encargos por atraso e E2E de troca de senha. A CI atual foi executada integralmente e passou.
+- Pendências externas/operacionais: homologação da instalação/atualização/desinstalação, backup/restore e agendamento em Windows real; validação OCR/câmera com arquivos e equipamento reais; CET/encargos contratuais oficiais; SEFAZ/CT-e/NFS-e; acessibilidade e leitores de tela; sincronização multi-dispositivo/infraestrutura remota; Open Finance/IA; assinatura do instalador; revisão independente de segurança e requisitos LGPD.

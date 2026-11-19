@@ -51,7 +51,7 @@ Os instaladores são gerados em `src-tauri/target/release/bundle/`. O workflow G
 ## Dados, recursos e limites
 
 - Banco local: `%LOCALAPPDATA%\\com.sfi.desktop\\database\\sfi.sqlite3`.
-- Chave local: `%LOCALAPPDATA%\\com.sfi.desktop\\secrets\\jwt.key`; nesta versão ela ainda não usa DPAPI. Proteja a conta Windows e mantenha backups criptografados.
+- Chave local: `%LOCALAPPDATA%\\com.sfi.desktop\\secrets\\jwt.key.dpapi`, protegida por DPAPI no escopo do usuário Windows. Versões anteriores com `jwt.key` em texto claro são migradas na primeira inicialização e o arquivo antigo é removido após a migração bem-sucedida. Se DPAPI falhar, o aplicativo interrompe a inicialização sem sobrescrever a chave/dados. A chave protegida não é transferível para outro perfil ou PC; migre os dados usando backup criptografado.
 - O usuário final não precisa instalar Python, Node, Rust, Docker ou PostgreSQL.
 - O OCR Tesseract com modelos português/inglês e o PDFium são empacotados no sidecar Windows.
 - A sessão fica em memória; após fechar o SFI, o login é solicitado novamente.

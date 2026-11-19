@@ -28,7 +28,7 @@ Dinheiro usa decimal textual validado ou inteiro em unidade mínima com escala e
 
 - API vinculada somente ao loopback e porta efêmera.
 - CORS restrito às origens Tauri.
-- Chave JWT por instalação, fora do bundle, com criação atômica e sem sobrescrever arquivo existente.
+- Chave JWT por instalação, fora do bundle, protegida por Windows DPAPI no escopo do usuário atual; criação atômica, migração de chave legada e falha segura sem sobrescrever arquivo existente.
 - Tokens de sessão em memória; nenhuma credencial remota no aplicativo.
 - CSP permite conexão somente ao loopback dinâmico.
 - O diretório AppLocalData usa as permissões do perfil Windows atual; a chave não é protegida por DPAPI nesta etapa.
@@ -42,6 +42,7 @@ Banco/documentos fora do bundle. Antes de migration, backup e checksum. Falha de
 - [x] Build PyInstaller do sidecar FastAPI no runner Windows.
 - [x] Smoke test HTTP/readiness do sidecar empacotado.
 - [x] Tesseract OCR e modelos português/inglês incluídos no ambiente de empacotamento.
+- [x] Chave JWT local protegida por DPAPI; smoke test Windows reinicia o sidecar duas vezes no mesmo perfil e confirma persistência sem arquivo em texto claro.
 - [x] Instaladores Windows NSIS e MSI gerados e publicados como artefato de CI.
 - [x] CI API/Web/E2E Chromium/Firefox/WebKit, backup e PostgreSQL precision aprovadas.
 - [x] CodeQL Python/TypeScript e auditoria de dependências aprovados.

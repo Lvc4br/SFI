@@ -3,12 +3,12 @@
 ## Build de homologação disponível
 
 - Commit de código validado: `5e6e72bd0ddb68b812799620208e24865f12947c`.
-- API: 154 testes aprovados, 2 ignorados, 1 desmarcado; Ruff aprovado.
+- API: 154 testes aprovados, 4 ignorados (inclui dois testes DPAPI exclusivos do Windows, exercitados no smoke test Windows), 1 desmarcado; Ruff aprovado.
 - Web build e E2E Chromium, Firefox e WebKit aprovados.
 - Backups, automação de backup Windows e precisão financeira PostgreSQL aprovados na CI.
 - CodeQL Python/TypeScript e auditoria de dependências aprovados.
-- Sidecar FastAPI empacotado e smoke test aprovados; OCR Tesseract com idiomas português/inglês preparado no bundle.
-- Instaladores NSIS e MSI Windows x64 gerados com sucesso no workflow Desktop. Artefato: [sfi-desktop-windows](https://github.com/Lvc4br/SFI/actions/runs/44420685084).
+- Sidecar FastAPI empacotado e smoke test aprovados; smoke test Windows reinicia o sidecar duas vezes no mesmo perfil e confirma DPAPI sem chave em texto claro. OCR Tesseract com idiomas português/inglês preparado no bundle.
+- Instaladores NSIS e MSI Windows x64 gerados com sucesso no workflow Desktop mais recente. Artefato: [sfi-desktop-windows](https://github.com/Lvc4br/SFI/actions/runs/44430989556).
 - PR #17 continua Draft; nenhum merge/deploy foi feito e o Neon de produção não foi alterado.
 - Guia para o operador: [Checklist de homologação Windows](../docs/WINDOWS_RELEASE_TEST_CHECKLIST.md).
 

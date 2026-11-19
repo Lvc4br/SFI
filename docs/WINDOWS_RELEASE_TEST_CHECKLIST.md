@@ -28,6 +28,9 @@ Antes de instalar:
 - [ ] Confirmar que o aplicativo aparece no menu Iniciar e abre sem Python/Node/Rust instalados.
 - [ ] Confirmar que a janela principal abre sem erro de inicialização do sidecar.
 - [ ] Criar uma conta de teste com e-mail fictício e senha forte (mínimo 12 caracteres).
+- [ ] Abrir Configurações, alterar a senha e confirmar que a sessão é encerrada; entrar novamente com a nova senha.
+- [ ] Conferir que `%LOCALAPPDATA%\\com.sfi.desktop\\secrets\\jwt.key.dpapi` existe e que não há `jwt.key` em texto claro.
+- [ ] Se estiver atualizando uma instalação legada, fazer backup antes e confirmar que a chave `jwt.key` antiga é migrada para DPAPI e removida após sucesso.
 - [ ] Fechar o aplicativo normalmente e abrir novamente.
 - [ ] Confirmar que o login funciona e os dados locais permanecem disponíveis.
 - [ ] Desconectar a internet e repetir abertura/login; o núcleo local deve continuar funcional.

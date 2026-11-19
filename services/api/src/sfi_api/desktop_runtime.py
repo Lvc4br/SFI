@@ -1,4 +1,5 @@
 """Private local runtime used by the Windows desktop sidecar."""
+# ruff: noqa: I001  # Keep the Win32 ctypes imports together for the DPAPI binding.
 
 from __future__ import annotations
 

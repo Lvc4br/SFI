@@ -382,7 +382,11 @@ def test_complete_web_financial_journey() -> None:
             page.get_by_label("Confirmar nova senha").fill(new_password)
             page.get_by_role("button", name="Alterar senha").click()
             expect(page.get_by_role("heading", name="Acesse sua conta")).to_be_visible()
-            expect(page.get_by_text("Senha alterada. Todas as sessões anteriores foram encerradas; entre novamente.")).to_be_visible()
+            expect(
+                page.get_by_text(
+                    "Senha alterada. Todas as sessões anteriores foram encerradas; entre novamente."
+                )
+            ).to_be_visible()
             page.get_by_label("Senha").fill(new_password)
             page.get_by_role("button", name="Entrar", exact=True).click()
             expect(page.get_by_text(email)).to_be_visible()

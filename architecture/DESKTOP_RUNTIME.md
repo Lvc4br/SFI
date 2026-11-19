@@ -6,7 +6,7 @@ O instalador Windows x64 contém UI, backend Python e dependências. O usuário 
 
 - Tauri resolve AppLocalData e cria o diretório privado do aplicativo.
 - O backend é iniciado como processo filho; em desenvolvimento usa Python local, no bundle resolve `sfi-api.exe` como recurso.
-- O backend cria/valida uma chave JWT persistente em `secrets/jwt.key`. Arquivo preexistente inválido interrompe a inicialização; não é sobrescrito.
+- O backend cria/valida uma chave JWT persistente em `secrets/jwt.key.dpapi`, protegida por DPAPI para o usuário Windows atual. Uma chave legada `secrets/jwt.key` é migrada e removida após sucesso. Falha de descriptografia interrompe a inicialização sem sobrescrever dados.
 - SQLite é derivado de `SFI_DATA_DIR/database/sfi.sqlite3`.
 - Alembic faz o bootstrap do banco vazio usando o metadata atual e a revisão baseline 0013.
 - API escuta apenas em `127.0.0.1`, com porta efêmera; o processo envia `SFI_API_READY <port>` depois que o servidor está efetivamente pronto.
@@ -16,7 +16,7 @@ O instalador Windows x64 contém UI, backend Python e dependências. O usuário 
 
 ## Diretórios
 
-Usar APIs Tauri AppLocalData/AppData. O banco fica em `database/sfi.sqlite3`, a chave em `secrets/jwt.key`; documentos, backups, logs e cache serão adicionados nos respectivos diretórios. Nunca salvar dados em Program Files ou ao lado do executável. Desinstalação deve preservar dados por padrão; remoção será ação explícita.
+Usar APIs Tauri AppLocalData/AppData. O banco fica em `database/sfi.sqlite3`, a chave DPAPI em `secrets/jwt.key.dpapi`; documentos, backups, logs e cache serão adicionados nos respectivos diretórios. Nunca salvar dados em Program Files ou ao lado do executável. Desinstalação deve preservar dados por padrão; remoção será ação explícita.
 
 ## SQLite e migrations
 
@@ -31,7 +31,7 @@ Dinheiro usa decimal textual validado ou inteiro em unidade mínima com escala e
 - Chave JWT por instalação, fora do bundle, protegida por Windows DPAPI no escopo do usuário atual; criação atômica, migração de chave legada e falha segura sem sobrescrever arquivo existente.
 - Tokens de sessão em memória; nenhuma credencial remota no aplicativo.
 - CSP permite conexão somente ao loopback dinâmico.
-- O diretório AppLocalData usa as permissões do perfil Windows atual; a chave não é protegida por DPAPI nesta etapa.
+- O diretório AppLocalData usa as permissões do perfil Windows atual; a chave é protegida por DPAPI e não pode ser copiada diretamente para outro perfil Windows.
 
 ## Atualização e recuperação
 
@@ -52,7 +52,7 @@ Banco/documentos fora do bundle. Antes de migration, backup e checksum. Falha de
 - [ ] Atualização, desinstalação e preservação dos dados validadas.
 - [ ] Assinatura do instalador e política de atualização segura.
 
-O roteiro de execução está em [docs/WINDOWS_RELEASE_TEST_CHECKLIST.md](../docs/WINDOWS_RELEASE_TEST_CHECKLIST.md). O instalador atual é build de homologação não assinado. A sessão não persiste após fechar o app; o login será solicitado novamente. A chave JWT local ainda não é protegida por DPAPI.
+O roteiro de execução está em [docs/WINDOWS_RELEASE_TEST_CHECKLIST.md](../docs/WINDOWS_RELEASE_TEST_CHECKLIST.md). O instalador atual é build de homologação não assinado. A sessão não persiste após fechar o app; o login será solicitado novamente. A chave JWT local é protegida por DPAPI no perfil Windows atual.
 
 ## Integrações e infraestrutura ainda não entregues
 

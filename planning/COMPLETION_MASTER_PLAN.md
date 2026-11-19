@@ -31,7 +31,6 @@
 - Provedor opcional de IA.
 - Infraestrutura de produção, WAF/proxy, observabilidade, deploy/rollback.
 - Assinatura do instalador e atualização segura.
-- DPAPI para proteção da chave JWT local.
 - Auditoria completa WCAG/axe/leitores de tela, revisão externa de segurança e decisões LGPD.
 - Ensaios de recuperação Neon em branches isoladas, RPO/RTO e cópia externa; nenhuma escrita de teste deve usar produção.
 
@@ -281,4 +280,4 @@ O estoque é local-first conforme o banco configurado pelo runtime. Nenhuma escr
 NaN) ou indicador D/C. OCR, reconhecimento de colunas e perfis específicos de bancos seguem pendentes.
 - Projeções Price/SAC disponíveis na API e na tela de dívidas. O cálculo usa Decimal, taxa nominal anual dividida por 12, ajuste da última amortização e datas mensais com ajuste de fim de mês. Não altera saldos nem cria pagamentos.
 - Testes automatizados foram adicionados para exportação QIF/PDF, isolamento, round-trip QIF, PDF com descrição multilinha, cronogramas Price/SAC, taxa zero e datas de fim de mês. **Os testes e a CI do head atual não foram executados nesta etapa**, pois a validação CI foi reservada para depois da conclusão das implementações.
-- Pendências externas/funcionais: teste operacional DPAPI e ciclo de backup em Windows real; OCR e layouts bancários; CET/encargos contratuais oficiais; SEFAZ/DANFE/QR/CT-e/NFS-e; auditoria de acessibilidade e leitores de tela; sincronização multi-dispositivo e infraestrutura remota; revisão independente de segurança e requisitos LGPD.
+- Pendências externas/funcionais: teste operacional de backup/restore e agendamento em Windows real; OCR e layouts bancários; CET/encargos contratuais oficiais; SEFAZ/DANFE/QR/CT-e/NFS-e; auditoria de acessibilidade e leitores de tela; sincronização multi-dispositivo e infraestrutura remota; revisão independente de segurança e requisitos LGPD.

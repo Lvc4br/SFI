@@ -8,7 +8,7 @@ Ao abrir o SFI, o processo nativo:
 
 1. Resolve o diretório privado do aplicativo pelo Tauri AppLocalData.
 2. Inicia o executável FastAPI incluído no instalador (PyInstaller).
-3. Cria ou valida uma chave JWT local persistente em `secrets/jwt.key`; uma chave existente inválida interrompe a inicialização sem sobrescrever os dados.
+3. Cria ou valida uma chave JWT local persistente em `secrets/jwt.key.dpapi`; uma chave existente inválida interrompe a inicialização sem sobrescrever os dados.
 4. Executa o bootstrap/migrations do SQLite em `database/sfi.sqlite3`.
 5. Vincula a API somente a `127.0.0.1`, em uma porta efêmera, e comunica a origem à interface por handshake de inicialização.
 6. Encerra a API graciosamente quando o aplicativo fecha, com timeout e encerramento de contingência.

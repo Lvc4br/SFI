@@ -165,7 +165,7 @@ export default function ReportsPage() {
       {error && <div className="alert error" role="alert">{error}</div>}
     </section>
     {!busy && !error && <section className="panel">
-      <div className="panel-heading"><div><h3>Consolidado de {range.start} a {range.end}</h3><p className="muted">{rangeDays(range)} dias · movimentações confirmadas</p></div><button className="button secondary" type="button" onClick={exportCsv}>Exportar CSV</button></div>
+      <div className="panel-heading"><div><h3>Consolidado de {range.start.slice(0, 4)} · {range.start} a {range.end}</h3><p className="muted">{rangeDays(range)} dias · movimentações confirmadas</p></div><button className="button secondary" type="button" onClick={exportCsv}>Exportar CSV</button></div>
       <div className="metric-grid">
         <article className="metric-card"><span>RECEITAS NO PERÍODO</span><strong>{money(totals.income, currency)}</strong>{comparePrevious && <small className="muted">Anterior: {money(previousTotals.income, currency)} ({percentageChange(totals.income, previousTotals.income)})</small>}</article>
         <article className="metric-card"><span>DESPESAS NO PERÍODO</span><strong>{money(totals.expense, currency)}</strong>{comparePrevious && <small className="muted">Anterior: {money(previousTotals.expense, currency)} ({percentageChange(totals.expense, previousTotals.expense)})</small>}</article>

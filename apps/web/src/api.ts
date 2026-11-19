@@ -174,6 +174,10 @@ export const api = {
   me: () => request<User>("/api/v1/auth/me"),
   updateTimezone: (timezone: string) =>
     request<User>("/api/v1/auth/me/timezone", { method: "PATCH", body: JSON.stringify({ timezone }) }),
+  changePassword: async (current_password: string, new_password: string) => {
+    await request<void>("/api/v1/auth/change-password", { method: "POST", body: JSON.stringify({ current_password, new_password }) });
+    clearSession();
+  },
   securityEvents: () => request<SecurityEvent[]>("/api/v1/auth/security-events"),
   logout: async () => {
     try {

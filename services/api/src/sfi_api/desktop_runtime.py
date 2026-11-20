@@ -19,8 +19,8 @@ from pathlib import Path
 from sqlalchemy.engine import URL
 
 
-_DPAPI_MAGIC = b"SFI-DPAPI-V2\\x00"
-_DPAPI_LEGACY_MAGICS = (b"SFI-DPAPI-V1\\\\x00", b"SFI-DPAPI-V1\\x00")
+_DPAPI_MAGIC = b"SFI-DPAPI-V2\x00"
+_DPAPI_LEGACY_MAGICS = (b"SFI-DPAPI-V1\\x00", b"SFI-DPAPI-V1\x00")
 _DPAPI_LENGTH_SIZE = 4
 _DPAPI_DIGEST_SIZE = hashlib.sha256().digest_size
 

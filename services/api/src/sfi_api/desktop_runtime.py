@@ -185,7 +185,8 @@ def ensure_local_secret(data_dir: Path) -> str:
 
         if legacy_path.exists():
             value = _validate_secret(legacy_path.read_text(encoding="utf-8").strip())
-            encrypted = _encode_dpapi_envelope(_dpapi_transform(value.encode("utf-8"), decrypt=False))
+            protected = _dpapi_transform(value.encode("utf-8"), decrypt=False)
+            encrypted = _encode_dpapi_envelope(protected)
             if _write_exclusive(protected_path, encrypted):
                 legacy_path.unlink()
                 return value

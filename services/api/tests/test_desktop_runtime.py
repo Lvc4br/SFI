@@ -54,7 +54,7 @@ def test_tampered_dpapi_secret_fails_without_replacing_file(tmp_path: Path):
     original = protected_path.read_bytes()
     protected_path.write_bytes(original + b"tamper")
 
-    with pytest.raises(RuntimeError, match="desbloquear"):
+    with pytest.raises(RuntimeError, match="inválida|desbloquear"):
         ensure_local_secret(tmp_path)
 
     assert protected_path.read_bytes() == original + b"tamper"

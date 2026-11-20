@@ -34,16 +34,17 @@ Consulte os documentos em [docs/](docs/) para regras, limites e formatos suporta
 
 ## Estado real — build de homologação
 
-A branch `feature/financial-core-security-hardening` contém o build candidato SFI Desktop 0.1.0. No commit `712cdcc7ee7bd5893a659260a9cc020282953c25`, os workflows CI, Security e Desktop do GitHub Actions concluíram com sucesso. O Desktop gerou instaladores Windows x64 NSIS e MSI, incluindo o sidecar FastAPI e os recursos OCR empacotados.
+A branch fix/backup-automation-dpapi-integrity contém a revisão de homologação SFI Desktop 0.1.0. O commit de código usado para gerar o artefato Windows é a16e1690ed7bb454e449ece000a7846cea06a69c. O workflow Desktop gerou instaladores Windows x64 NSIS e MSI, incluindo o sidecar FastAPI. A documentação e o checklist desta branch registram também a validação local executada em Windows em 19/11/2026.
 
-- **CI:** workflow concluído com sucesso; inclui testes de API, lint, build Web, E2E e validações de dados.
-- **Segurança:** workflow concluído com sucesso; inclui auditoria de dependências e CodeQL.
-- **Desktop:** workflow concluído com sucesso; instaladores NSIS/MSI e smoke test do sidecar gerados no runner Windows.
-- **Homologação física:** ainda depende de instalação e execução em Windows 10/11 real, incluindo persistência, uso offline, backup/restauração, atualização e desinstalação.
+- **CI:** execução 44642798661 concluída com sucesso; inclui API, Web, precisão financeira, integridade de backup e E2E Chromium/Firefox/WebKit.
+- **Segurança:** execução 44642798707 concluída com sucesso.
+- **Desktop:** execução 44642798669 concluída com sucesso; instaladores NSIS/MSI e smoke test do sidecar gerados no runner Windows.
+- **Testes locais em Windows (19/11/2026):** Ruff aprovado; API com 159 passed, 1 skipped e 1 deselected; 8 verificações de integridade de backup aprovadas; TypeScript e build Web aprovados.
+- **Homologação física:** ainda depende de instalação e execução do instalador em Windows 10/11 de destino, incluindo persistência, uso offline, fluxos financeiros, backup/restauração, atualização e desinstalação.
 - **Assinatura:** o instalador não está assinado com certificado de publicação.
 - **Atualização:** não há mecanismo de atualização automática segura nesta versão.
 - **Dados:** nenhum deploy, seed, migração ou escrita no Neon de produção foi executado.
-- **PR #17:** permanece Draft, sem merge. Este build é para homologação, não release pública estável.
+- **PR #17 e PR #18:** permanecem abertas como Draft, sem merge. Este build é para homologação, não release pública estável.
 
 ### Baixar o código-fonte
 
@@ -55,11 +56,11 @@ cd SFI
 code .
 ```
 
-Isso baixa o código-fonte para a pasta `SFI` e abre o projeto no VS Code. O usuário final não precisa compilar o projeto para testar o instalador: baixe o artefato `sfi-desktop-windows` na execução [Desktop do GitHub Actions](https://github.com/Lvc4br/SFI/actions/runs/44527452174).
+Isso baixa o código-fonte para a pasta SFI e abre o projeto no VS Code. O usuário final não precisa compilar o projeto para testar o instalador: baixe o artefato sfi-desktop-windows na [execução Desktop 44642798669 do GitHub Actions](https://github.com/Lvc4br/SFI/actions/runs/44642798669). O ZIP contém os diretórios nsis/ e msi/; para a primeira rodada, extraia o ZIP e execute somente nsis/SFI_0.1.0_x64-setup.exe.
 
 ### Testar o instalador
 
-Siga o [Checklist de homologação Windows](docs/WINDOWS_RELEASE_TEST_CHECKLIST.md). Ele cobre instalação, execução offline, operações financeiras, módulos, OCR, backup/restore e desinstalação. Use dados fictícios e um perfil descartável para testar restauração.
+Siga o [Guia de instalação Windows](docs/INSTALL_WINDOWS.md) para baixar e executar o instalador NSIS e, em seguida, o [Checklist de homologação Windows](docs/WINDOWS_RELEASE_TEST_CHECKLIST.md). Use dados fictícios e um perfil descartável para testar restauração.
 
 ## Documentos fiscais — NF-e/NFC-e
 

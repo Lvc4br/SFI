@@ -151,3 +151,32 @@ def test_recurrence_pause_excludes_it_from_forecast(client):
     )
     assert forecast.status_code == 200
     assert forecast.json()["occurrences"] == []
+
+
+
+def test_recurrence_duplicate_idempotency_key_returns_conflict(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "recurrence-idem@example.com", "password": "senha-forte-teste-123"},
+    )
+    headers = {"Authorization": f"Bearer {registered.json()['access_token']}"}
+    account = client.post(
+        "/api/v1/finance/accounts", headers=headers,
+        json={"name": "Conta", "account_type": "checking"},
+    )
+    payload = {
+        "account_id": account.json()["id"],
+        "transaction_type": "income",
+        "amount": "100.00",
+        "description": "Pagamento",
+        "idempotency_key": "recurrence-idem-key-0001",
+        "frequency": "monthly",
+        "start_date": "2027-01-01",
+    }
+    first = client.post("/api/v1/finance/recurrences", headers=headers, json=payload)
+    second = client.post("/api/v1/finance/recurrences", headers=headers, json=payload)
+    assert first.status_code == 201
+    assert second.status_code == 409
+    listing = client.get("/api/v1/finance/recurrences?active_only=false", headers=headers)
+    assert listing.status_code == 200
+    assert len(listing.json()) == 1

@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sfi_api.database import get_session
@@ -167,7 +168,13 @@ async def create_recurrence(
         end_date=payload.end_date,
     )
     session.add(recurrence)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409, detail="Esta chave de idempotência já foi utilizada."
+        ) from exc
     await session.refresh(recurrence)
     return RecurrenceResponse.model_validate(recurrence)
 

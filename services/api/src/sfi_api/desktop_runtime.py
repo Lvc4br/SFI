@@ -9,11 +9,13 @@ import struct
 from ctypes import wintypes
 
 import os
+import sqlite3
 import secrets
 import socket
 import sys
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy.engine import URL
@@ -216,6 +218,43 @@ def ensure_local_secret(data_dir: Path) -> str:
 
     return _validate_secret(secret_path.read_text(encoding="utf-8").strip())
 
+def _create_pre_migration_snapshot(database_path: Path, backup_dir: Path) -> Path | None:
+    """Create and integrity-check a SQLite snapshot before schema upgrades."""
+    if not database_path.is_file() or database_path.stat().st_size == 0:
+        return None
+
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().astimezone().strftime("%Y%m%dT%H%M%S%f")
+    destination = backup_dir / f"pre-upgrade-{stamp}.sqlite3"
+    temporary = destination.with_suffix(".sqlite3.tmp")
+
+    try:
+        with sqlite3.connect(database_path) as source:
+            source_check = source.execute("PRAGMA integrity_check").fetchone()
+            if not source_check or source_check[0] != "ok":
+                raise RuntimeError("O banco SQLite atual falhou no integrity_check.")
+            with sqlite3.connect(temporary) as target:
+                source.backup(target)
+                target_check = target.execute("PRAGMA integrity_check").fetchone()
+                if not target_check or target_check[0] != "ok":
+                    raise RuntimeError("O snapshot pré-migration falhou no integrity_check.")
+        os.replace(temporary, destination)
+        return destination
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def _prune_migration_snapshots(backup_dir: Path, keep: int = 5) -> None:
+    snapshots = sorted(
+        backup_dir.glob("pre-upgrade-*.sqlite3"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for old_snapshot in snapshots[keep:]:
+        old_snapshot.unlink(missing_ok=True)
+
+
 def runtime_root() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys._MEIPASS)
@@ -246,7 +285,16 @@ def run() -> None:
 
     migration_config = Config(str(root / "alembic.ini"))
     migration_config.set_main_option("script_location", str(root / "migrations"))
-    command.upgrade(migration_config, "head")
+    snapshot_dir = data_dir / "migration-snapshots"
+    snapshot = _create_pre_migration_snapshot(local_database, snapshot_dir)
+    try:
+        command.upgrade(migration_config, "head")
+    except Exception:
+        # Preserve the verified snapshot and fail startup; restoration is a
+        # deliberate recovery operation rather than an automatic overwrite.
+        raise
+    if snapshot is not None:
+        _prune_migration_snapshots(snapshot_dir)
 
     import uvicorn
 

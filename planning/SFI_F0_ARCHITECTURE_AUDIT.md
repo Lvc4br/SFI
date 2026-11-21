@@ -38,3 +38,19 @@ Critérios: recuperação, privacidade, custo, offline, sincronização, isolame
 ## Limites de execução
 
 Não mergear PRs automaticamente, não fechar/descartar branches de código sem revisar diferenças e confirmar que não há trabalho exclusivo perdido. Não executar migrations ou escrever em banco real. Não certificar CI apenas com texto da descrição de PR.
+
+## Revisão preliminar de branches/PRs (20/11/2026)
+
+- **PR #16:** lista de arquivos e patch inicial consultados; Web MVP em branch baseada em `main`. PR #17 tem base apontando para o commit que corresponde ao head de PR #16 (cadeia de dependência indicada pelos metadados), portanto não fechar #16 como redundante antes de confirmar a ancestralidade e o destino de integração do PR #17.
+- **PR #17:** 760 commits reportados, draft aberto; pivot local-first Desktop e ampla entrega. Revisão completa não foi realizada; diff excede o escopo de inspeção preliminar. Não considerar código/CI validados por esta auditoria.
+- **PR #18:** branch de hardening baseada no branch do PR #17. Patch parcial analisado; altera envelope DPAPI e restringe runtime de backup automático. É dependente de #17, portanto manter em aberto até revisar e validar o branch pai.
+- **PR #19:** roadmap e protocolo de atualização; ainda não foi reconciliado/mergeado em main.
+- **PR #20:** esta entrega documental, aberta como Draft.
+
+**Limpeza segura:** não deletar branches nem fechar PRs #16–#18 neste estágio. São entregas encadeadas e potencialmente exclusivas; primeiro executar revisão de ancestry/diffs, CI e estratégia de integração. A limpeza não é apagar histórico: será desativar branches abandonadas somente após integração ou decisão explícita de descarte.
+
+## Resultado desta rodada
+
+- [x] Revisão preliminar de metadados de PR e identificação de dependências/risco de sobreposição.
+- [ ] Revisão completa dos diffs, CI, ancestry e testes em ambiente isolado.
+- [ ] Definir ordem de integração ou encerramento das branches com justificativa e preservação de trabalho.

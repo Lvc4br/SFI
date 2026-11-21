@@ -161,3 +161,28 @@ def test_desktop_runtime_starts_local_api_and_shuts_down_cleanly(tmp_path: Path)
         if process.poll() is None:
             process.kill()
             process.wait(timeout=5)
+
+
+def test_pre_migration_snapshot_copies_and_checks_sqlite_database(tmp_path: Path):
+    import sqlite3
+
+    from sfi_api.desktop_runtime import _create_pre_migration_snapshot
+
+    source = tmp_path / "source.sqlite3"
+    with sqlite3.connect(source) as connection:
+        connection.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY, value TEXT)")
+        connection.execute("INSERT INTO sample(value) VALUES ('preserve-me')")
+        connection.commit()
+
+    snapshot = _create_pre_migration_snapshot(source, tmp_path / "snapshots")
+    assert snapshot is not None and snapshot.is_file()
+    with sqlite3.connect(snapshot) as connection:
+        assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert connection.execute("SELECT value FROM sample").fetchone()[0] == "preserve-me"
+
+
+def test_pre_migration_snapshot_skips_missing_database(tmp_path: Path):
+    from sfi_api.desktop_runtime import _create_pre_migration_snapshot
+
+    assert _create_pre_migration_snapshot(tmp_path / "missing.sqlite3", tmp_path / "snapshots") is None
+    assert not (tmp_path / "snapshots").exists()

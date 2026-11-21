@@ -90,6 +90,7 @@ O script confirma o host de destino e pede que você digite `APLICAR`; depois ex
 - [Arquitetura](architecture/ARCHITECTURE.md)
 - [Diagramas de arquitetura](architecture/diagrams/README.md)
 - [F0 — auditoria arquitetural](planning/SFI_F0_ARCHITECTURE_AUDIT.md)
+- [ADR-012 — decisão de plataforma (proposta)](planning/ADR-012-PLATFORM-ARCHITECTURE.md)
 - [Modelo de dados](architecture/DATA_MODEL.md)
 - [Contratos de API](architecture/API_CONTRACTS.md)
 - [Sincronização offline](architecture/OFFLINE_SYNC.md)

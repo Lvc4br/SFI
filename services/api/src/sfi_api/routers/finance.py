@@ -651,9 +651,6 @@ async def reverse_transfer(
         idempotency_key=idempotency_key,
         occurred_at=occurred_at,
     )
-    session.add(reversal)
-    await session.flush()
-
     source_compensation = Transaction(
         user_id=user.id,
         account_id=transfer.source_account_id,
@@ -678,8 +675,12 @@ async def reverse_transfer(
         idempotency_key=f"transfer-reversal:{reversal.id}:destination",
         occurred_at=occurred_at,
     )
-    session.add_all([source_compensation, destination_compensation])
     try:
+        session.add(reversal)
+        # Flush can hit unique constraints when two requests reverse the same
+        # transfer concurrently, so it belongs inside the IntegrityError boundary.
+        await session.flush()
+        session.add_all([source_compensation, destination_compensation])
         await session.commit()
         await session.refresh(reversal)
         await session.refresh(source_compensation)

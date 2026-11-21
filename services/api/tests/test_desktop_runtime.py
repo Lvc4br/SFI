@@ -200,24 +200,6 @@ def test_pre_migration_snapshot_failure_does_not_publish_snapshot(tmp_path: Path
 
     original_connect = sqlite3.connect
 
-    class BrokenBackupConnection:
-        def __init__(self, connection):
-            self.connection = connection
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            self.connection.close()
-
-        def execute(self, sql):
-            if sql == "PRAGMA integrity_check":
-                return self.connection.execute(sql)
-            return self.connection.execute(sql)
-
-        def __getattr__(self, name):
-            return getattr(self.connection, name)
-
     def fail_target(path, *args, **kwargs):
         if str(path).endswith(".tmp"):
             raise sqlite3.OperationalError("simulated snapshot failure")

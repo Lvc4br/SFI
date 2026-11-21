@@ -186,3 +186,66 @@ def test_pre_migration_snapshot_skips_missing_database(tmp_path: Path):
 
     assert _create_pre_migration_snapshot(tmp_path / "missing.sqlite3", tmp_path / "snapshots") is None
     assert not (tmp_path / "snapshots").exists()
+
+
+def test_pre_migration_snapshot_failure_does_not_publish_snapshot(tmp_path: Path, monkeypatch):
+    import sqlite3
+
+    from sfi_api.desktop_runtime import _create_pre_migration_snapshot
+
+    source = tmp_path / "source.sqlite3"
+    with sqlite3.connect(source) as connection:
+        connection.execute("CREATE TABLE sample (value TEXT)")
+        connection.commit()
+
+    original_connect = sqlite3.connect
+
+    class BrokenBackupConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.connection.close()
+
+        def execute(self, sql):
+            if sql == "PRAGMA integrity_check":
+                return self.connection.execute(sql)
+            return self.connection.execute(sql)
+
+        def __getattr__(self, name):
+            return getattr(self.connection, name)
+
+    def fail_target(path, *args, **kwargs):
+        if str(path).endswith(".tmp"):
+            raise sqlite3.OperationalError("simulated snapshot failure")
+        return original_connect(path, *args, **kwargs)
+
+    monkeypatch.setattr(sqlite3, "connect", fail_target)
+    with pytest.raises(sqlite3.OperationalError, match="simulated"):
+        _create_pre_migration_snapshot(source, tmp_path / "snapshots")
+    assert not list((tmp_path / "snapshots").glob("pre-upgrade-*.sqlite3"))
+
+
+def test_prune_migration_snapshots_keeps_newest_five(tmp_path: Path):
+    from sfi_api.desktop_runtime import _prune_migration_snapshots
+
+    directory = tmp_path / "snapshots"
+    directory.mkdir()
+    files = []
+    for index in range(7):
+        path = directory / f"pre-upgrade-{index}.sqlite3"
+        path.write_bytes(str(index).encode())
+        files.append(path)
+
+    # Set deterministic ordering with increasing modification times.
+    for index, path in enumerate(files):
+        import os
+
+        os.utime(path, (1000 + index, 1000 + index))
+
+    _prune_migration_snapshots(directory, keep=5)
+    remaining = sorted(path.name for path in directory.glob("pre-upgrade-*.sqlite3"))
+    assert remaining == [f"pre-upgrade-{index}.sqlite3" for index in range(2, 7)]

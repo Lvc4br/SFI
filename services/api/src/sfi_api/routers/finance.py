@@ -651,48 +651,46 @@ async def reverse_transfer(
         idempotency_key=idempotency_key,
         occurred_at=occurred_at,
     )
+    source_compensation = Transaction(
+        user_id=user.id,
+        account_id=transfer.source_account_id,
+        category_id=None,
+        transfer_reversal_id=reversal.id,
+        transaction_type="income",
+        amount=transfer.amount,
+        currency=transfer.currency,
+        description=f"Estorno de transferência recebida: {transfer.description}",
+        idempotency_key=f"transfer-reversal:{reversal.id}:source",
+        occurred_at=occurred_at,
+    )
+    destination_compensation = Transaction(
+        user_id=user.id,
+        account_id=transfer.destination_account_id,
+        category_id=None,
+        transfer_reversal_id=reversal.id,
+        transaction_type="expense",
+        amount=transfer.amount,
+        currency=transfer.currency,
+        description=f"Estorno de transferência enviada: {transfer.description}",
+        idempotency_key=f"transfer-reversal:{reversal.id}:destination",
+        occurred_at=occurred_at,
+    )
     try:
         session.add(reversal)
-        # The unique constraints are the final concurrency guard. Flush must
-        # stay inside this boundary because competing reversals can conflict here.
+        # Flush can hit unique constraints when two requests reverse the same
+        # transfer concurrently, so it belongs inside the IntegrityError boundary.
         await session.flush()
-
-        source_compensation = Transaction(
-            user_id=user.id,
-            account_id=transfer.source_account_id,
-            category_id=None,
-            transfer_reversal_id=reversal.id,
-            transaction_type="income",
-            amount=transfer.amount,
-            currency=transfer.currency,
-            description=f"Estorno de transferência recebida: {transfer.description}",
-            idempotency_key=f"transfer-reversal:{reversal.id}:source",
-            occurred_at=occurred_at,
-        )
-        destination_compensation = Transaction(
-            user_id=user.id,
-            account_id=transfer.destination_account_id,
-            category_id=None,
-            transfer_reversal_id=reversal.id,
-            transaction_type="expense",
-            amount=transfer.amount,
-            currency=transfer.currency,
-            description=f"Estorno de transferência enviada: {transfer.description}",
-            idempotency_key=f"transfer-reversal:{reversal.id}:destination",
-            occurred_at=occurred_at,
-        )
         session.add_all([source_compensation, destination_compensation])
-        try:
-            await session.commit()
-            await session.refresh(reversal)
-            await session.refresh(source_compensation)
-            await session.refresh(destination_compensation)
-        except IntegrityError:
-            await session.rollback()
-            raise HTTPException(
-                status_code=409,
-                detail="A transferência já foi estornada ou houve conflito de idempotência.",
-            ) from None
+        await session.commit()
+        await session.refresh(reversal)
+        await session.refresh(source_compensation)
+        await session.refresh(destination_compensation)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="A transferência já foi estornada ou houve conflito de idempotência.",
+        ) from None
 
     return TransferReversalResponse(
         transfer_id=transfer.id,

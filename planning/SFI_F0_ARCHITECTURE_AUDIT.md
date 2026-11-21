@@ -54,3 +54,19 @@ Não mergear PRs automaticamente, não fechar/descartar branches de código sem 
 - [x] Revisão preliminar de metadados de PR e identificação de dependências/risco de sobreposição.
 - [ ] Revisão completa dos diffs, CI, ancestry e testes em ambiente isolado.
 - [ ] Definir ordem de integração ou encerramento das branches com justificativa e preservação de trabalho.
+
+
+## Evidência de CI e cadeia de integração (consulta GitHub)
+
+- Head PR #16 `70284318ccbb9cff7551282c62d0d619241e7407`: CI run `43644265776` concluída com sucesso (API/Ruff/pytest, E2E Chromium e Web build).
+- Head PR #17 `3a9f26f77973ee1461a2c65f7d7b7e3a653b7965`: CI run `44616698061`, Security run `44616698111` e Desktop run `44616698312` concluídos com sucesso, segundo jobs reportados pelo Actions.
+- Head PR #18 `71b659005f445029dfa77e01694107657e235a16`: CI `44647418807`, Security `44647418701` e Desktop `44647418562` concluídos com sucesso.
+- Esses status referem-se aos commits/execuções citados, não a testes executados por esta auditoria nem a validação em máquina real.
+
+## Issues F0 abertas
+- [#21 — Reconciliar cadeia de PRs e integração](https://github.com/Lvc4br/SFI/issues/21)
+- [#22 — Homologação real Desktop](https://github.com/Lvc4br/SFI/issues/22)
+- [#23 — Auditoria de invariantes financeiras](https://github.com/Lvc4br/SFI/issues/23)
+
+## ADR de plataforma
+- [ADR-012 proposta](ADR-012-PLATFORM-ARCHITECTURE.md): recomenda provisoriamente Desktop local-first apenas para 0.1.x, mantendo Web/Mobile/sync global como decisão em aberto.

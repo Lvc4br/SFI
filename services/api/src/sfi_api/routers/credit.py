@@ -411,11 +411,16 @@ async def pay_invoice(
     if existing:
         raise HTTPException(409, "Esta chave de pagamento já foi utilizada.")
 
+    # Serialize payments for this invoice on databases that support row locks.
+    # The remaining balance must be recalculated only after acquiring this lock;
+    # otherwise two requests with different idempotency keys can both spend it.
     invoice = await session.scalar(
-        select(CreditInvoice).where(
+        select(CreditInvoice)
+        .where(
             CreditInvoice.id == invoice_id,
             CreditInvoice.user_id == user.id,
         )
+        .with_for_update()
     )
     if invoice is None:
         raise HTTPException(404, "Fatura não encontrada.")

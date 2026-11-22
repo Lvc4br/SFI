@@ -151,6 +151,7 @@ async def get_finance_summary(
                     (Transaction.transaction_type == "expense")
                     & Transaction.transfer_id.is_(None)
                     & Transaction.transfer_reversal_id.is_(None)
+                    & not_reversed
                     & ~Transaction.idempotency_key.like("invoice-payment:%"),
                     Transaction.amount,
                 ),

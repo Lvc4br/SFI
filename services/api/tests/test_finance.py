@@ -907,3 +907,71 @@ def test_financial_summary_keeps_currencies_separate_without_implicit_conversion
     assert totals["USD"]["income_total"] == "25.50"
     assert totals["BRL"]["net_flow"] == "100.00"
     assert totals["USD"]["net_flow"] == "25.50"
+
+
+def test_finance_summary_excludes_original_and_compensating_reversal_entries(client):
+    token = register(client, "summary-reversal@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    account = client.post(
+        "/api/v1/finance/accounts",
+        headers=headers,
+        json={"name": "Conta", "account_type": "checking", "opening_balance": "100.00"},
+    ).json()
+
+    expense = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "transaction_type": "expense",
+            "amount": "42.90",
+            "description": "Despesa estornada",
+            "occurred_at": "2026-11-10T12:00:00+00:00",
+            "idempotency_key": "summary-reversal-expense-001",
+        },
+    )
+    assert expense.status_code == 201, expense.text
+    expense_reversal = client.post(
+        f"/api/v1/finance/transactions/{expense.json()['id']}/reverse",
+        headers=headers,
+        params={"idempotency_key": "summary-reversal-expense-rv-01"},
+    )
+    assert expense_reversal.status_code == 201, expense_reversal.text
+
+    income = client.post(
+        "/api/v1/finance/transactions",
+        headers=headers,
+        json={
+            "account_id": account["id"],
+            "transaction_type": "income",
+            "amount": "25.00",
+            "description": "Receita estornada",
+            "occurred_at": "2026-11-11T12:00:00+00:00",
+            "idempotency_key": "summary-reversal-income-001",
+        },
+    )
+    assert income.status_code == 201, income.text
+    income_reversal = client.post(
+        f"/api/v1/finance/transactions/{income.json()['id']}/reverse",
+        headers=headers,
+        params={"idempotency_key": "summary-reversal-income-rv-01"},
+    )
+    assert income_reversal.status_code == 201, income_reversal.text
+
+    summary = client.get(
+        "/api/v1/finance/summary?start_date=2026-11-01&end_date=2026-11-30",
+        headers=headers,
+    )
+    assert summary.status_code == 200, summary.text
+    totals = summary.json()["totals_by_currency"]
+    assert len(totals) == 1
+    assert totals[0]["income_total"] == "0.00"
+    assert totals[0]["expense_total"] == "0.00"
+    assert totals[0]["net_flow"] == "0.00"
+
+    balance = client.get(
+        f"/api/v1/finance/accounts/{account['id']}/balance",
+        headers=headers,
+    )
+    assert balance.status_code == 200
+    assert balance.json()["balance"] == "100.00"

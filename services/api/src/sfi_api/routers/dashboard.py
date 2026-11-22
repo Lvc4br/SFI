@@ -113,6 +113,21 @@ async def get_finance_summary(
         raise HTTPException(status_code=422, detail="O período máximo permitido é de 367 dias.")
 
     start, end = _period_bounds(start_date, end_date, user.timezone)
+    reversal = aliased(Transaction)
+    has_reversal = (
+        select(reversal.id)
+        .where(
+            reversal.user_id == user.id,
+            reversal.reversal_of_transaction_id == Transaction.id,
+        )
+        .exists()
+    )
+    # Exclude both the original entry once reversed and its compensating entry
+    # from period income/expense totals. Both entries still affect account balance.
+    not_reversed = (
+        Transaction.reversal_of_transaction_id.is_(None)
+        & ~has_reversal
+    )
     income = func.coalesce(
         func.sum(
             case(
@@ -120,6 +135,7 @@ async def get_finance_summary(
                     (Transaction.transaction_type == "income")
                     & Transaction.transfer_id.is_(None)
                     & Transaction.transfer_reversal_id.is_(None)
+                    & not_reversed
                     & ~Transaction.idempotency_key.like("invoice-payment:%"),
                     Transaction.amount,
                 ),
@@ -135,6 +151,7 @@ async def get_finance_summary(
                     (Transaction.transaction_type == "expense")
                     & Transaction.transfer_id.is_(None)
                     & Transaction.transfer_reversal_id.is_(None)
+                    & not_reversed
                     & ~Transaction.idempotency_key.like("invoice-payment:%"),
                     Transaction.amount,
                 ),
@@ -171,15 +188,6 @@ async def get_finance_summary(
         for account in accounts_result.all()
     ]
 
-    reversal = aliased(Transaction)
-    has_reversal = (
-        select(reversal.id)
-        .where(
-            reversal.user_id == user.id,
-            reversal.reversal_of_transaction_id == Transaction.id,
-        )
-        .exists()
-    )
     category_result = await session.execute(
         select(
             Category.id,

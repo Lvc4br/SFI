@@ -5,6 +5,7 @@ import type { Summary } from "./api";
 type MonthData = { month: string; income: bigint; expense: bigint; net: bigint };
 type CategoryData = { id: string; name: string; amount: bigint };
 type DateRange = { start: string; end: string };
+type ChartType = "line" | "columns" | "bars" | "area" | "donut" | "stacked";
 const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const localDate = (date: Date): string => date.getUTCFullYear() + "-" + String(date.getUTCMonth() + 1).padStart(2, "0") + "-" + String(date.getUTCDate()).padStart(2, "0");
 const parseDate = (value: string): Date => new Date(value + "T00:00:00.000Z");
@@ -62,6 +63,7 @@ export default function ReportsPage() {
   const [preset, setPreset] = useState("month");
   const [currency, setCurrency] = useState("BRL");
   const [comparePrevious, setComparePrevious] = useState(false);
+  const [chartType, setChartType] = useState<ChartType>("columns");
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [previousSummaries, setPreviousSummaries] = useState<Summary[]>([]);
   const [busy, setBusy] = useState(false);
@@ -132,6 +134,24 @@ export default function ReportsPage() {
   const categories = Array.from(categoryTotals.values()).sort((a, b) => a.amount > b.amount ? -1 : a.amount < b.amount ? 1 : a.name.localeCompare(b.name, "pt-BR"));
   const categoryTotal = categories.reduce((sum, item) => sum + item.amount, 0n);
   const categoryWidth = (value: bigint) => categoryTotal === 0n ? 0 : Number(value * 10000n / categoryTotal) / 100;
+  const renderChart = () => {
+    if (!data.length) return <p className="muted">Não há dados suficientes para a visualização selecionada.</p>;
+    if (chartType === "donut") {
+      const colors = ["#6658e8", "#159b70", "#d95763", "#9488ff", "#f0a45d", "#4c78a8"];
+      let cursor = 0;
+      const arcs = categories.map((item, index) => {
+        const share = categoryTotal ? Number(item.amount * 10000n / categoryTotal) / 10000 : 0;
+        const start = cursor; cursor += share;
+        const end = cursor; const large = end - start > 0.5 ? 1 : 0;
+        const point = (angle: number) => [50 + 35 * Math.cos(angle * Math.PI * 2 - Math.PI / 2), 50 + 35 * Math.sin(angle * Math.PI * 2 - Math.PI / 2)];
+        const [sx, sy] = point(start), [ex, ey] = point(end);
+        return <path key={item.id} d={`M ${sx} ${sy} A 35 35 0 ${large} 1 ${ex} ${ey}`} fill="none" stroke={colors[index % colors.length]} strokeWidth="14" pathLength="1"/>;
+      });
+      return <div className="chart-donut-wrap"><svg viewBox="0 0 100 100" className="chart-svg" role="img" aria-label="Distribuição das despesas por categoria"><circle cx="50" cy="50" r="35" fill="none" stroke="var(--chart-track)" strokeWidth="14"/>{arcs}</svg><div className="chart-legend">{categories.slice(0, 6).map((item, index) => <span key={item.id}><i style={{ background: colors[index % colors.length] }}/>{item.name}</span>)}</div></div>;
+    }
+    const points = data.map((item, index) => ({ ...item, x: data.length <= 1 ? 50 : 8 + index * 84 / (data.length - 1), incomeWidth: width(item.income), expenseWidth: width(item.expense) }));
+    return <svg viewBox="0 0 100 58" className="chart-svg" role="img" aria-label={`Gráfico em formato ${chartType}`}><line x1="6" y1="50" x2="96" y2="50" className="chart-axis"/>{points.map((item, index) => { const next = points[index + 1]; const yi = 50 - item.incomeWidth * .42; const ye = 50 - item.expenseWidth * .42; if (chartType === "columns" || chartType === "stacked") return <g key={item.month}><rect x={item.x - 3.5} y={chartType === "stacked" ? yi : yi} width="3" height={item.incomeWidth * .42} rx="1" className="chart-income"/><rect x={item.x + .5} y={chartType === "stacked" ? 50 - (item.incomeWidth + item.expenseWidth) * .42 : ye} width="3" height={item.expenseWidth * .42} rx="1" className="chart-expense"/><text x={item.x} y="57" textAnchor="middle" className="chart-label">{item.month}</text></g>; if (chartType === "bars") return <g key={item.month}><rect x="8" y={index * 10 + 2} width={item.incomeWidth * .75} height="3" rx="1" className="chart-income"/><rect x="8" y={index * 10 + 5.5} width={item.expenseWidth * .75} height="3" rx="1" className="chart-expense"/><text x="98" y={index * 10 + 5.5} textAnchor="end" className="chart-label">{item.month}</text></g>; const ni = next ? 50 - next.incomeWidth * .42 : yi; const ne = next ? 50 - next.expenseWidth * .42 : ye; return <g key={item.month}><text x={item.x} y="57" textAnchor="middle" className="chart-label">{item.month}</text>{next && <><path d={`M ${item.x} ${chartType === "area" ? 50 : yi} L ${next.x} ${chartType === "area" ? 50 : ni} L ${next.x} ${ni} L ${item.x} ${yi} Z`} className={chartType === "area" ? "chart-area" : "chart-hidden"}/><line x1={item.x} y1={yi} x2={next.x} y2={ni} className="chart-income-line"/><line x1={item.x} y1={ye} x2={next.x} y2={ne} className="chart-expense-line"/></>}</g>; })}</svg>;
+  };
   function exportCsv() {
     const rows = [
       ["Tipo", "Período", "Moeda", "Categoria", "Receitas", "Despesas", "Resultado"],
@@ -166,6 +186,8 @@ export default function ReportsPage() {
     </section>
     {!busy && !error && <section className="panel">
       <div className="panel-heading"><div><h3>Consolidado de {range.start.slice(0, 4)} · {range.start} a {range.end}</h3><p className="muted">{rangeDays(range)} dias · movimentações confirmadas</p></div><button className="button secondary" type="button" onClick={exportCsv}>Exportar CSV</button></div>
+      <div className="chart-toolbar"><span className="muted">Tipo de gráfico</span><div className="chart-tabs" role="group" aria-label="Tipo de gráfico">{(["line", "columns", "bars", "area", "donut", "stacked"] as ChartType[]).map(type => <button key={type} type="button" className={chartType === type ? "active" : ""} onClick={() => setChartType(type)}>{({ line: "Linha", columns: "Colunas", bars: "Barras", area: "Área", donut: "Donut", stacked: "Empilhado" } as Record<ChartType, string>)[type]}</button>)}</div></div>
+      <div className="report-chart">{renderChart()}</div>
       <div className="metric-grid">
         <article className="metric-card"><span>RECEITAS NO PERÍODO</span><strong>{money(totals.income, currency)}</strong>{comparePrevious && <small className="muted">Anterior: {money(previousTotals.income, currency)} ({percentageChange(totals.income, previousTotals.income)})</small>}</article>
         <article className="metric-card"><span>DESPESAS NO PERÍODO</span><strong>{money(totals.expense, currency)}</strong>{comparePrevious && <small className="muted">Anterior: {money(previousTotals.expense, currency)} ({percentageChange(totals.expense, previousTotals.expense)})</small>}</article>

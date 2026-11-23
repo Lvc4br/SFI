@@ -7,6 +7,8 @@
     "dev:web": "pnpm --filter @sfi/web dev",
     "build:web": "pnpm --filter @sfi/web build",
     "dev": "pnpm dev:web",
+    "preview:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/preview-dev.ps1",
+    "preview:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/preview-stop.ps1",
     "build": "pnpm build:web",
     "typecheck": "pnpm --filter @sfi/web typecheck"
   }

@@ -415,7 +415,7 @@ async def pay_invoice(
         select(CreditInvoice).where(
             CreditInvoice.id == invoice_id,
             CreditInvoice.user_id == user.id,
-        )
+        ).with_for_update()
     )
     if invoice is None:
         raise HTTPException(404, "Fatura não encontrada.")

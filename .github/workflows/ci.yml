@@ -77,7 +77,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Verify Numeric(18,2) persistence and overflow on PostgreSQL
-        run: pytest -q tests/test_postgres_precision.py
+        run: pytest -q tests/test_postgres_precision.py tests/test_postgres_concurrency.py
 
   backup-automation-windows:
     runs-on: windows-latest

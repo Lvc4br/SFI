@@ -2,9 +2,9 @@ name: Desktop
 
 on:
   push:
-    branches: [main, "feat/**", "feature/**"]
+    branches: [main, "feat/**", "feature/**", "fix/**"]
   pull_request:
-    branches: [main, "feature/**"]
+    branches: [main, "feature/**", "fix/**"]
   workflow_dispatch:
 
 concurrency:
@@ -57,15 +57,23 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force apps/desktop/src-tauri/binaries | Out-Null
           Copy-Item dist/sfi-api.exe apps/desktop/src-tauri/binaries/sfi-api.exe
-      - name: Build NSIS and MSI installers
+      - name: Build single-file NSIS distribution
         working-directory: apps/desktop
-        run: pnpm dlx @tauri-apps/cli@^2 build --bundles nsis,msi
-      - name: Upload Windows installers
+        run: pnpm dlx @tauri-apps/cli@^2 build --bundles nsis
+      - name: Stage single-file Windows distribution
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem "apps/desktop/src-tauri/target/release/bundle/nsis" -Filter "*setup.exe" | Select-Object -First 1
+          if ($null -eq $setup) { throw "The Tauri NSIS setup executable was not produced." }
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item -LiteralPath $setup.FullName -Destination "release/SFI.exe"
+          $hash = (Get-FileHash -LiteralPath "release/SFI.exe" -Algorithm SHA256).Hash
+          $size = (Get-Item -LiteralPath "release/SFI.exe").Length
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Value "## SFI Windows artifact`n`n- File: SFI.exe`n- Size: $size bytes`n- SHA-256: $hash"
+      - name: Upload single-file Windows distribution
         uses: actions/upload-artifact@v4
         with:
-          name: sfi-desktop-windows
-          path: |
-            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
-            apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+          name: SFI-Windows
+          path: release/SFI.exe
           if-no-files-found: error
           retention-days: 14

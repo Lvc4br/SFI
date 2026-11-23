@@ -1,8 +1,10 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - apps/*
+  - packages/*
 
-# Temporary, reviewed exception: upstream has not published a fixed picomatch release.
 auditConfig:
   ignoreGhsas:
     - GHSA-fc5q-39xc-vjpf
+
+onlyBuiltDependencies:
+  - esbuild

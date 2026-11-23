@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
+import struct
 from ctypes import wintypes
 
 import os
@@ -17,7 +19,49 @@ from pathlib import Path
 from sqlalchemy.engine import URL
 
 
-_DPAPI_MAGIC = b"SFI-DPAPI-V1\\x00"
+_DPAPI_MAGIC = b"SFI-DPAPI-V2\x00"
+_DPAPI_LEGACY_MAGICS = (b"SFI-DPAPI-V1\\x00", b"SFI-DPAPI-V1\x00")
+_DPAPI_LENGTH_SIZE = 4
+_DPAPI_DIGEST_SIZE = hashlib.sha256().digest_size
+
+
+def _encode_dpapi_envelope(protected: bytes) -> bytes:
+    return (
+        _DPAPI_MAGIC
+        + struct.pack(">I", len(protected))
+        + hashlib.sha256(protected).digest()
+        + protected
+    )
+
+
+def _decode_dpapi_envelope(envelope: bytes) -> bytes:
+    if envelope.startswith(_DPAPI_MAGIC):
+        offset = len(_DPAPI_MAGIC)
+        header_size = _DPAPI_LENGTH_SIZE + _DPAPI_DIGEST_SIZE
+        if len(envelope) < offset + header_size:
+            raise RuntimeError(
+                "A chave DPAPI local do SFI está inválida; os dados foram preservados."
+            )
+        declared_length = struct.unpack(">I", envelope[offset : offset + _DPAPI_LENGTH_SIZE])[0]
+        digest_start = offset + _DPAPI_LENGTH_SIZE
+        expected_digest = envelope[digest_start : digest_start + _DPAPI_DIGEST_SIZE]
+        protected = envelope[digest_start + _DPAPI_DIGEST_SIZE :]
+        if (
+            len(protected) != declared_length
+            or not secrets.compare_digest(hashlib.sha256(protected).digest(), expected_digest)
+        ):
+            raise RuntimeError(
+                "A chave DPAPI local do SFI está inválida; os dados foram preservados."
+            )
+        return protected
+
+    # Older builds wrote a raw DPAPI blob after a V1 marker. Keep those files readable.
+    for legacy_magic in _DPAPI_LEGACY_MAGICS:
+        if envelope.startswith(legacy_magic):
+            return envelope[len(legacy_magic) :]
+    raise RuntimeError(
+        "A chave DPAPI local do SFI está inválida; os dados foram preservados."
+    )
 
 
 def _dpapi_transform(value: bytes, *, decrypt: bool) -> bytes:
@@ -122,14 +166,9 @@ def ensure_local_secret(data_dir: Path) -> str:
 
         if protected_path.exists():
             encrypted = protected_path.read_bytes()
-            if not encrypted.startswith(_DPAPI_MAGIC):
-                raise RuntimeError(
-                    "A chave DPAPI local do SFI está inválida; os dados foram preservados."
-                )
+            protected = _decode_dpapi_envelope(encrypted)
             try:
-                value = _dpapi_transform(encrypted[len(_DPAPI_MAGIC):], decrypt=True).decode(
-                    "utf-8"
-                )
+                value = _dpapi_transform(protected, decrypt=True).decode("utf-8")
             except (OSError, UnicodeDecodeError) as exc:
                 raise RuntimeError(
                     "Não foi possível desbloquear a chave DPAPI deste usuário Windows."
@@ -146,14 +185,15 @@ def ensure_local_secret(data_dir: Path) -> str:
 
         if legacy_path.exists():
             value = _validate_secret(legacy_path.read_text(encoding="utf-8").strip())
-            encrypted = _DPAPI_MAGIC + _dpapi_transform(value.encode("utf-8"), decrypt=False)
+            protected = _dpapi_transform(value.encode("utf-8"), decrypt=False)
+            encrypted = _encode_dpapi_envelope(protected)
             if _write_exclusive(protected_path, encrypted):
                 legacy_path.unlink()
                 return value
             return ensure_local_secret(data_dir)
 
         value = secrets.token_urlsafe(48)
-        encrypted = _DPAPI_MAGIC + _dpapi_transform(value.encode("utf-8"), decrypt=False)
+        encrypted = _encode_dpapi_envelope(_dpapi_transform(value.encode("utf-8"), decrypt=False))
         if _write_exclusive(protected_path, encrypted):
             return value
         return ensure_local_secret(data_dir)

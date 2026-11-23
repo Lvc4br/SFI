@@ -162,6 +162,7 @@ async function request<T>(path: string, options: RequestInit = {}, authenticated
 }
 
 export const api = {
+  healthReady: () => request<{status:string;database:string;ready:boolean}>("/api/v1/health/ready", {}, false),
   register: async (email: string, password: string) => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
     const session = await request<Session>("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ email, password, timezone }) }, false);

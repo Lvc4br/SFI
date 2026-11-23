@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import sys
 
@@ -22,6 +23,16 @@ from sfi_api.models import User
 router = APIRouter(prefix="/backup/automatic", tags=["backup"])
 
 
+def _is_desktop_runtime(session: AsyncSession) -> bool:
+    """Return true only inside the configured packaged Desktop runtime."""
+    return (
+        sys.platform == "win32"
+        and session.get_bind().dialect.name == "sqlite"
+        and os.environ.get("SFI_ENVIRONMENT") == "desktop"
+        and bool(os.environ.get("SFI_DATA_DIR"))
+    )
+
+
 class AutomaticBackupRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -35,7 +46,7 @@ async def get_automatic_backup(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    if sys.platform != "win32" or session.get_bind().dialect.name != "sqlite":
+    if not _is_desktop_runtime(session):
         raise HTTPException(409, "Backup automático está disponível somente no Desktop Windows.")
     try:
         return automatic_backup_status(user.id)
@@ -49,7 +60,7 @@ async def put_automatic_backup(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    if sys.platform != "win32" or session.get_bind().dialect.name != "sqlite":
+    if not _is_desktop_runtime(session):
         raise HTTPException(409, "Backup automático está disponível somente no Desktop Windows.")
     try:
         return configure_automatic_backup(
@@ -64,7 +75,7 @@ async def delete_automatic_backup(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    if sys.platform != "win32" or session.get_bind().dialect.name != "sqlite":
+    if not _is_desktop_runtime(session):
         raise HTTPException(409, "Backup automático está disponível somente no Desktop Windows.")
     try:
         disable_automatic_backup(user.id)
@@ -80,7 +91,7 @@ async def download_automatic_backup(
     session: AsyncSession = Depends(get_session),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ):
-    if sys.platform != "win32" or session.get_bind().dialect.name != "sqlite":
+    if not _is_desktop_runtime(session):
         raise HTTPException(409, "Backup automático está disponível somente no Desktop Windows.")
     if not re.fullmatch(r"sfi-\d{8}-\d{6}\.sfi-backup\.json", filename):
         raise HTTPException(404, "Backup não encontrado.")

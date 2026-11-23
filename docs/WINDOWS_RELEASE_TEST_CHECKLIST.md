@@ -1,14 +1,14 @@
 # Checklist de testes operacionais — SFI Desktop 0.1.0
 
-**Build:** commit da branch `feature/financial-core-security-hardening` (confira o SHA do artefato na execução Desktop vinculada à PR)  
+**Build:** commit `a16e1690ed7bb454e449ece000a7846cea06a69c` da branch `fix/backup-automation-dpapi-integrity`  
 **Plataforma:** Windows 10/11 x64  
-**Estado:** instaladores NSIS e MSI compilados no GitHub Actions; CI, segurança e E2E aprovados. Ainda não houve execução em uma máquina Windows de destino.
+**Estado:** CI, segurança e E2E aprovados. Em 19/11/2026, os testes automatizados locais em Windows passaram: Ruff; API (159 passed, 1 skipped, 1 deselected); integridade de backup (8 verificações); TypeScript; build Web. A instalação NSIS e os testes funcionais no aplicativo instalado continuam pendentes.
 
 Este roteiro é para validar o instalador real e o comportamento do SFI no computador do operador. Use somente dados fictícios. O SFI Desktop desta versão usa SQLite local; não precisa de Neon, PostgreSQL, internet, Python, Node, Rust ou VS Code para executar.
 
 ## 1. Arquivos e segurança antes da instalação
 
-O artefato de CI contém:
+O artefato [sfi-desktop-windows da execução 44642798669](https://github.com/Lvc4br/SFI/actions/runs/44642798669) contém:
 - `nsis/SFI_0.1.0_x64-setup.exe`
 - `msi/SFI_0.1.0_x64_en-US.msi`
 
@@ -175,3 +175,20 @@ O SFI só deve ser considerado pronto para beta pessoal depois de:
 5. registro e resolução de todos os defeitos bloqueadores.
 
 A aprovação de CI no GitHub não substitui esta homologação no Windows real.
+
+
+## 10. Registro de validação automatizada local — 19/11/2026
+
+Executado na branch fix/backup-automation-dpapi-integrity, commit de código a16e1690ed7bb454e449ece000a7846cea06a69c, em Windows PowerShell:
+
+| Verificação | Resultado |
+|---|---|
+| Ruff (ruff check src tests) | Aprovado |
+| Pytest API | 159 passed, 1 skipped, 1 deselected |
+| Integridade de backup | 8 verificações aprovadas |
+| TypeScript (pnpm --filter @sfi/web typecheck) | Aprovado |
+| Build Web (pnpm --filter @sfi/web build) | Aprovado |
+
+O Pytest apresentou um aviso de depreciação do Starlette relacionado ao uso de httpx; não houve falha. Os testes E2E de navegador e o build do instalador são validados separadamente nos workflows do GitHub Actions.
+
+**Não coberto por esta execução local:** instalação NSIS/MSI, GUI do aplicativo instalado, fluxos financeiros ponta a ponta na interface, OCR/câmera, atualização, desinstalação e restauração real em perfil descartável.

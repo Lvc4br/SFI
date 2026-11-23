@@ -73,7 +73,7 @@ async def update_account(
             Account.id == account_id,
             Account.user_id == user.id,
             Account.archived_at.is_(None),
-        )
+        ).with_for_update()
     )
     if account is None:
         raise HTTPException(status_code=404, detail="Conta ativa não encontrada.")
@@ -267,7 +267,7 @@ async def create_transaction(
             Account.id == payload.account_id,
             Account.user_id == user.id,
             Account.archived_at.is_(None),
-        )
+        ).with_for_update()
     )
     if account is None:
         raise HTTPException(status_code=404, detail="Conta não encontrada.")
@@ -506,7 +506,7 @@ async def create_transfer(
             Account.user_id == user.id,
             Account.archived_at.is_(None),
             Account.id.in_([payload.source_account_id, payload.destination_account_id]),
-        )
+        ).order_by(Account.id).with_for_update()
     )
     account_map = {account.id: account for account in accounts.all()}
     source = account_map.get(payload.source_account_id)
@@ -590,10 +590,32 @@ async def reverse_transfer(
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> TransferReversalResponse:
     transfer = await session.scalar(
-        select(Transfer).where(Transfer.id == transfer_id, Transfer.user_id == user.id)
+        select(Transfer)
+        .where(Transfer.id == transfer_id, Transfer.user_id == user.id)
+        .with_for_update()
     )
     if transfer is None:
         raise HTTPException(status_code=404, detail="Transferência não encontrada.")
+
+    accounts = await session.scalars(
+        select(Account)
+        .where(
+            Account.user_id == user.id,
+            Account.id.in_([transfer.source_account_id, transfer.destination_account_id]),
+        )
+        .order_by(Account.id)
+        .with_for_update()
+    )
+    account_map = {account.id: account for account in accounts.all()}
+    if (
+        len(account_map) != 2
+        or account_map[transfer.source_account_id].archived_at is not None
+        or account_map[transfer.destination_account_id].archived_at is not None
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Não é possível estornar uma transferência de conta arquivada.",
+        )
 
     existing_reversal = await session.scalar(
         select(TransferReversal).where(
@@ -714,10 +736,12 @@ async def reverse_transaction(
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> TransactionReversalResponse:
     original = await session.scalar(
-        select(Transaction).where(
+        select(Transaction)
+        .where(
             Transaction.id == transaction_id,
             Transaction.user_id == user.id,
         )
+        .with_for_update()
     )
     if original is None:
         raise HTTPException(status_code=404, detail="Movimentação não encontrada.")
@@ -732,6 +756,17 @@ async def reverse_transaction(
             detail=(
                 "Movimentações de transferência devem ser estornadas pelo fluxo de transferência."
             ),
+        )
+
+    account = await session.scalar(
+        select(Account)
+        .where(Account.id == original.account_id, Account.user_id == user.id)
+        .with_for_update()
+    )
+    if account is None or account.archived_at is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Não é possível estornar uma movimentação de conta arquivada.",
         )
     existing = await session.scalar(
         select(Transaction).where(

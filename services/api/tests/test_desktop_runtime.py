@@ -3,7 +3,29 @@ from pathlib import Path
 
 import pytest
 
-from sfi_api.desktop_runtime import ensure_local_secret
+from sfi_api.desktop_runtime import (
+    _DPAPI_LEGACY_MAGICS,
+    _decode_dpapi_envelope,
+    _encode_dpapi_envelope,
+    ensure_local_secret,
+)
+
+
+def test_dpapi_envelope_rejects_trailing_and_truncated_data():
+    protected = b"opaque-dpapi-payload"
+    envelope = _encode_dpapi_envelope(protected)
+
+    assert _decode_dpapi_envelope(envelope) == protected
+    for tampered in (envelope + b"tamper", envelope[:-1]):
+        with pytest.raises(RuntimeError, match="inválida"):
+            _decode_dpapi_envelope(tampered)
+
+
+def test_legacy_dpapi_envelope_remains_readable():
+    protected = b"legacy-dpapi-payload"
+    envelope = _DPAPI_LEGACY_MAGICS[0] + protected
+
+    assert _decode_dpapi_envelope(envelope) == protected
 
 
 def test_local_secret_is_persistent_and_not_replaced(tmp_path: Path):
@@ -54,7 +76,7 @@ def test_tampered_dpapi_secret_fails_without_replacing_file(tmp_path: Path):
     original = protected_path.read_bytes()
     protected_path.write_bytes(original + b"tamper")
 
-    with pytest.raises(RuntimeError, match="desbloquear"):
+    with pytest.raises(RuntimeError, match="inválida|desbloquear"):
         ensure_local_secret(tmp_path)
 
     assert protected_path.read_bytes() == original + b"tamper"

@@ -1,23 +1,17 @@
-import { useEffect, useState } from "react";
-type ApiHealth = { status: string; app: string; environment: string };
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-export default function App() {
-  const [health, setHealth] = useState<ApiHealth | null>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(API_URL + "/api/v1/health/live", { signal: controller.signal })
-      .then(async response => { if (!response.ok) throw new Error("API respondeu HTTP " + response.status); return await response.json() as ApiHealth; })
-      .then(setHealth).catch((error: unknown) => { if (error instanceof Error && error.name !== "AbortError") setApiError(error.message); });
-    return () => controller.abort();
-  }, []);
-  return <main className="shell">
-    <header className="topbar"><a className="brand" href="/"><span className="brand-mark">S</span><span>SFI</span></a><span className="topbar-label">SISTEMA FINANCEIRO INTELIGENTE</span></header>
-    <section className="hero"><div className="eyebrow"><span/> FUNDAÇÃO DO PROJETO</div><h1>Sua vida financeira,<br/><em>com clareza e direção.</em></h1>
-      <p className="intro">Um espaço para aprender, organizar e tomar decisões melhores sobre o seu dinheiro. O SFI está em construção — esta é a primeira base funcional do produto.</p>
-      <div className="status-card"><div><span className="status-label">API BACKEND</span><strong>{health ? "Conectada" : apiError ? "Não disponível" : "Verificando..."}</strong><small>{health ? health.app + " · " + health.environment : apiError ?? "Consultando serviço local"}</small></div><span className={health ? "status-dot online" : "status-dot"}/></div>
-    </section>
-    <section className="pillars"><article><span>01</span><h2>Aprender</h2><p>Educação financeira acessível, do básico ao avançado.</p></article><article><span>02</span><h2>Organizar</h2><p>Contas, movimentações, orçamento e objetivos em um só lugar.</p></article><article><span>03</span><h2>Decidir</h2><p>Dados, planejamento e inteligência para escolhas conscientes.</p></article></section>
-    <footer><span>SFI · Fundação v0.1.0</span><span>Seus dados permanecem sob seu controle.</span></footer>
-  </main>;
-}
+import {useState} from "react";
+type Tx={name:string;category:string;date:string;value:string};
+const initial:Tx[]=[{name:"Salário",category:"Renda",date:"25 nov",value:"+ R$ 3.200,00"},{name:"Mercado",category:"Alimentação",date:"24 nov",value:"− R$ 186,42"},{name:"Spotify",category:"Assinaturas",date:"23 nov",value:"− R$ 21,90"},{name:"Transporte",category:"Mobilidade",date:"22 nov",value:"− R$ 64,50"},{name:"Freelance",category:"Extra",date:"20 nov",value:"+ R$ 450,00"}];
+const nav=["Dashboard","Movimentações","Contas","Orçamento","Planejamento","Metas","Compras","Relatórios","Aprender"];
+const glyph=["◫","↔","▣","◉","⌁","◎","＋","▥","✦"];
+const sample={Contas:[["Conta principal","Conta demonstrativa","R$ 4.120,80"],["Carteira","Dinheiro","R$ 140,00"],["Reserva","Poupança","R$ 1.000,00"]],Metas:[["Reserva de emergência","R$ 1.000 de R$ 6.000","17%"],["Notebook","R$ 0 de R$ 4.500","0%"],["Viagem","R$ 350 de R$ 2.000","18%"]],Compras:[["Notebook","Tecnologia","Planejado"],["Cadeira ergonômica","Casa","Pesquisando"],["Viagem","Lazer","Wishlist"]],Planejamento:[["Saldo projetado","Próximos 30 dias","R$ 2.466"],["Contas previstas","Próximos 30 dias","R$ 780"],["Meta mensal","Novembro","67%"]],Relatórios:[["Entradas","Novembro","R$ 3.650"],["Saídas","Novembro","R$ 1.184"],["Saldo","Novembro","R$ 2.466"]],Aprender:[["Orçamento 50/30/20","Organização","Guia"],["Reserva de emergência","Planejamento","Guia"],["Juros compostos","Investimentos","Guia"]]};
+export default function App(){const [active,A]=useState("Dashboard"),[hide,H]=useState(false),[tx,T]=useState(initial),[showForm,F]=useState(false),[name,N]=useState(""),[amount,M]=useState(""),[category,C]=useState("Geral");
+const today=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+const fmt=(v:string)=>hide?"••••••":v;
+const submit=()=>{if(!name.trim()||!amount.trim())return;T([{name,category,date:"Hoje",value:"− R$ "+amount},...tx]);N("");M("");F(false);A("Movimentações")};
+return <div className="app"><aside><h2><b>S</b> SFI</h2><div className="profile">◉　Meu espaço</div>{nav.map((n,i)=><button key={n} className={active===n?"active":""} onClick={()=>A(n)}>{glyph[i]}　{n}</button>)}<footer>● Preview demo<br/><small>sem dados bancários</small></footer></aside><main><header>SFI / {active}<span><button onClick={()=>H(!hide)}>◉ {hide?"mostrar":"ocultar"} valores</button>　LT</span></header><div className="content"><small>{today.toUpperCase()}</small><h1>{active==="Dashboard"?"Visão geral":active}</h1><p>Uma visão clara para decisões mais tranquilas.</p><div className="demo">✦ Ambiente de demonstração — valores ilustrativos, sem conexão a contas reais.</div>
+{active==="Dashboard"?
+<><div className="stats">{[["Saldo total","R$ 5.260,80"],["Entradas","R$ 3.650,00"],["Saídas","R$ 1.184,32"],["Economia","R$ 2.465,68"]].map((s,i)=><article key={s[0]}><small>{s[0]}</small><h2>{fmt(s[1])}</h2><small>{["Disponível","Neste período","Neste período","67% das entradas"][i]}</small></article>)}</div><div className="cols"><article><h3>Fluxo financeiro <small>Entradas e saídas no mês</small></h3><div className="chart"><svg viewBox="0 0 600 220" preserveAspectRatio="none"><path d="M0 155 Q60 140 110 125 T220 110 T330 75 T440 92 T600 35 L600 220 L0 220Z" fill="#dcefe6"/><path d="M0 155 Q60 140 110 125 T220 110 T330 75 T440 92 T600 35" fill="none" stroke="#23866a" strokeWidth="3"/><path d="M0 180 Q60 174 110 165 T220 170 T330 158 T440 175 T600 150" fill="none" stroke="#d2a47a" strokeWidth="3" strokeDasharray="6 5"/></svg></div><small>01 nov　 05 nov　 10 nov　 15 nov　 20 nov　 26 nov</small><p>● Entradas　 ● Saídas</p></article><article><h3>Orçamento <small>Distribuição mensal</small></h3><h2>{fmt("R$ 1.184,32")} <small>de R$ 2.200</small></h2><div className="bar"><i/></div><small>54% do limite utilizado</small>{["Alimentação　R$ 438","Transporte　R$ 195","Moradia　R$ 390","Outros　R$ 161"].map(x=><p className="cat" key={x}>{hide?"••••":x}</p>)}</article></div><article><h3>Movimentações recentes <button onClick={()=>A("Movimentações")}>Ver todas ↗</button></h3><TxTable tx={tx.slice(0,5)} hide={hide}/></article></>
+ : active==="Movimentações"?<article><div className="toolbar"><h3>Movimentações</h3><button onClick={()=>F(!showForm)}>＋ Nova movimentação</button></div>{showForm&&<div className="form"><input placeholder="Descrição" value={name} onChange={e=>N(e.target.value)}/><input placeholder="Valor (ex.: 45,90)" value={amount} onChange={e=>M(e.target.value)}/><input placeholder="Categoria" value={category} onChange={e=>C(e.target.value)}/><button onClick={submit}>Salvar na demonstração</button><button onClick={()=>F(false)}>Cancelar</button></div>}<TxTable tx={tx} hide={hide}/></article>
+ : <article><h3>{active} <small>Conteúdo ilustrativo</small></h3><p>Este módulo está em construção. Os dados abaixo são exemplos locais e não são persistidos.</p><table><thead><tr><th>ITEM</th><th>DETALHE</th><th>STATUS / VALOR</th></tr></thead><tbody>{(sample[active as keyof typeof sample]||[["Área em desenvolvimento","SFI","Em breve"],["Experiência demonstrativa","Sem integração","Em construção"]]).map((row,i)=><tr key={i}>{row.map((cell,j)=><td key={j}>{hide&&j===2? "••••":cell}</td>)}</tr>)}</tbody></table><button className="back" onClick={()=>A("Dashboard")}>← Voltar ao dashboard</button></article>}
+<footer>SFI · Preview de interface · Dados fictícios</footer></div></main></div>}
+function TxTable({tx,hide}:{tx:Tx[];hide:boolean}){return <table><thead><tr><th>DESCRIÇÃO</th><th>CATEGORIA</th><th>DATA</th><th>VALOR</th></tr></thead><tbody>{tx.map((r,i)=><tr key={r.name+i}><td>{r.name}</td><td>{r.category}</td><td>{r.date}</td><td className={r.value[0]==="+"?"green":""}>{hide?"•••":r.value}</td></tr>)}</tbody></table>}

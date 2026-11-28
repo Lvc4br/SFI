@@ -27,11 +27,19 @@ def _async_database_url(value: str):
     return url.set(query=query)
 
 
+def _is_neon_pooler_url(value: str) -> bool:
+    url = make_url(value)
+    return bool(url.host and "-pooler" in url.host.lower())
+
+
 if settings.database_url:
+    database_url = _async_database_url(settings.database_url)
+    connect_args = {"statement_cache_size": 0} if _is_neon_pooler_url(settings.database_url) else {}
     _engine = create_async_engine(
-        _async_database_url(settings.database_url),
+        database_url,
         pool_pre_ping=True,
         pool_recycle=300,
+        connect_args=connect_args,
     )
     _session_factory = async_sessionmaker(
         _engine,

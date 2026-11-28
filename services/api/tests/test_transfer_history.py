@@ -1,36 +1,5 @@
-import asyncio
-
-from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-from sfi_api.config import Settings
-from sfi_api.database import get_session
-from sfi_api.main import app
-from sfi_api.models import Base
-
-
-def test_transfer_history_is_paginated_and_user_scoped(tmp_path, monkeypatch):
-    database_path = tmp_path / "transfer-history.db"
-    engine = create_async_engine(f"sqlite+aiosqlite:///{database_path}")
-    factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    async def prepare_database():
-        async with engine.begin() as connection:
-            await connection.run_sync(Base.metadata.create_all)
-
-    asyncio.run(prepare_database())
-
-    async def override_session():
-        async with factory() as session:
-            yield session
-
-    app.dependency_overrides[get_session] = override_session
-    monkeypatch.setattr(
-        "sfi_api.security.get_settings",
-        lambda: Settings(jwt_secret_key="test-only-secret-key-with-at-least-32-bytes"),
-    )
-
-    with TestClient(app) as client:
+def test_transfer_history_is_paginated_and_user_scoped(test_client):
+    client = test_client
         first = client.post(
             "/api/v1/auth/register",
             json={
@@ -79,6 +48,3 @@ def test_transfer_history_is_paginated_and_user_scoped(tmp_path, monkeypatch):
         assert all_transfers.status_code == 200
         assert len(all_transfers.json()) == 2
         assert client.get("/api/v1/finance/transfers", headers=other_headers).json() == []
-
-    app.dependency_overrides.clear()
-    asyncio.run(engine.dispose())

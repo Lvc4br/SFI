@@ -172,3 +172,11 @@ Escopo alinhado à API; testes adicionados (não apagar para passar); Ruff/pytes
 
 ## 13. Governança do plano
 Este arquivo é a referência única para design e roadmap. Atualizar o conteúdo quando API, arquitetura ou prioridade mudar; evitar documentos redundantes, protótipos paralelos e scope creep.
+
+
+## Registro de execução — 28/11/2026
+
+- Infraestrutura de testes da API e build web validados pela CI: execução #1614 concluída com sucesso (Ruff, pytest e build web).
+- Fixture `test_transfer_history.py` consolidada com o fixture compartilhado, eliminando setup/cleanup local redundante.
+- PR #41 segue aberta e em draft/revisão; não foi integrada à `main`.
+- Próximo gate: smoke test de migrações em PostgreSQL na CI e revisão final de cobertura antes de avançar à implementação visual.

@@ -18,7 +18,8 @@ def test_channel_binding_is_removed():
 
 
 def test_neon_pooler_detection_is_host_based():
-    assert _is_neon_pooler_url("postgresql://user:pass@ep-example-pooler.region.aws.neon.tech/db")
+    pooler_url = "postgresql://user:pass@ep-example-pooler.region.aws.neon.tech/db"
+    assert _is_neon_pooler_url(pooler_url)
     assert not _is_neon_pooler_url("postgresql://user:pass@ep-example.region.aws.neon.tech/db")
 
 

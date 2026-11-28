@@ -180,3 +180,12 @@ Este arquivo é a referência única para design e roadmap. Atualizar o conteúd
 - Fixture `test_transfer_history.py` consolidada com o fixture compartilhado, eliminando setup/cleanup local redundante.
 - PR #41 segue aberta e em draft/revisão; não foi integrada à `main`.
 - Próximo gate: smoke test de migrações em PostgreSQL na CI e revisão final de cobertura antes de avançar à implementação visual.
+
+
+## Gate de infraestrutura PostgreSQL — implementação
+
+- CI passa a provisionar PostgreSQL 16 como serviço isolado por execução.
+- Configuração usa credenciais efêmeras de CI (`sfi_ci`), sem acesso ao banco de produção.
+- Pipeline executa `alembic upgrade head` e `alembic current` após Ruff e testes SQLite.
+- Objetivo: validar migrations no dialeto PostgreSQL além dos testes rápidos SQLite.
+- Status: workflow alterado, aguardando resultado de CI antes de considerar gate aprovado.

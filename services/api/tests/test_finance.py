@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
+
 @pytest.fixture
 def client(test_client):
     return test_client

@@ -9,6 +9,7 @@ from sfi_api.database import get_session
 from sfi_api.main import app
 from sfi_api.models import Base
 
+
 @pytest.fixture
 def test_client(tmp_path, monkeypatch):
     database_path = tmp_path / "sfi-test.db"

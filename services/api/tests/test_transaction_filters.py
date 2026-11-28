@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+
 @pytest.fixture
 def client(test_client):
     return test_client

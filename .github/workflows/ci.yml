@@ -7,9 +7,26 @@ on:
 jobs:
   api:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sfi
+          POSTGRES_PASSWORD: sfi_test_password
+          POSTGRES_DB: sfi_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sfi -d sfi_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: services/api
+    env:
+      SFI_DATABASE_URL: postgresql+asyncpg://sfi:sfi_test_password@localhost:5432/sfi_ci
+      SFI_JWT_SECRET_KEY: ci-only-secret-key-that-is-long-enough-32-bytes
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,6 +37,10 @@ jobs:
       - run: python -m pip install --upgrade pip && pip install -e ".[dev]"
       - run: ruff check src tests
       - run: pytest -q
+      - name: Smoke test PostgreSQL migrations
+        run: alembic upgrade head
+      - name: Verify migration revision
+        run: alembic current
   web:
     runs-on: ubuntu-latest
     steps:

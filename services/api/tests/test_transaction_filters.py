@@ -1,14 +1,6 @@
-import asyncio
 from datetime import UTC, datetime, timedelta
 
-from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-from sfi_api.config import Settings
-from sfi_api.database import get_session
-from sfi_api.main import app
-from sfi_api.models import Base
-
+import pytest
 
 @pytest.fixture
 def client(test_client):

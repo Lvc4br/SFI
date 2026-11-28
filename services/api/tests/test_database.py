@@ -1,5 +1,3 @@
-from sqlalchemy.engine import make_url
-
 from sfi_api.database import _async_database_url, _is_neon_pooler_url
 
 
